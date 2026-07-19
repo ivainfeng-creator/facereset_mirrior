@@ -18,7 +18,7 @@ export async function initializeHandLandmarker() {
             delegate: 'GPU',
           },
           runningMode: 'VIDEO',
-          numHands: 1,
+          numHands: 2,
         });
       },
     );
@@ -39,6 +39,22 @@ export function normalizeHandLandmarks(result, mode = LANDMARK_MODES.real) {
     })),
     detectedAt: performance.now(),
   };
+}
+
+export function normalizeAllHandLandmarks(result, mode = LANDMARK_MODES.real) {
+  const hands = result?.landmarks;
+  if (!Array.isArray(hands) || hands.length === 0) return [];
+  return hands
+    .filter((landmarks) => Array.isArray(landmarks) && landmarks.length > INDEX_FINGERTIP_INDEX)
+    .map((landmarks) => ({
+      mode,
+      normalizedLandmarks: landmarks.map((point) => ({
+        x: point.x,
+        y: point.y,
+        z: point.z ?? 0,
+      })),
+      detectedAt: performance.now(),
+    }));
 }
 
 export function getIndexFingertip(handData) {
@@ -76,6 +92,40 @@ export function createMockFingertip(trajectories, time = performance.now()) {
     point,
     mode: LANDMARK_MODES.demo,
     label: 'Mock fingertip',
+  };
+}
+
+export function createMockFingertips(trajectories, time = performance.now()) {
+  const base = createMockFingertip(trajectories, time);
+  if (!base.point) {
+    return {
+      left: null,
+      right: null,
+      all: [],
+      mode: LANDMARK_MODES.demo,
+      label: base.label,
+    };
+  }
+
+  const loop = (time % 3200) / 3200;
+  const phase = 0.5 - Math.cos(loop * Math.PI * 2) / 2;
+  const y = base.point.y;
+  const widthGuess = Math.max(base.point.x * 2, 720);
+  const left = {
+    x: widthGuess * (0.18 + phase * 0.26),
+    y,
+  };
+  const right = {
+    x: widthGuess * (0.82 - phase * 0.26),
+    y,
+  };
+
+  return {
+    left,
+    right,
+    all: [left, right],
+    mode: LANDMARK_MODES.demo,
+    label: 'Mock two-finger wiper',
   };
 }
 

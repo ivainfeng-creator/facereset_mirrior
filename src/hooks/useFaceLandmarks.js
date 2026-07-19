@@ -90,21 +90,32 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
             setDetectorMessage('Real landmark mode');
           } else {
             setDetectorMessage('Looking for landmarks');
+            setLandmarkData(null);
           }
         } catch {
           setDetectorMode(LANDMARK_MODES.mock);
-          setDetectorMessage('Mock landmark mode');
-          setLandmarkData(createMockLandmarkData(LANDMARK_MODES.mock));
+          setDetectorMessage('Landmarks unavailable');
+          setLandmarkData(null);
         }
       }
 
       animationFrame = requestAnimationFrame(tickReal);
     };
 
-    if (isDemoMode || !stream) {
-      setDetectorMode(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock);
-      setDetectorMessage(isDemoMode ? 'No-camera demo mode' : 'Mock landmark mode');
+    if (isDemoMode) {
+      setDetectorMode(LANDMARK_MODES.demo);
+      setDetectorMessage('No-camera demo mode');
       tickMock();
+      return () => {
+        isCancelled = true;
+        cancelAnimationFrame(animationFrame);
+      };
+    }
+
+    if (!stream) {
+      setDetectorMode(LANDMARK_MODES.mock);
+      setDetectorMessage('Camera unavailable');
+      setLandmarkData(null);
       return () => {
         isCancelled = true;
         cancelAnimationFrame(animationFrame);
@@ -123,8 +134,8 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
       .catch(() => {
         if (isCancelled) return;
         setDetectorMode(LANDMARK_MODES.mock);
-        setDetectorMessage('Mock landmark mode');
-        tickMock();
+        setDetectorMessage('Landmarks unavailable · Try Demo');
+        setLandmarkData(null);
       });
 
     return () => {

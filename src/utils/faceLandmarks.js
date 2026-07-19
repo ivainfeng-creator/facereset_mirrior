@@ -29,6 +29,12 @@ const landmarkIndexes = {
   jawRight: 397,
 };
 
+const FACE_OVAL_INDEXES = [
+  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378,
+  400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21,
+  54, 103, 67, 109,
+];
+
 const REQUIRED_FEATURES = [
   'noseCenter',
   'chin',
@@ -55,16 +61,33 @@ export async function createFaceLandmarker() {
     faceLandmarkerPromise = import('@mediapipe/tasks-vision').then(
       async ({ FaceLandmarker, FilesetResolver }) => {
         const vision = await FilesetResolver.forVisionTasks(VISION_WASM_URL);
-        return FaceLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: FACE_MODEL_URL,
-            delegate: 'GPU',
-          },
+        const baseOptions = {
+          modelAssetPath: FACE_MODEL_URL,
+        };
+        const options = {
           runningMode: 'VIDEO',
           numFaces: 1,
           outputFaceBlendshapes: false,
           outputFacialTransformationMatrixes: false,
-        });
+        };
+
+        try {
+          return await FaceLandmarker.createFromOptions(vision, {
+            ...options,
+            baseOptions: {
+              ...baseOptions,
+              delegate: 'GPU',
+            },
+          });
+        } catch {
+          return FaceLandmarker.createFromOptions(vision, {
+            ...options,
+            baseOptions: {
+              ...baseOptions,
+              delegate: 'CPU',
+            },
+          });
+        }
       },
     );
   }
@@ -116,6 +139,15 @@ export function createMockLandmarkData(mode = LANDMARK_MODES.mock, time = perfor
     landmarks[landmarkIndexes[key]] = { x, y, z: 0 };
   });
 
+  FACE_OVAL_INDEXES.forEach((index, pointIndex) => {
+    const angle = (pointIndex / FACE_OVAL_INDEXES.length) * Math.PI * 2;
+    landmarks[index] = {
+      x: center.x + Math.sin(angle) * 0.225,
+      y: center.y - Math.cos(angle) * 0.315,
+      z: 0,
+    };
+  });
+
   return {
     mode,
     normalizedLandmarks: landmarks,
@@ -161,6 +193,8 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
   if (!landmarkData?.normalizedLandmarks?.length || !displayRect) return null;
   const getPoint = (name) =>
     mapNormalizedPointToCanvas(landmarkData.normalizedLandmarks[landmarkIndexes[name]], displayRect, options);
+  const getIndexPoint = (index) =>
+    mapNormalizedPointToCanvas(landmarkData.normalizedLandmarks[index], displayRect, options);
 
   const leftEye = normalizeEyeRegion({
     inner: getPoint('leftEyeInner'),
@@ -191,7 +225,8 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     chin: jaw.chin,
     noseCenter: getPoint('noseCenter'),
   };
-  const bounds = getFeatureBounds([face.top, face.left, face.right, jaw.chin]);
+  const faceOval = FACE_OVAL_INDEXES.map(getIndexPoint).filter(isPoint);
+  const bounds = getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval });
   const faceScale = Math.max(bounds.width, bounds.height);
 
   return {
@@ -205,6 +240,48 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     eyeRegions: extractEyeRegions({ leftEye, rightEye, mouth, faceScale }),
     hasRequiredLandmarks: hasRequiredLandmarks(landmarkData.normalizedLandmarks),
     bounds,
+    faceOval,
+  };
+}
+
+export function getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval = [] }) {
+  const eyeWidth = distance(leftEye.outer, rightEye.outer);
+  const eyeCenter = midpoint(leftEye.center, rightEye.center);
+  const eyeToChin = Math.max(80, Math.abs(jaw.chin.y - eyeCenter.y));
+  const centerX = face.noseCenter.x;
+  const topY = Math.min(face.top.y, eyeCenter.y - eyeToChin * 0.78);
+  const bottomY = jaw.chin.y - eyeToChin * 0.16;
+  const height = Math.max(eyeToChin * 1.06, bottomY - topY);
+  const width = Math.max(eyeWidth * 1.76, height * 0.78);
+  const x = centerX - width / 2;
+  const y = bottomY - height;
+
+  if (faceOval.length < 8) {
+    return {
+      x,
+      y,
+      width,
+      height,
+      center: {
+        x: centerX,
+        y: y + height / 2,
+      },
+    };
+  }
+
+  const ovalBounds = getFeatureBounds(faceOval);
+  const blendedY = y * 0.9 + ovalBounds.y * 0.1 - eyeToChin * 0.02;
+  const blendedHeight = height * 0.92 + ovalBounds.height * 0.08;
+
+  return {
+    x,
+    y: blendedY,
+    width,
+    height: blendedHeight,
+    center: {
+      x: centerX,
+      y: blendedY + blendedHeight / 2,
+    },
   };
 }
 
@@ -224,11 +301,12 @@ export function getFaceAlignmentStatus(features, containerSize, stability = {}) 
 
   const width = features.bounds.width / containerSize.width;
   const height = features.bounds.height / containerSize.height;
+  const eyeDistance = distance(features.leftEye.center, features.rightEye.center) / containerSize.width;
   const centerX = features.face.noseCenter.x / containerSize.width;
   const centerY = features.face.noseCenter.y / containerSize.height;
   const centered = centerX > 0.35 && centerX < 0.65 && centerY > 0.28 && centerY < 0.62;
-  const closeEnough = width > 0.25 && height > 0.38;
-  const notTooClose = width < 0.76 && height < 0.92;
+  const closeEnough = width > 0.18 && height > 0.28 && eyeDistance > 0.12;
+  const notTooClose = width < 0.72 && height < 0.86 && eyeDistance < 0.36;
   const eyesVisible = isUsableEye(features.leftEye) && isUsableEye(features.rightEye);
   const mouthAndChinVisible = isPoint(features.mouth.leftCorner) && isPoint(features.mouth.rightCorner) && isPoint(features.jaw.chin);
   const requiredLandmarks = features.hasRequiredLandmarks;

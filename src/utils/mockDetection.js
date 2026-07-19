@@ -25,15 +25,30 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
   };
 }
 
-export function buildResult(stageScores) {
+export function buildResult(stageScores, snapshots = []) {
   const eye = stageScores.eye ?? 82;
   const score = Math.round(eye);
+  const softVariance = Math.round(Math.sin(score * 0.17) * 5);
+  const radar = [
+    { label: '放鬆雲量', value: clamp(score + 4, 54, 98) },
+    { label: '雨刷節奏', value: clamp(eye + softVariance, 48, 98) },
+    { label: '眼下亮度', value: clamp(score + 8 - softVariance, 52, 99) },
+    { label: '療癒電波', value: clamp(76 + softVariance * 2, 46, 96) },
+    { label: '好玩程度', value: clamp(82 + Math.round(Math.cos(score * 0.11) * 7), 50, 99) },
+    { label: '慢慢來力', value: clamp(88 - Math.abs(84 - score), 45, 98) },
+  ];
 
   return {
     score,
     metrics: {
       eye,
     },
-    comment: '今天的眼周放鬆完成！慢慢滑、輕輕做，比追求完美更重要。',
+    radar,
+    snapshots,
+    comment: '今天的眼下雨刷完成！慢慢刷、輕輕滑，臉上的雲有被擦亮一點。',
   };
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }

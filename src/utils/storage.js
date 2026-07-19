@@ -40,8 +40,9 @@ export function saveResult(result) {
     streak = 1;
   }
 
+  const { snapshots, ...shareSafeResult } = result;
   const saved = {
-    ...result,
+    ...shareSafeResult,
     date,
     streak,
   };

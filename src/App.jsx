@@ -47,7 +47,10 @@ export default function App() {
 
   const finishRoutine = (result) => {
     const saved = saveResult(result);
-    setLatestResult(saved);
+    setLatestResult({
+      ...saved,
+      snapshots: result.snapshots || [],
+    });
     setScreen(SCREENS.result);
   };
 

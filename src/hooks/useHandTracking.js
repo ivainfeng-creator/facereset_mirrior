@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { LANDMARK_MODES } from '../utils/faceLandmarks.js';
 import {
+  createMockFingertips,
   createMockFingertip,
   getIndexFingertip,
   initializeHandLandmarker,
   mapHandCoordinatesToCanvas,
+  normalizeAllHandLandmarks,
   normalizeHandLandmarks,
 } from '../utils/handTracking.js';
 
 export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, trajectories }) {
   const [fingertip, setFingertip] = useState(null);
+  const [fingertips, setFingertips] = useState({ left: null, right: null, all: [] });
   const [handMode, setHandMode] = useState(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock);
   const [handMessage, setHandMessage] = useState('Preparing fingertip');
   const trajectoriesRef = useRef(trajectories);
@@ -26,10 +29,11 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
 
     const tickMock = () => {
       if (isCancelled) return;
-      const mock = createMockFingertip(trajectoriesRef.current, performance.now());
-      setFingertip(mock.point);
+      const mock = createMockFingertips(trajectoriesRef.current, performance.now());
+      setFingertips(mock);
+      setFingertip(mock.left || mock.right || null);
       setHandMode(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock);
-      setHandMessage(isDemoMode ? 'Mock fingertip demo' : 'Mock fingertip');
+      setHandMessage(isDemoMode ? 'Mock two-finger demo' : 'Mock two-finger wiper');
       animationFrame = requestAnimationFrame(tickMock);
     };
 
@@ -40,17 +44,25 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
         lastVideoTime = video.currentTime;
         try {
           const result = landmarker.detectForVideo(video, performance.now());
+          const normalizedHands = normalizeAllHandLandmarks(result, LANDMARK_MODES.real);
+          const mappedTips = normalizedHands
+            .map((hand) => mapHandCoordinatesToCanvas(getIndexFingertip(hand), displayRect, { mirrored: true }))
+            .filter(Boolean)
+            .sort((a, b) => a.x - b.x);
           const normalized = normalizeHandLandmarks(result, LANDMARK_MODES.real);
           const normalizedTip = getIndexFingertip(normalized);
           const mappedTip = mapHandCoordinatesToCanvas(normalizedTip, displayRect, { mirrored: true });
 
-          if (mappedTip) {
-            setFingertip(mappedTip);
+          if (mappedTips.length) {
+            const nextFingertips = splitFingertipsByScreenSide(mappedTips, displayRect);
+            setFingertips(nextFingertips);
+            setFingertip(mappedTip || mappedTips[0]);
             setHandMode(LANDMARK_MODES.real);
-            setHandMessage('Index fingertip tracked');
+            setHandMessage(mappedTips.length > 1 ? 'Two index fingertips tracked' : 'One index fingertip tracked');
           } else {
             setFingertip(null);
-            setHandMessage('Show your index fingertip');
+            setFingertips({ left: null, right: null, all: [] });
+            setHandMessage('Show both index fingertips');
           }
         } catch {
           tickMock();
@@ -89,8 +101,22 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
 
   return {
     fingertip,
+    fingertips,
     handMode,
     handMessage,
     hasFingertip: Boolean(fingertip),
+    hasFingertips: Boolean(fingertips.left || fingertips.right),
+  };
+}
+
+function splitFingertipsByScreenSide(points, displayRect) {
+  const centerX = displayRect.x + displayRect.width / 2;
+  const left = points.filter((point) => point.x <= centerX);
+  const right = points.filter((point) => point.x > centerX);
+
+  return {
+    left: left[left.length - 1] || null,
+    right: right[0] || null,
+    all: points,
   };
 }

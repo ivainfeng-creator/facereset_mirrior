@@ -203,20 +203,27 @@ export function generateFacePromptAnchors(features) {
 export function generateFaceOvalPath(features) {
   if (!features) return '';
   const bounds = features.bounds;
-  const padX = bounds.width * 0.18;
-  const padTop = bounds.height * 0.08;
-  const padBottom = bounds.height * 0.04;
+  const padX = bounds.width * 0.14;
+  const padTop = bounds.height * 0.06;
+  const padBottom = bounds.height * 0.01;
   const x = bounds.x - padX;
   const y = bounds.y - padTop;
   const width = bounds.width + padX * 2;
   const height = bounds.height + padTop + padBottom;
   const cx = x + width / 2;
   const cy = y + height / 2;
+  const kappa = 0.5522847498;
+  const rx = width / 2;
+  const ry = height / 2;
+  const ox = rx * kappa;
+  const oy = ry * kappa;
 
   return [
     `M ${round(cx)} ${round(y)}`,
-    `C ${round(x)} ${round(y)} ${round(x)} ${round(y + height)} ${round(cx)} ${round(y + height)}`,
-    `C ${round(x + width)} ${round(y + height)} ${round(x + width)} ${round(y)} ${round(cx)} ${round(y)}`,
+    `C ${round(cx - ox)} ${round(y)} ${round(x)} ${round(cy - oy)} ${round(x)} ${round(cy)}`,
+    `C ${round(x)} ${round(cy + oy)} ${round(cx - ox)} ${round(y + height)} ${round(cx)} ${round(y + height)}`,
+    `C ${round(cx + ox)} ${round(y + height)} ${round(x + width)} ${round(cy + oy)} ${round(x + width)} ${round(cy)}`,
+    `C ${round(x + width)} ${round(cy - oy)} ${round(cx + ox)} ${round(y)} ${round(cx)} ${round(y)}`,
     'Z',
   ].join(' ');
 }

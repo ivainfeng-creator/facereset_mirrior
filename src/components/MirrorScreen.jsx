@@ -60,12 +60,17 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onDemoMode, 
           width={containerSize.width}
           height={containerSize.height}
         />
+        <LandmarkLoadingOverlay
+          detectorMode={detectorMode}
+          isDemoMode={isDemoMode}
+          hasFeatures={Boolean(features)}
+        />
         <div className="alignment-card">
           <span className="pulse-dot" />
           <span>{alignment.label}</span>
         </div>
         <div className="mode-chip">
-          {formatDetectorMode(detectorMode)} · {detectorMessage}
+          Eye-only Rain v2 · {formatDetectorMode(detectorMode)} · {detectorMessage}
         </div>
         <div className="quality-meter" aria-label={`Face quality ${alignment.quality}%`}>
           <span style={{ width: `${alignment.quality}%` }} />
@@ -75,39 +80,39 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onDemoMode, 
   );
 }
 
+function LandmarkLoadingOverlay({ detectorMode, isDemoMode, hasFeatures }) {
+  if (hasFeatures || isDemoMode) return null;
+
+  const message =
+    detectorMode === 'mock-landmark'
+      ? 'Real landmarks are not ready. Use Demo if camera landmark loading fails.'
+      : 'Loading real facial landmarks';
+
+  return (
+    <div className="landmark-loading-overlay">
+      <div className="landmark-loading-card">
+        <span className="pulse-dot" />
+        <span>{message}</span>
+      </div>
+    </div>
+  );
+}
+
 function AlignmentLandmarkOverlay({ alignment, features, width, height }) {
   if (!features || !width || !height) return null;
   const ovalPath = generateFaceOvalPath(features);
-  const checks = [
-    ['Centered', alignment.checks?.centered],
-    ['Distance', alignment.checks?.distance],
-    ['Eyes', alignment.checks?.eyes],
-    ['Mouth + chin', alignment.checks?.mouthChin],
-    ['Stable', alignment.checks?.stable],
-  ];
+  const leftEye = features.leftEye.center;
+  const rightEye = features.rightEye.center;
+  const mouth = features.mouth.center;
 
   return (
     <svg className="landmark-overlay alignment-overlay" viewBox={`0 0 ${width} ${height}`}>
       <path className="face-oval-path" d={ovalPath} />
-      <rect
-        className="face-bounds-box"
-        x={features.bounds.x}
-        y={features.bounds.y}
-        width={features.bounds.width}
-        height={features.bounds.height}
-        rx="18"
-      />
+      <line className="alignment-feature-line" x1={leftEye.x} y1={leftEye.y} x2={rightEye.x} y2={rightEye.y} />
+      <circle className="alignment-anchor" cx={leftEye.x} cy={leftEye.y} r="4" />
+      <circle className="alignment-anchor" cx={rightEye.x} cy={rightEye.y} r="4" />
       <circle className="nose-anchor" cx={features.face.noseCenter.x} cy={features.face.noseCenter.y} r="5" />
-      <foreignObject x="18" y="62" width="170" height="190">
-        <div className="alignment-checks">
-          {checks.map(([label, isReady]) => (
-            <div className={isReady ? 'ready' : ''} key={label}>
-              <span />
-              {label}
-            </div>
-          ))}
-        </div>
-      </foreignObject>
+      <circle className="alignment-anchor soft" cx={mouth.x} cy={mouth.y} r="4" />
     </svg>
   );
 }
