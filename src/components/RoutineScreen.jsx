@@ -239,24 +239,298 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
 
 function RainScene({ interaction }) {
   const cleared = Math.round((interaction.completion || 0) * 100);
+  const canvasRef = useRef(null);
+  const interactionRef = useRef(interaction);
+
+  useEffect(() => {
+    interactionRef.current = interaction;
+  }, [interaction]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+
+    let animationFrame = 0;
+    let width = 0;
+    let height = 0;
+    let droplets = [];
+    let impacts = [];
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      const context = canvas.getContext('2d');
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      droplets = createRainDroplets(width, height);
+      impacts = createRainImpacts(width, height);
+    };
+
+    const draw = (time) => {
+      const context = canvas.getContext('2d');
+      if (!width || !height) resize();
+      drawBlurredRoad(context, width, height, time);
+      drawGlassWater(context, width, height, time, droplets, impacts, interactionRef.current);
+      drawCleanedSweep(context, width, height, interactionRef.current);
+      animationFrame = requestAnimationFrame(draw);
+    };
+
+    resize();
+    animationFrame = requestAnimationFrame(draw);
+    window.addEventListener('resize', resize);
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
 
   return (
     <div className="rain-scene" aria-hidden="true">
-      <div className="windshield-frame" />
-      <div className="dashboard-edge" />
-      <div className="rain-sky" />
-      <div className="street-glow left" />
-      <div className="street-glow right" />
-      <div className="rain-layer near" />
-      <div className="rain-layer far" />
-      <div className="glass-fog" />
-      <div className="water-beads" />
-      <div className="running-drops" />
+      <canvas ref={canvasRef} className="rain-canvas" />
       <div className="cleared-meter" style={{ '--cleared': `${cleared}%` }}>
         <span />
       </div>
     </div>
   );
+}
+
+function createRainDroplets(width, height) {
+  const count = Math.round(Math.min(190, Math.max(82, (width * height) / 5200)));
+  return Array.from({ length: count }, (_, index) => {
+    const sizeBias = Math.random() ** 1.8;
+    return {
+      id: index,
+      x: Math.random() * width,
+      y: Math.random() * height,
+      radius: 1.4 + sizeBias * 12,
+      stretch: 0.7 + Math.random() * 1.8,
+      speed: 0.03 + Math.random() * 0.42,
+      opacity: 0.22 + Math.random() * 0.48,
+      trail: Math.random() > 0.68 ? 16 + Math.random() * 80 : 0,
+      wobble: Math.random() * Math.PI * 2,
+    };
+  });
+}
+
+function createRainImpacts(width, height) {
+  return Array.from({ length: 18 }, (_, index) => ({
+    id: index,
+    x: Math.random() * width,
+    y: Math.random() * height,
+    life: Math.random(),
+    speed: 0.006 + Math.random() * 0.012,
+    size: 5 + Math.random() * 16,
+  }));
+}
+
+function drawBlurredRoad(context, width, height, time) {
+  const drift = Math.sin(time / 6000) * width * 0.012;
+  const sky = context.createLinearGradient(0, 0, 0, height);
+  sky.addColorStop(0, '#dcebea');
+  sky.addColorStop(0.34, '#b6cbca');
+  sky.addColorStop(0.58, '#879d9e');
+  sky.addColorStop(1, '#2e3d42');
+  context.fillStyle = sky;
+  context.fillRect(0, 0, width, height);
+
+  context.save();
+  context.filter = `blur(${Math.max(10, width * 0.018)}px) saturate(0.92)`;
+  context.translate(drift, 0);
+
+  const horizon = height * 0.52;
+  context.fillStyle = 'rgba(66, 91, 88, 0.34)';
+  context.fillRect(-width * 0.12, horizon - height * 0.07, width * 1.24, height * 0.18);
+
+  const road = context.createLinearGradient(0, horizon, 0, height);
+  road.addColorStop(0, 'rgba(148, 163, 157, 0.48)');
+  road.addColorStop(0.52, 'rgba(82, 95, 93, 0.62)');
+  road.addColorStop(1, 'rgba(20, 30, 31, 0.86)');
+  context.fillStyle = road;
+  context.beginPath();
+  context.moveTo(-width * 0.2, height);
+  context.lineTo(width * 0.36, horizon);
+  context.lineTo(width * 0.64, horizon);
+  context.lineTo(width * 1.2, height);
+  context.closePath();
+  context.fill();
+
+  context.strokeStyle = 'rgba(241, 236, 187, 0.42)';
+  context.lineWidth = Math.max(7, width * 0.018);
+  context.beginPath();
+  context.moveTo(width * 0.42, height);
+  context.lineTo(width * 0.5, horizon + height * 0.05);
+  context.moveTo(width * 0.58, height);
+  context.lineTo(width * 0.52, horizon + height * 0.05);
+  context.stroke();
+
+  drawBlurredVehicle(context, width * 0.18, horizon - height * 0.03, width * 0.24, height * 0.11, '#e7eeea');
+  drawBlurredVehicle(context, width * 0.74, horizon - height * 0.02, width * 0.22, height * 0.12, '#45585a');
+  drawBokeh(context, width * 0.23, horizon + height * 0.02, width * 0.035, '#d02028', 0.85);
+  drawBokeh(context, width * 0.88, horizon - height * 0.01, width * 0.052, '#ff9c22', 0.95);
+  drawBokeh(context, width * 0.62, horizon + height * 0.015, width * 0.025, '#e91d2e', 0.72);
+  drawBokeh(context, width * 0.45, horizon - height * 0.22, width * 0.06, '#f4f5de', 0.28);
+
+  context.restore();
+
+  context.fillStyle = 'rgba(218, 239, 238, 0.12)';
+  context.fillRect(0, 0, width, height);
+}
+
+function drawBlurredVehicle(context, x, y, width, height, color) {
+  context.fillStyle = color;
+  context.beginPath();
+  context.roundRect(x, y, width, height, Math.min(18, height * 0.22));
+  context.fill();
+}
+
+function drawBokeh(context, x, y, radius, color, alpha) {
+  const glow = context.createRadialGradient(x, y, 0, x, y, radius);
+  glow.addColorStop(0, color);
+  glow.addColorStop(0.42, color);
+  glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  context.globalAlpha = alpha;
+  context.fillStyle = glow;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.fill();
+  context.globalAlpha = 1;
+}
+
+function drawGlassWater(context, width, height, time, droplets, impacts, interaction) {
+  context.save();
+  context.fillStyle = 'rgba(236, 255, 255, 0.16)';
+  context.fillRect(0, 0, width, height);
+  context.restore();
+
+  droplets.forEach((drop) => {
+    drop.y += drop.speed;
+    drop.x += Math.sin(time / 1700 + drop.wobble) * 0.014;
+    if (drop.y - drop.radius > height + 90) {
+      drop.x = Math.random() * width;
+      drop.y = -drop.radius - Math.random() * height * 0.18;
+    }
+
+    const fade = getWiperFade(drop, width, height, interaction);
+    if (fade < 0.08) return;
+    drawDroplet(context, drop, fade);
+  });
+
+  impacts.forEach((impact) => {
+    impact.life += impact.speed;
+    if (impact.life > 1) {
+      impact.life = 0;
+      impact.x = Math.random() * width;
+      impact.y = Math.random() * height * 0.82;
+      impact.size = 5 + Math.random() * 16;
+    }
+    drawRainImpact(context, impact);
+  });
+}
+
+function drawDroplet(context, drop, fade) {
+  const rx = drop.radius * drop.stretch;
+  const ry = drop.radius;
+  context.save();
+  context.globalAlpha = drop.opacity * fade;
+  context.translate(drop.x, drop.y);
+
+  if (drop.trail) {
+    const trail = context.createLinearGradient(0, -drop.trail * 0.1, 0, drop.trail);
+    trail.addColorStop(0, 'rgba(255,255,255,0.34)');
+    trail.addColorStop(0.42, 'rgba(220,246,246,0.14)');
+    trail.addColorStop(1, 'rgba(220,246,246,0)');
+    context.fillStyle = trail;
+    context.beginPath();
+    context.ellipse(0, drop.trail * 0.38, Math.max(1.3, rx * 0.22), drop.trail * 0.58, 0, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  const rim = context.createRadialGradient(-rx * 0.28, -ry * 0.32, 0, 0, 0, Math.max(rx, ry) * 1.2);
+  rim.addColorStop(0, 'rgba(255,255,255,0.9)');
+  rim.addColorStop(0.18, 'rgba(255,255,255,0.34)');
+  rim.addColorStop(0.48, 'rgba(84,105,103,0.12)');
+  rim.addColorStop(0.72, 'rgba(20,38,39,0.34)');
+  rim.addColorStop(1, 'rgba(255,255,255,0.24)');
+  context.fillStyle = rim;
+  context.beginPath();
+  context.ellipse(0, 0, rx, ry, drop.wobble * 0.08, 0, Math.PI * 2);
+  context.fill();
+
+  context.strokeStyle = 'rgba(245,255,255,0.62)';
+  context.lineWidth = Math.max(0.8, drop.radius * 0.16);
+  context.beginPath();
+  context.ellipse(0, 0, rx, ry, drop.wobble * 0.08, -Math.PI * 0.82, Math.PI * 0.22);
+  context.stroke();
+
+  context.fillStyle = 'rgba(255,255,255,0.86)';
+  context.beginPath();
+  context.arc(-rx * 0.34, -ry * 0.34, Math.max(0.8, drop.radius * 0.13), 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function drawRainImpact(context, impact) {
+  const alpha = Math.sin(impact.life * Math.PI) * 0.28;
+  context.save();
+  context.globalAlpha = alpha;
+  context.strokeStyle = 'rgba(245,255,255,0.72)';
+  context.lineWidth = 1.2;
+  context.beginPath();
+  context.arc(impact.x, impact.y, impact.size * impact.life, 0, Math.PI * 2);
+  context.stroke();
+  context.restore();
+}
+
+function drawCleanedSweep(context, width, height, interaction) {
+  const leftPivot = { x: width * 0.28, y: height * 0.94 };
+  const rightPivot = { x: width * 0.72, y: height * 0.94 };
+  const radius = Math.min(width * 0.43, height * 0.74) * 0.9;
+  const sweeps = [
+    { pivot: leftPivot, start: -58, end: -58 + (interaction.leftSweep ?? 0.5) * 96 },
+    { pivot: rightPivot, start: -38, end: -38 + (interaction.rightSweep ?? 0.5) * 96 },
+  ];
+
+  context.save();
+  context.globalAlpha = 0.34;
+  context.strokeStyle = 'rgba(236, 255, 255, 0.52)';
+  context.lineCap = 'round';
+  context.lineWidth = radius * 0.12;
+  context.filter = 'blur(0.8px)';
+  sweeps.forEach(({ pivot, start, end }) => {
+    context.beginPath();
+    context.arc(pivot.x, pivot.y, radius, degreesToRadians(start - 90), degreesToRadians(end - 90));
+    context.stroke();
+  });
+  context.restore();
+}
+
+function getWiperFade(drop, width, height, interaction) {
+  const radius = Math.min(width * 0.43, height * 0.74) * 0.9;
+  const leftPivot = { x: width * 0.28, y: height * 0.94 };
+  const rightPivot = { x: width * 0.72, y: height * 0.94 };
+  const leftEnd = -58 + (interaction.leftSweep ?? 0.5) * 96;
+  const rightEnd = -38 + (interaction.rightSweep ?? 0.5) * 96;
+  const inLeft = isNearSweptArc(drop, leftPivot, radius, -58, leftEnd);
+  const inRight = isNearSweptArc(drop, rightPivot, radius, -38, rightEnd);
+  return inLeft || inRight ? 0.18 : 1;
+}
+
+function isNearSweptArc(point, pivot, radius, start, end) {
+  const dx = point.x - pivot.x;
+  const dy = point.y - pivot.y;
+  const distanceFromArc = Math.abs(Math.hypot(dx, dy) - radius);
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+  const minAngle = Math.min(start, end) - 8;
+  const maxAngle = Math.max(start, end) + 8;
+  return distanceFromArc < radius * 0.13 && angle >= minAngle && angle <= maxAngle;
+}
+
+function degreesToRadians(degrees) {
+  return (degrees * Math.PI) / 180;
 }
 
 function TrackingVideo({ videoRef, isDemoMode }) {
@@ -305,7 +579,6 @@ function WindshieldWiperOverlay({ fingertips, height, interaction, width }) {
       <WiperClearArc pivot={rightPivot} radius={bladeLength} side="right" progress={interaction.rightCompletion || 0} />
       <WiperBlade pivot={leftPivot} length={bladeLength} angle={leftAngle} />
       <WiperBlade pivot={rightPivot} length={bladeLength} angle={rightAngle} />
-      <WiperGestureBand width={width} height={height} />
       {fingertips?.left && <FingertipDot point={fingertips.left} side="left" isOnTrack={interaction.leftOnTrack} />}
       {fingertips?.right && <FingertipDot point={fingertips.right} side="right" isOnTrack={interaction.rightOnTrack} />}
     </svg>
@@ -327,7 +600,7 @@ function WiperBlade({ pivot, length, angle }) {
 function WiperClearArc({ pivot, radius, side, progress }) {
   const startAngle = side === 'left' ? -58 : -38;
   const endAngle = side === 'left' ? 38 : 58;
-  const path = describeArc(pivot.x, pivot.y, radius * 0.72, startAngle, endAngle);
+  const path = describeArc(pivot.x, pivot.y, radius * 0.9, startAngle, endAngle);
   const dash = Math.round(22 + progress * 74);
 
   return (
@@ -335,19 +608,8 @@ function WiperClearArc({ pivot, radius, side, progress }) {
       className="wiper-clear-arc"
       d={path}
       pathLength="100"
-      style={{ strokeDasharray: `${dash} 100`, strokeWidth: radius * 0.34 }}
+      style={{ strokeDasharray: `${dash} 100`, strokeWidth: radius * 0.2 }}
     />
-  );
-}
-
-function WiperGestureBand({ width, height }) {
-  const y = height * 0.5;
-  return (
-    <g className="wiper-gesture-band">
-      <path d={`M ${width * 0.22} ${y} C ${width * 0.38} ${y + height * 0.05} ${width * 0.62} ${y + height * 0.05} ${width * 0.78} ${y}`} />
-      <circle cx={width * 0.22} cy={y} r="5" />
-      <circle cx={width * 0.78} cy={y} r="5" />
-    </g>
   );
 }
 

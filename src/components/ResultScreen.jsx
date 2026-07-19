@@ -1,63 +1,53 @@
+import { useState } from 'react';
 import ResultCard from './ResultCard.jsx';
 
 export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
-  const downloadCard = async () => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    const width = 900;
-    const height = 1200;
-    const score = result?.score ?? 88;
-    const snapshots = result?.snapshots || [];
-    const radar = normalizeDownloadRadar(result?.radar);
-    canvas.width = width;
-    canvas.height = height;
+  const [exportMessage, setExportMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, width, height);
-
-    context.fillStyle = '#0f1111';
-    context.textAlign = 'center';
-    context.font = '900 58px Inter, sans-serif';
-    context.fillText('what’s your reset vibe?', width / 2, 108);
-    context.font = '760 26px Inter, sans-serif';
-    context.fillText('pause and see which face reset mood matches your energy.', width / 2, 154);
-
-    const images = await Promise.all(snapshots.slice(0, 5).map((snapshot) => loadImage(snapshot.image)));
-    const hero = images[Math.floor(images.length / 2)];
-    drawRadar(context, radar, width / 2, 560, 330);
-
-    if (hero) {
-      drawPortraitCutout(context, hero, width / 2 - 142, 418, 284, 284);
-    } else {
-      context.fillStyle = '#eef6f3';
-      roundRect(context, width / 2 - 142, 418, 284, 284, 72);
-      context.fill();
+  const downloadVideo = async () => {
+    setIsExporting(true);
+    setExportMessage('Creating your animated reset video...');
+    try {
+      const video = await createResultVideo({ result, habit });
+      downloadBlob(video.blob, `face-reset-vibe.${video.extension}`);
+      setExportMessage(`Downloaded ${video.extension.toUpperCase()} video.`);
+    } catch {
+      const image = await createResultImage({ result, habit });
+      downloadBlob(image.blob, 'face-reset-vibe.png');
+      setExportMessage('Video export was not supported here, so a PNG was downloaded.');
+    } finally {
+      setIsExporting(false);
     }
+  };
 
-    drawPlayButton(context, width / 2, 560, 84);
+  const shareVideo = async () => {
+    setIsExporting(true);
+    setExportMessage('Preparing video for sharing...');
+    try {
+      const video = await createResultVideo({ result, habit });
+      const file = new File([video.blob], `face-reset-vibe.${video.extension}`, { type: video.mimeType });
 
-    context.fillStyle = '#0f1111';
-    context.textAlign = 'left';
-    context.font = '900 42px Inter, sans-serif';
-    context.fillText(`Score ${score}`, 76, 1040);
-    context.font = '800 26px Inter, sans-serif';
-    context.fillText(`Streak Day ${result?.streak || habit?.streak || 1}`, 76, 1080);
-
-    context.fillStyle = '#515b59';
-    context.font = '500 24px Inter, sans-serif';
-    wrapText(
-      context,
-      result?.comment || '今天的眼下雨刷完成！慢慢刷、輕輕滑，臉上的雲有被擦亮一點。',
-      76,
-      1124,
-      748,
-      34,
-    );
-
-    const link = document.createElement('a');
-    link.download = 'face-reset-result.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+      if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: 'Face Reset Mirror',
+          text: 'My Face Reset vibe today.',
+        });
+        setExportMessage('Share sheet opened. Choose Instagram if it appears.');
+      } else {
+        downloadBlob(video.blob, `face-reset-vibe.${video.extension}`);
+        setExportMessage('This browser cannot share video files directly. Video downloaded for manual Instagram upload.');
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        setExportMessage('Share cancelled.');
+      } else {
+        setExportMessage('Sharing was not available here. Try downloading the video instead.');
+      }
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -65,17 +55,171 @@ export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
       <ResultCard result={result} habit={habit} />
 
       <div className="button-row result-actions">
-        <button className="primary-button" onClick={onRestart}>
+        <button className="primary-button" onClick={onRestart} disabled={isExporting}>
           Restart Routine
         </button>
-        <button className="secondary-button" onClick={downloadCard}>
-          Download Result Card
+        <button className="secondary-button" onClick={downloadVideo} disabled={isExporting}>
+          Download Animated Video
         </button>
-        <button className="ghost-button text-ghost" onClick={onDemoMode}>
+        <button className="secondary-button" onClick={shareVideo} disabled={isExporting}>
+          Share Video
+        </button>
+        <button className="ghost-button text-ghost" onClick={onDemoMode} disabled={isExporting}>
           Try Demo Mode Again
         </button>
       </div>
+      {exportMessage && <p className="export-message">{exportMessage}</p>}
     </section>
+  );
+}
+
+async function createResultImage({ result, habit }) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const width = 900;
+  const height = 1200;
+  const score = result?.score ?? 88;
+  const snapshots = result?.snapshots || [];
+  const radar = normalizeDownloadRadar(result?.radar);
+  const images = await Promise.all(snapshots.slice(0, 5).map((snapshot) => loadImage(snapshot.image)));
+  const hero = images[Math.floor(images.length / 2)];
+  canvas.width = width;
+  canvas.height = height;
+
+  drawResultFrame(context, {
+    habit,
+    hero,
+    progress: 1,
+    radar,
+    result,
+    score,
+    showPlay: true,
+    width,
+    height,
+  });
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve({ blob, extension: 'png', mimeType: 'image/png' }), 'image/png');
+  });
+}
+
+async function createResultVideo({ result, habit }) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
+    throw new Error('Video export is not supported in this browser.');
+  }
+
+  const width = 900;
+  const height = 1200;
+  const durationMs = 4200;
+  const fps = 30;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const snapshots = result?.snapshots || [];
+  const images = await Promise.all(snapshots.slice(0, 5).map((snapshot) => loadImage(snapshot.image)));
+  const usableImages = images.filter(Boolean);
+  const radar = normalizeDownloadRadar(result?.radar);
+  const score = result?.score ?? 88;
+  const mimeType = pickVideoMimeType();
+
+  if (!mimeType) {
+    throw new Error('No supported video mime type.');
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const stream = canvas.captureStream(fps);
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond: 5_500_000,
+  });
+  const chunks = [];
+  recorder.ondataavailable = (event) => {
+    if (event.data?.size) chunks.push(event.data);
+  };
+
+  const stopped = new Promise((resolve) => {
+    recorder.onstop = resolve;
+  });
+  recorder.start();
+
+  await renderVideoFrames({
+    context,
+    durationMs,
+    fps,
+    frame: (progress) => {
+      const image = usableImages.length
+        ? usableImages[Math.floor(progress * durationMs / 480) % usableImages.length]
+        : null;
+      drawResultFrame(context, {
+        habit,
+        hero: image,
+        progress,
+        radar,
+        result,
+        score,
+        showPlay: false,
+        width,
+        height,
+      });
+    },
+  });
+
+  recorder.stop();
+  stream.getTracks().forEach((track) => track.stop());
+  await stopped;
+
+  return {
+    blob: new Blob(chunks, { type: mimeType }),
+    extension: mimeType.includes('mp4') ? 'mp4' : 'webm',
+    mimeType,
+  };
+}
+
+function drawResultFrame(context, { habit, hero, progress, radar, result, score, showPlay = false, width, height }) {
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = '#0f1111';
+  context.textAlign = 'center';
+  context.font = '900 58px Inter, sans-serif';
+  context.fillText('what’s your reset vibe?', width / 2, 108);
+  context.font = '760 26px Inter, sans-serif';
+  context.fillText('pause and see which face reset mood matches your energy.', width / 2, 154);
+
+  drawRadar(context, radar, width / 2, 560, 330, progress);
+
+  if (hero) {
+    const pulse = 1 + Math.sin(progress * Math.PI * 10) * 0.018;
+    const size = 284 * pulse;
+    drawPortraitCutout(context, hero, width / 2 - size / 2, 560 - size / 2, size, size);
+  } else {
+    context.fillStyle = '#eef6f3';
+    roundRect(context, width / 2 - 142, 418, 284, 284, 72);
+    context.fill();
+  }
+
+  if (showPlay) {
+    drawPlayButton(context, width / 2, 560, 84);
+  }
+
+  context.fillStyle = '#0f1111';
+  context.textAlign = 'left';
+  context.font = '900 42px Inter, sans-serif';
+  context.fillText(`Score ${score}`, 76, 1040);
+  context.font = '800 26px Inter, sans-serif';
+  context.fillText(`Streak Day ${result?.streak || habit?.streak || 1}`, 76, 1080);
+
+  context.fillStyle = '#515b59';
+  context.font = '500 24px Inter, sans-serif';
+  wrapText(
+    context,
+    result?.comment || '今天的眼下雨刷完成！慢慢刷、輕輕滑，臉上的雲有被擦亮一點。',
+    76,
+    1124,
+    748,
+    34,
   );
 }
 
@@ -87,14 +231,6 @@ function roundRect(context, x, y, width, height, radius) {
   context.arcTo(x, y + height, x, y, radius);
   context.arcTo(x, y, x + width, y, radius);
   context.closePath();
-}
-
-function drawRoundedImage(context, image, x, y, width, height, radius) {
-  context.save();
-  roundRect(context, x, y, width, height, radius);
-  context.clip();
-  context.drawImage(image, x, y, width, height);
-  context.restore();
 }
 
 function drawPortraitCutout(context, image, x, y, width, height) {
@@ -138,14 +274,15 @@ function drawPlayButton(context, centerX, centerY, radius) {
   context.restore();
 }
 
-function drawRadar(context, metrics, centerX, centerY, radius) {
+function drawRadar(context, metrics, centerX, centerY, radius, progress = 1) {
   const points = metrics.map((metric, index) => {
     const angle = -Math.PI / 2 + (index / metrics.length) * Math.PI * 2;
+    const animatedValue = (metric.value || 0) * Math.min(1, 0.38 + progress * 1.2);
     return {
       ...metric,
       angle,
-      x: centerX + Math.cos(angle) * radius * ((metric.value || 0) / 100),
-      y: centerY + Math.sin(angle) * radius * ((metric.value || 0) / 100),
+      x: centerX + Math.cos(angle) * radius * (animatedValue / 100),
+      y: centerY + Math.sin(angle) * radius * (animatedValue / 100),
       axisX: centerX + Math.cos(angle) * radius,
       axisY: centerY + Math.sin(angle) * radius,
       labelX: centerX + Math.cos(angle) * (radius + 44),
@@ -229,6 +366,42 @@ function loadImage(src) {
     image.onerror = () => resolve(null);
     image.src = src;
   });
+}
+
+function renderVideoFrames({ context, durationMs, fps, frame }) {
+  const frameCount = Math.ceil((durationMs / 1000) * fps);
+  return new Promise((resolve) => {
+    let index = 0;
+    const render = () => {
+      const progress = index / Math.max(1, frameCount - 1);
+      frame(progress, context);
+      index += 1;
+      if (index <= frameCount) {
+        window.setTimeout(render, 1000 / fps);
+      } else {
+        resolve();
+      }
+    };
+    render();
+  });
+}
+
+function pickVideoMimeType() {
+  return [
+    'video/mp4;codecs=h264',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+}
+
+function downloadBlob(blob, filename) {
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.download = filename;
+  link.href = url;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 800);
 }
 
 function wrapText(context, text, x, y, maxWidth, lineHeight) {
