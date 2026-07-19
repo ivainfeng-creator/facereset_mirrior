@@ -5,12 +5,7 @@ import { useHandTracking } from '../hooks/useHandTracking.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
 import {
   createAnimatedPathStyle,
-  createJawReleasePath,
-  createSmileStretchPath,
   createUnderEyePath,
-  generateFaceOvalPath,
-  generateFacePromptAnchors,
-  generateMouthCornerHighlights,
 } from '../utils/overlayPaths.js';
 import { scoreFingertipAgainstPaths } from '../utils/pathTracking.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
@@ -19,6 +14,7 @@ const totalSeconds = STAGE_SECONDS * routineStages.length;
 
 export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
   const videoRef = useRef(null);
+  const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
   const previousFingerRef = useRef(null);
   const [elapsed, setElapsed] = useState(0);
@@ -33,6 +29,9 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
+    }
+    if (previewVideoRef.current && stream) {
+      previewVideoRef.current.srcObject = stream;
     }
   }, [stream]);
 
@@ -125,7 +124,8 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
 
       <div className="routine-layout">
         <div className="mirror-stage routine-mirror" ref={stageRef}>
-          <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} />
+          <RainScene interaction={interaction} />
+          <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
           <LandmarkGuidanceOverlay
             accent={stage.accent}
             area={stage.area}
@@ -137,6 +137,13 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
             trajectories={trajectories}
             width={containerSize.width}
           />
+          <CameraPreview
+            detectorMode={detectorMode}
+            handMode={handMode}
+            isDemoMode={isDemoMode}
+            previewVideoRef={previewVideoRef}
+            stream={stream}
+          />
           <div className="ai-label top-label">
             {formatDetectorMode(detectorMode)} · {formatDetectorMode(handMode)} hand ·{' '}
             {hasLandmarks && hasFingertip ? `Tracking ${interaction.score}` : handMessage}
@@ -146,12 +153,12 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
           </div>
         </div>
 
-        <aside className="guidance-panel">
+        <aside className="guidance-panel routine-hud">
           <div className="stage-chip" style={{ '--accent': stage.accent }}>
-            Stage {stageIndex + 1} / {routineStages.length}
+            Rain Wiper Eye Reset
           </div>
           <h2>{stage.title}</h2>
-          <p>{stage.task}</p>
+          <p>把手指當成小雨刷，沿著下眼周發光軌跡，慢慢把雨水刷開。</p>
 
           <div className="score-row">
             <span>Trajectory score</span>
@@ -202,6 +209,52 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
   );
 }
 
+function RainScene({ interaction }) {
+  const cleared = Math.round((interaction.completion || 0) * 100);
+
+  return (
+    <div className="rain-scene" aria-hidden="true">
+      <div className="rain-sky" />
+      <div className="rain-layer near" />
+      <div className="rain-layer far" />
+      <div className="glass-fog" />
+      <div className="water-beads" />
+      <div className="cleared-meter" style={{ '--cleared': `${cleared}%` }}>
+        <span />
+      </div>
+    </div>
+  );
+}
+
+function TrackingVideo({ videoRef, isDemoMode }) {
+  if (isDemoMode) {
+    return <div className="tracking-video-placeholder" />;
+  }
+
+  return <video ref={videoRef} className="tracking-video" autoPlay playsInline muted />;
+}
+
+function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, stream }) {
+  return (
+    <div className="camera-preview" aria-label="Front camera preview">
+      <div className="preview-header">
+        <span className="preview-dot" />
+        <span>Front camera</span>
+      </div>
+      <div className="preview-video-shell">
+        {isDemoMode || !stream ? (
+          <MirrorVideo videoRef={previewVideoRef} isDemoMode />
+        ) : (
+          <video ref={previewVideoRef} className="preview-video" autoPlay playsInline muted />
+        )}
+      </div>
+      <div className="preview-status">
+        {formatDetectorMode(detectorMode)} face · {formatDetectorMode(handMode)} hand
+      </div>
+    </div>
+  );
+}
+
 function LandmarkGuidanceOverlay({
   accent,
   area,
@@ -226,11 +279,6 @@ function LandmarkGuidanceOverlay({
       {area === 'eyes' && (
         <EyeRelaxOverlay interaction={interaction} progress={stageProgress} trajectories={trajectories} />
       )}
-      {area === 'jaw' && (
-        <JawReleaseOverlay interaction={interaction} progress={stageProgress} trajectories={trajectories} />
-      )}
-      {area === 'mouth' && <SmileStretchOverlay interaction={interaction} trajectories={trajectories} />}
-      {area === 'challenge' && <FunnyFaceOverlay features={features} />}
       {fingertip && <FingertipDot point={fingertip} isOnTrack={interaction.isOnTrack} />}
     </svg>
   );
@@ -242,6 +290,12 @@ function EyeRelaxOverlay({ interaction, progress, trajectories }) {
       {trajectories.map((path, index) => (
         <g className={interaction.activePath?.id === path.id ? 'active-trajectory' : ''} key={path.id}>
           <path className="under-eye-highlight" d={path.highlight} />
+          <path
+            className="wiper-cleared-path"
+            d={path.d}
+            pathLength="100"
+            style={{ strokeDasharray: `${Math.round((interaction.completion || 0) * 100)} 100` }}
+          />
           <TrajectoryPath path={path} progress={interaction.activePath?.id === path.id ? interaction.completion : 0} />
           <path className="massage-path under-eye-path" d={path.d} />
           {path.dots.map((dot) => (
@@ -249,58 +303,6 @@ function EyeRelaxOverlay({ interaction, progress, trajectories }) {
           ))}
           <polygon className="direction-arrow" points={path.arrow.points} />
           <GuideMarker point={pointAlongDots(path.points, progress)} delay={index * 0.3} />
-        </g>
-      ))}
-    </>
-  );
-}
-
-function JawReleaseOverlay({ interaction, progress, trajectories }) {
-  return (
-    <>
-      {trajectories.map((path, index) => (
-        <g className={interaction.activePath?.id === path.id ? 'active-trajectory' : ''} key={path.id}>
-          <TrajectoryPath path={path} progress={interaction.activePath?.id === path.id ? interaction.completion : 0} />
-          <path className="massage-path jaw-path" d={path.d} />
-          <circle className="target-ring" cx={path.end.x} cy={path.end.y} r="16" />
-          <GuideMarker point={pointAlongDots(path.points, progress)} delay={index * 0.35} />
-        </g>
-      ))}
-    </>
-  );
-}
-
-function SmileStretchOverlay({ interaction, trajectories }) {
-  return (
-    <>
-      {trajectories.map((path) => (
-        <g className={interaction.activePath?.id === path.id ? 'active-trajectory' : ''} key={path.id}>
-          <TrajectoryPath path={path} progress={interaction.activePath?.id === path.id ? interaction.completion : 0} />
-          <path className="massage-path smile-path" d={path.d} />
-          {path.dots.map((dot) => (
-            <circle className="path-dot strong" cx={dot.x} cy={dot.y} r="4" key={`${dot.x}-${dot.y}`} />
-          ))}
-        </g>
-      ))}
-    </>
-  );
-}
-
-function FunnyFaceOverlay({ features }) {
-  const anchors = generateFacePromptAnchors(features);
-  const ovalPath = generateFaceOvalPath(features);
-  return (
-    <>
-      <path className="face-oval-path playful" d={ovalPath} />
-      <circle className="target-ring" cx={features.mouth.center.x} cy={features.mouth.center.y} r="26" />
-      <circle className="target-ring" cx={features.leftEye.lower.x} cy={features.leftEye.lower.y} r="20" />
-      <circle className="target-ring" cx={features.rightEye.lower.x} cy={features.rightEye.lower.y} r="20" />
-      {anchors.map((anchor) => (
-        <g className="expression-prompt" key={anchor.label}>
-          <rect x={anchor.x - 52} y={anchor.y - 16} width="104" height="32" rx="16" />
-          <text x={anchor.x} y={anchor.y + 5}>
-            {anchor.label}
-          </text>
         </g>
       ))}
     </>
@@ -343,6 +345,7 @@ function GuideMarker({ point, delay }) {
 function FingertipDot({ point, isOnTrack }) {
   return (
     <g className={`fingertip-dot ${isOnTrack ? 'on-track' : ''}`}>
+      <line className="wiper-handle" x1={point.x - 26} y1={point.y + 30} x2={point.x} y2={point.y} />
       <circle cx={point.x} cy={point.y} r="15" />
       <circle cx={point.x} cy={point.y} r="6" />
     </g>
@@ -359,22 +362,7 @@ function pointAlongDots(dots, progress) {
 function createStageTrajectories(area, features) {
   if (!features) return [];
   if (area === 'eyes') return createUnderEyePath(features);
-  if (area === 'jaw') return createJawReleasePath(features);
-  if (area === 'mouth') return createSmileStretchPath(features);
-  if (area === 'challenge') return createFunnyFacePaths(features);
   return [];
-}
-
-function createFunnyFacePaths(features) {
-  const mouthPaths = createSmileStretchPath(features);
-  const corners = generateMouthCornerHighlights(features);
-  return mouthPaths.map((path, index) => ({
-    ...path,
-    id: `funny-${path.id}`,
-    tolerance: path.tolerance * 1.25,
-    trackWidth: path.trackWidth * 1.1,
-    end: corners[index] || path.end,
-  }));
 }
 
 function formatTime(value) {

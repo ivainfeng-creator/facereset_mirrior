@@ -1,8 +1,6 @@
 export default function ResultCard({ result, habit }) {
   const metrics = [
     ['Eye Relax', result?.metrics?.eye ?? 82],
-    ['Jaw Release', result?.metrics?.jaw ?? 91],
-    ['Smile Stretch', result?.metrics?.smile ?? 76],
   ];
 
   return (
@@ -22,7 +20,7 @@ export default function ResultCard({ result, habit }) {
       </div>
       <div className="streak-banner">Streak: Day {result?.streak || habit?.streak || 1}</div>
       <p className="ai-comment">
-        {result?.comment || '今天的臉部放鬆完成！記得慢慢來，比做得完美更重要。'}
+        {result?.comment || '今天的眼周放鬆完成！慢慢滑、輕輕做，比追求完美更重要。'}
       </p>
     </div>
   );

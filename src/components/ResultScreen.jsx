@@ -43,16 +43,14 @@ export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
 
     context.font = '600 32px Inter, sans-serif';
     context.fillText(`Eye Relax: ${result?.metrics?.eye ?? 82}%`, 160, 710);
-    context.fillText(`Jaw Release: ${result?.metrics?.jaw ?? 91}%`, 160, 780);
-    context.fillText(`Smile Stretch: ${result?.metrics?.smile ?? 76}%`, 160, 850);
 
     context.fillStyle = '#5f7772';
     context.font = '500 26px Inter, sans-serif';
     wrapText(
       context,
-      result?.comment || '今天的臉部放鬆完成！記得慢慢來，比做得完美更重要。',
+      result?.comment || '今天的眼周放鬆完成！慢慢滑、輕輕做，比追求完美更重要。',
       160,
-      960,
+      810,
       580,
       40,
     );

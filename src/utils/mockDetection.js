@@ -27,19 +27,13 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
 
 export function buildResult(stageScores) {
   const eye = stageScores.eye ?? 82;
-  const jaw = stageScores.jaw ?? 91;
-  const smile = stageScores.smile ?? 76;
-  const funny = stageScores.funny ?? 88;
-  const score = Math.round(eye * 0.3 + jaw * 0.3 + smile * 0.25 + funny * 0.15);
+  const score = Math.round(eye);
 
   return {
     score,
     metrics: {
       eye,
-      jaw,
-      smile,
-      funny,
     },
-    comment: '今天的臉部放鬆完成！記得慢慢來，比做得完美更重要。',
+    comment: '今天的眼周放鬆完成！慢慢滑、輕輕做，比追求完美更重要。',
   };
 }

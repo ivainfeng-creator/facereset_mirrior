@@ -1,6 +1,6 @@
 # Face Reset Mirror
 
-Face Reset Mirror is a mobile-first React hackathon demo for a light AI mirror facial relaxation experience. Users open the app, enable their camera, align their face, and follow a short guided Face Reset routine for eye relaxation, jaw release, smile stretch, and a playful expression challenge.
+Face Reset Mirror is a mobile-first React hackathon demo for a light AI mirror facial relaxation experience. Users open the app, enable their camera, align their face, and follow a short guided Eye Relax routine focused on the under-eye area.
 
 This is a wellness and self-care demo, not a medical, beauty-treatment, or face-shaping product. The current MVP uses browser camera access plus mock AI feedback so the full routine remains stable even when real computer vision is unavailable.
 
@@ -10,7 +10,7 @@ This is a wellness and self-care demo, not a medical, beauty-treatment, or face-
 - Browser `getUserMedia` camera mirror
 - Demo Mode fallback when camera permission is denied or unavailable
 - Optional MediaPipe Face Landmarker integration for real facial landmarks
-- Landmark-based overlay paths for under-eye, jawline, mouth corners, and full-face prompts
+- Landmark-based under-eye trajectory attached to the user's face
 - Guided routine with face overlays, direction cues, countdown, progress, and mock AI scoring
 - `localStorage` streak and latest result tracking
 - Downloadable result card generated in the browser
