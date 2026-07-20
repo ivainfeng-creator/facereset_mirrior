@@ -23,7 +23,7 @@ export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
 
   const shareVideo = async () => {
     setIsExporting(true);
-    setExportMessage('Preparing video for sharing...');
+    setExportMessage('Preparing video for Photos or Instagram...');
     try {
       const video = await createResultVideo({ result, habit });
       const file = new File([video.blob], `face-reset-vibe.${video.extension}`, { type: video.mimeType });
@@ -34,10 +34,10 @@ export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
           title: 'Face Reset Mirror',
           text: 'My Face Reset vibe today.',
         });
-        setExportMessage('Share sheet opened. Choose Instagram if it appears.');
+        setExportMessage('Share sheet opened. On iPhone, choose Save Video or Instagram if available.');
       } else {
         downloadBlob(video.blob, `face-reset-vibe.${video.extension}`);
-        setExportMessage('This browser cannot share video files directly. Video downloaded for manual Instagram upload.');
+        setExportMessage('This browser cannot save to Photos directly. Video downloaded for manual upload.');
       }
     } catch (error) {
       if (error?.name === 'AbortError') {
@@ -62,7 +62,7 @@ export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
           Download Animated Video
         </button>
         <button className="secondary-button" onClick={shareVideo} disabled={isExporting}>
-          Share Video
+          Save / Share Video
         </button>
         <button className="ghost-button text-ghost" onClick={onDemoMode} disabled={isExporting}>
           Try Demo Mode Again

@@ -1491,12 +1491,16 @@ h1 {
 .vibe-face-reel {
   position: relative;
   z-index: 2;
+  display: block;
   width: 36%;
   aspect-ratio: 1;
+  border: 0;
+  padding: 0;
   overflow: hidden;
   border-radius: 48% 44% 52% 42%;
   background: #eef6f3;
   box-shadow: 0 18px 34px rgba(16, 20, 20, 0.18);
+  cursor: pointer;
   transform: rotate(-3deg);
 }
 
@@ -1507,8 +1511,20 @@ h1 {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  animation: vibeFaceSwap 2.5s infinite;
+}
+
+.vibe-face-reel img.is-hero {
+  opacity: 1;
+}
+
+.vibe-face-reel.playing img {
+  opacity: 0;
+  animation: vibeFaceSwap 2.5s ease both;
   animation-delay: calc(var(--index) * 0.5s);
+}
+
+.vibe-face-reel.playing img.is-hero {
+  opacity: 0;
 }
 
 .vibe-face-placeholder {
@@ -1528,6 +1544,11 @@ h1 {
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.2);
+  transition: opacity 160ms ease;
+}
+
+.vibe-play-button.playing {
+  opacity: 0;
 }
 
 .vibe-play-button::before {

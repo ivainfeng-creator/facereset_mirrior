@@ -15,6 +15,7 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
   const [fingertips, setFingertips] = useState({ left: null, right: null, all: [] });
   const [handMode, setHandMode] = useState(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock);
   const [handMessage, setHandMessage] = useState('Preparing fingertip');
+  const handAssignmentRef = useRef({ left: null, right: null });
   const trajectoriesRef = useRef(trajectories);
 
   useEffect(() => {
@@ -54,7 +55,15 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
           const mappedTip = mapHandCoordinatesToCanvas(normalizedTip, displayRect, { mirrored: true });
 
           if (mappedTips.length) {
-            const nextFingertips = splitFingertipsByScreenSide(mappedTips, displayRect);
+            const nextFingertips = splitFingertipsByScreenSide(
+              mappedTips,
+              displayRect,
+              handAssignmentRef.current,
+            );
+            handAssignmentRef.current = {
+              left: nextFingertips.left,
+              right: nextFingertips.right,
+            };
             setFingertips(nextFingertips);
             setFingertip(mappedTip || mappedTips[0]);
             setHandMode(LANDMARK_MODES.real);
@@ -62,6 +71,7 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
           } else {
             setFingertip(null);
             setFingertips({ left: null, right: null, all: [] });
+            handAssignmentRef.current = { left: null, right: null };
             setHandMessage('Show both index fingertips');
           }
         } catch {
@@ -109,14 +119,40 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
   };
 }
 
-function splitFingertipsByScreenSide(points, displayRect) {
+function splitFingertipsByScreenSide(points, displayRect, previous = {}) {
   const centerX = displayRect.x + displayRect.width / 2;
-  const left = points.filter((point) => point.x <= centerX);
-  const right = points.filter((point) => point.x > centerX);
+  const deadZone = displayRect.width * 0.1;
+
+  if (points.length >= 2) {
+    const left = points.filter((point) => point.x <= centerX);
+    const right = points.filter((point) => point.x > centerX);
+
+    return {
+      left: left[left.length - 1] || points[0] || null,
+      right: right[0] || points[points.length - 1] || null,
+      all: points,
+    };
+  }
+
+  const point = points[0];
+  const previousSide = getNearestPreviousSide(point, previous);
+  if (previousSide === 'left' && point.x < centerX + deadZone) {
+    return { left: point, right: null, all: points };
+  }
+  if (previousSide === 'right' && point.x > centerX - deadZone) {
+    return { left: null, right: point, all: points };
+  }
 
   return {
-    left: left[left.length - 1] || null,
-    right: right[0] || null,
+    left: point.x <= centerX ? point : null,
+    right: point.x > centerX ? point : null,
     all: points,
   };
+}
+
+function getNearestPreviousSide(point, previous) {
+  const leftDistance = previous.left ? Math.hypot(point.x - previous.left.x, point.y - previous.left.y) : Infinity;
+  const rightDistance = previous.right ? Math.hypot(point.x - previous.right.x, point.y - previous.right.y) : Infinity;
+  if (leftDistance === Infinity && rightDistance === Infinity) return null;
+  return leftDistance <= rightDistance ? 'left' : 'right';
 }

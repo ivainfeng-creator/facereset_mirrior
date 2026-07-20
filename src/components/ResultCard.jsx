@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 const defaultRadar = [
   { label: 'flowy', value: 84 },
   { label: 'clear', value: 78 },
@@ -16,9 +18,24 @@ const labelMap = {
 };
 
 export default function ResultCard({ result, habit }) {
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
   const snapshots = (result?.snapshots || []).slice(0, 5);
-  const fallbackSnapshot = snapshots[Math.floor(snapshots.length / 2)]?.image;
+  const heroIndex = Math.max(0, Math.floor(snapshots.length / 2));
+  const fallbackSnapshot = snapshots[heroIndex]?.image;
   const radar = normalizeRadar(result?.radar);
+
+  useEffect(() => {
+    if (!isPreviewing) return undefined;
+    const timer = window.setTimeout(() => setIsPreviewing(false), 2800);
+    return () => window.clearTimeout(timer);
+  }, [isPreviewing, previewKey]);
+
+  const playPreview = () => {
+    if (!snapshots.length) return;
+    setPreviewKey((current) => current + 1);
+    setIsPreviewing(true);
+  };
 
   return (
     <div className="result-share-card vibe-card" id="result-card">
@@ -30,12 +47,18 @@ export default function ResultCard({ result, habit }) {
 
       <div className="vibe-radar-stage">
         <RadarGraphic metrics={radar} />
-        <div className="vibe-face-reel" aria-label="Captured Face Reset expressions">
+        <button
+          className={`vibe-face-reel ${isPreviewing ? 'playing' : ''}`}
+          type="button"
+          onClick={playPreview}
+          aria-label="Preview captured Face Reset expressions"
+        >
           {snapshots.length ? (
             snapshots.map((snapshot, index) => (
               <img
+                className={index === heroIndex ? 'is-hero' : ''}
                 alt={`Face Reset expression ${index + 1}`}
-                key={snapshot.id || index}
+                key={`${previewKey}-${snapshot.id || index}`}
                 src={snapshot.image}
                 style={{ '--index': index }}
               />
@@ -45,8 +68,8 @@ export default function ResultCard({ result, habit }) {
               <span>Face Reset</span>
             </div>
           )}
-          <span className="vibe-play-button" aria-hidden="true" />
-        </div>
+          <span className={`vibe-play-button ${isPreviewing ? 'playing' : ''}`} aria-hidden="true" />
+        </button>
         {fallbackSnapshot && <img className="vibe-hidden-fallback" alt="" src={fallbackSnapshot} />}
       </div>
 

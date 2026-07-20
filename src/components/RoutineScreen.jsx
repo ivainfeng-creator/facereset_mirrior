@@ -255,6 +255,9 @@ function RainScene({ interaction }) {
     let height = 0;
     let droplets = [];
     let impacts = [];
+    const storm = {
+      nextBurstAt: 0,
+    };
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -267,13 +270,14 @@ function RainScene({ interaction }) {
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       droplets = createRainDroplets(width, height);
       impacts = createRainImpacts(width, height);
+      storm.nextBurstAt = 0;
     };
 
     const draw = (time) => {
       const context = canvas.getContext('2d');
       if (!width || !height) resize();
       drawBlurredRoad(context, width, height, time);
-      drawGlassWater(context, width, height, time, droplets, impacts, interactionRef.current);
+      drawGlassWater(context, width, height, time, droplets, impacts, interactionRef.current, storm);
       drawCleanedSweep(context, width, height, interactionRef.current);
       animationFrame = requestAnimationFrame(draw);
     };
@@ -317,13 +321,18 @@ function createRainDroplets(width, height) {
 }
 
 function createRainImpacts(width, height) {
-  return Array.from({ length: 18 }, (_, index) => ({
+  return Array.from({ length: 64 }, (_, index) => ({
     id: index,
+    active: false,
     x: Math.random() * width,
     y: Math.random() * height,
-    life: Math.random(),
-    speed: 0.006 + Math.random() * 0.012,
-    size: 5 + Math.random() * 16,
+    startedAt: 0,
+    duration: 900,
+    size: 8,
+    trail: 32,
+    drift: 0,
+    opacity: 1,
+    seed: Math.random() * Math.PI * 2,
   }));
 }
 
@@ -400,11 +409,13 @@ function drawBokeh(context, x, y, radius, color, alpha) {
   context.globalAlpha = 1;
 }
 
-function drawGlassWater(context, width, height, time, droplets, impacts, interaction) {
+function drawGlassWater(context, width, height, time, droplets, impacts, interaction, storm) {
   context.save();
   context.fillStyle = 'rgba(236, 255, 255, 0.16)';
   context.fillRect(0, 0, width, height);
   context.restore();
+
+  spawnRainBursts(impacts, width, height, time, storm);
 
   droplets.forEach((drop) => {
     drop.y += drop.speed;
@@ -420,15 +431,53 @@ function drawGlassWater(context, width, height, time, droplets, impacts, interac
   });
 
   impacts.forEach((impact) => {
-    impact.life += impact.speed;
-    if (impact.life > 1) {
-      impact.life = 0;
-      impact.x = Math.random() * width;
-      impact.y = Math.random() * height * 0.82;
-      impact.size = 5 + Math.random() * 16;
+    if (!impact.active || time < impact.startedAt) return;
+
+    const progress = (time - impact.startedAt) / impact.duration;
+    if (progress > 1) {
+      impact.active = false;
+      return;
     }
-    drawRainImpact(context, impact);
+
+    const fade = getWiperFade(impact, width, height, interaction);
+    if (fade < 0.08) return;
+    drawRainImpact(context, impact, progress, fade);
   });
+}
+
+function spawnRainBursts(impacts, width, height, time, storm) {
+  if (!storm.nextBurstAt) {
+    storm.nextBurstAt = time + 160;
+  }
+  if (time < storm.nextBurstAt) return;
+
+  const mood = Math.random();
+  const count =
+    mood > 0.9 ? 10 + Math.floor(Math.random() * 10) : mood > 0.58 ? 3 + Math.floor(Math.random() * 5) : 1;
+  const bandBias = Math.random();
+  const baseY = bandBias > 0.72 ? height * (0.18 + Math.random() * 0.28) : height * (0.05 + Math.random() * 0.76);
+
+  for (let index = 0; index < count; index += 1) {
+    const slot = impacts.find((impact) => !impact.active);
+    if (!slot) break;
+
+    const sizeBias = Math.random() ** 1.35;
+    const size = 4 + sizeBias * 24;
+    Object.assign(slot, {
+      active: true,
+      x: clamp(Math.random() * width + (Math.random() - 0.5) * width * 0.1, 0, width),
+      y: clamp(baseY + (Math.random() - 0.5) * height * 0.18, height * 0.04, height * 0.88),
+      startedAt: time + Math.random() * 220,
+      duration: 680 + Math.random() * 1080,
+      size,
+      trail: 18 + Math.random() * (size > 17 ? 128 : 70),
+      drift: (Math.random() - 0.5) * 18,
+      opacity: 0.58 + Math.random() * 0.42,
+      seed: Math.random() * Math.PI * 2,
+    });
+  }
+
+  storm.nextBurstAt = time + 90 + Math.random() * (mood > 0.9 ? 220 : 540);
 }
 
 function drawDroplet(context, drop, fade) {
@@ -473,21 +522,75 @@ function drawDroplet(context, drop, fade) {
   context.restore();
 }
 
-function drawRainImpact(context, impact) {
-  const alpha = Math.sin(impact.life * Math.PI) * 0.28;
+function drawRainImpact(context, impact, progress, fade) {
+  const appear = clamp(progress / 0.16, 0, 1);
+  const fadeOut = 1 - clamp((progress - 0.36) / 0.64, 0, 1);
+  const splash = Math.sin(clamp(progress / 0.58, 0, 1) * Math.PI);
+  const alpha = impact.opacity * fade * fadeOut;
+  const x = impact.x + impact.drift * progress;
+  const y = impact.y + impact.trail * Math.max(0, progress - 0.26) * 0.42;
+  const radius = impact.size * (0.48 + progress * 0.72);
+
   context.save();
-  context.globalAlpha = alpha;
-  context.strokeStyle = 'rgba(245,255,255,0.72)';
-  context.lineWidth = 1.2;
+
+  if (progress > 0.22) {
+    const trailProgress = clamp((progress - 0.22) / 0.78, 0, 1);
+    const trailLength = impact.trail * trailProgress;
+    const trailGradient = context.createLinearGradient(x, y - impact.size * 0.2, x, y + trailLength);
+    trailGradient.addColorStop(0, `rgba(255,255,255,${0.4 * alpha})`);
+    trailGradient.addColorStop(0.3, `rgba(208,244,247,${0.26 * alpha})`);
+    trailGradient.addColorStop(1, 'rgba(208,244,247,0)');
+    context.strokeStyle = trailGradient;
+    context.lineWidth = Math.max(1.2, impact.size * 0.22);
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(x, y);
+    context.bezierCurveTo(
+      x + Math.sin(impact.seed) * impact.size * 0.34,
+      y + trailLength * 0.24,
+      x - Math.cos(impact.seed) * impact.size * 0.28,
+      y + trailLength * 0.62,
+      x + impact.drift * 0.24,
+      y + trailLength,
+    );
+    context.stroke();
+  }
+
+  const glow = context.createRadialGradient(x - impact.size * 0.22, y - impact.size * 0.24, 0, x, y, radius * 1.65);
+  glow.addColorStop(0, `rgba(255,255,255,${0.92 * alpha * appear})`);
+  glow.addColorStop(0.2, `rgba(235,252,255,${0.46 * alpha})`);
+  glow.addColorStop(0.58, `rgba(28,49,51,${0.16 * alpha})`);
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = glow;
   context.beginPath();
-  context.arc(impact.x, impact.y, impact.size * impact.life, 0, Math.PI * 2);
+  context.ellipse(x, y, radius * 0.86, radius * 0.62, impact.seed * 0.08, 0, Math.PI * 2);
+  context.fill();
+
+  context.globalAlpha = alpha * splash * 0.75;
+  context.strokeStyle = 'rgba(243, 255, 255, 0.78)';
+  context.lineWidth = Math.max(0.8, impact.size * 0.08);
+  context.beginPath();
+  context.ellipse(x, y, radius * 1.12, radius * 0.78, impact.seed * 0.08, 0, Math.PI * 2);
   context.stroke();
+
+  for (let index = 0; index < 4; index += 1) {
+    const angle = impact.seed + index * 1.62;
+    const distance = impact.size * (0.4 + progress * 1.15);
+    const dotX = x + Math.cos(angle) * distance;
+    const dotY = y + Math.sin(angle) * distance * 0.58;
+    context.globalAlpha = alpha * splash * (0.42 - index * 0.05);
+    context.fillStyle = 'rgba(248, 255, 255, 0.9)';
+    context.beginPath();
+    context.arc(dotX, dotY, Math.max(0.7, impact.size * 0.07), 0, Math.PI * 2);
+    context.fill();
+  }
+
   context.restore();
 }
 
 function drawCleanedSweep(context, width, height, interaction) {
-  const leftPivot = { x: width * 0.28, y: height * 0.94 };
-  const rightPivot = { x: width * 0.72, y: height * 0.94 };
+  const leftPivot = { x: width * 0.24, y: height * 0.94 };
+  const rightPivot = { x: width * 0.76, y: height * 0.94 };
   const radius = Math.min(width * 0.43, height * 0.74) * 0.9;
   const sweeps = [
     { pivot: leftPivot, start: -58, end: -58 + (interaction.leftSweep ?? 0.5) * 96 },
@@ -510,8 +613,8 @@ function drawCleanedSweep(context, width, height, interaction) {
 
 function getWiperFade(drop, width, height, interaction) {
   const radius = Math.min(width * 0.43, height * 0.74) * 0.9;
-  const leftPivot = { x: width * 0.28, y: height * 0.94 };
-  const rightPivot = { x: width * 0.72, y: height * 0.94 };
+  const leftPivot = { x: width * 0.24, y: height * 0.94 };
+  const rightPivot = { x: width * 0.76, y: height * 0.94 };
   const leftEnd = -58 + (interaction.leftSweep ?? 0.5) * 96;
   const rightEnd = -38 + (interaction.rightSweep ?? 0.5) * 96;
   const inLeft = isNearSweptArc(drop, leftPivot, radius, -58, leftEnd);
@@ -567,8 +670,8 @@ function WindshieldWiperOverlay({ fingertips, height, interaction, width }) {
 
   const leftSweep = interaction.leftSweep ?? interaction.sweep ?? 0.5;
   const rightSweep = interaction.rightSweep ?? interaction.sweep ?? 0.5;
-  const leftPivot = { x: width * 0.28, y: height * 0.94 };
-  const rightPivot = { x: width * 0.72, y: height * 0.94 };
+  const leftPivot = { x: width * 0.24, y: height * 0.94 };
+  const rightPivot = { x: width * 0.76, y: height * 0.94 };
   const bladeLength = Math.min(width * 0.43, height * 0.74);
   const leftAngle = -58 + leftSweep * 96;
   const rightAngle = -38 + rightSweep * 96;
@@ -798,8 +901,8 @@ function scoreSingleWiperSide({ point, previous, timestamp, containerSize, cover
     };
   }
 
-  const minX = isLeft ? width * 0.07 : width * 0.45;
-  const maxX = isLeft ? width * 0.53 : width * 0.93;
+  const minX = isLeft ? width * 0.06 : width * 0.51;
+  const maxX = isLeft ? width * 0.49 : width * 0.94;
   const sweep = clamp((point.x - minX) / (maxX - minX), 0, 1);
   coverage.min = Math.min(coverage.min, sweep);
   coverage.max = Math.max(coverage.max, sweep);
@@ -807,7 +910,7 @@ function scoreSingleWiperSide({ point, previous, timestamp, containerSize, cover
   const range = coverage.max - coverage.min;
   const completion = clamp(range / 0.58, 0, 1);
   const inGestureBand = point.y > height * 0.18 && point.y < height * 0.82;
-  const inSideZone = isLeft ? point.x < width * 0.57 : point.x > width * 0.43;
+  const inSideZone = isLeft ? point.x < width * 0.53 : point.x > width * 0.47;
   const accuracy = inGestureBand && inSideZone ? clamp(range / 0.42, 0.25, 1) : 0.16;
   const elapsedSeconds = previous?.timestamp ? Math.max(0.016, (timestamp - previous.timestamp) / 1000) : 0.016;
   const dx = previous?.point ? Math.abs(point.x - previous.point.x) : 0;
