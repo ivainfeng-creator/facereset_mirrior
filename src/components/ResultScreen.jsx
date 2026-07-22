@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import ResultCard from './ResultCard.jsx';
 
-export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
+export default function ResultScreen({ result, habit, onRestart }) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const score = result?.score ?? 88;
+  const topPercent = Math.max(3, Math.min(18, Math.round(22 - score * 0.14)));
 
   const downloadVideo = async () => {
     setIsExporting(true);
@@ -51,25 +53,76 @@ export default function ResultScreen({ result, habit, onRestart, onDemoMode }) {
   };
 
   return (
-    <section className="screen result-screen">
+    <section className="screen result-screen reset-result-screen">
+      <header className="result-complete-header">
+        <h1>
+          <span aria-hidden="true">✨</span>
+          Nice work
+        </h1>
+        <p>Your expression looks softer and more relaxed.</p>
+      </header>
+
       <ResultCard result={result} habit={habit} />
 
-      <div className="button-row result-actions">
-        <button className="primary-button" onClick={onRestart} disabled={isExporting}>
-          Restart Routine
+      <div className="result-score-summary">
+        <div className="result-score-line">
+          <span>Score</span>
+          <strong>{score}</strong>
+        </div>
+        <p>
+          <span aria-hidden="true">🏆</span>
+          Top {topPercent}%
+        </p>
+        <small>Among all Face Reset sessions today.</small>
+      </div>
+
+      <div className="result-actions result-icon-actions">
+        <button className="result-icon-button" onClick={onRestart} disabled={isExporting} type="button">
+          <RestartIcon />
+          <span>Try again</span>
         </button>
-        <button className="secondary-button" onClick={downloadVideo} disabled={isExporting}>
-          Download Animated Video
+        <button className="result-icon-button" onClick={downloadVideo} disabled={isExporting} type="button">
+          <DownloadIcon />
+          <span>Download</span>
         </button>
-        <button className="secondary-button" onClick={shareVideo} disabled={isExporting}>
-          Save / Share Video
-        </button>
-        <button className="ghost-button text-ghost" onClick={onDemoMode} disabled={isExporting}>
-          Try Demo Mode Again
+        <button className="result-icon-button" onClick={shareVideo} disabled={isExporting} type="button">
+          <ShareIcon />
+          <span>Share</span>
         </button>
       </div>
       {exportMessage && <p className="export-message">{exportMessage}</p>}
     </section>
+  );
+}
+
+function RestartIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M8 7H4v4" />
+      <path d="M5 11a7 7 0 1 0 2-5" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M12 4v10" />
+      <path d="m8 10 4 4 4-4" />
+      <path d="M5 20h14" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.6" />
+      <path d="m8.2 13.2 7.6 4.6" />
+    </svg>
   );
 }
 
@@ -184,9 +237,9 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
   context.fillStyle = '#0f1111';
   context.textAlign = 'center';
   context.font = '900 58px Inter, sans-serif';
-  context.fillText('what’s your reset vibe?', width / 2, 108);
-  context.font = '760 26px Inter, sans-serif';
-  context.fillText('pause and see which face reset mood matches your energy.', width / 2, 154);
+  context.fillText('Nice work', width / 2, 108);
+  context.font = '600 28px Inter, sans-serif';
+  context.fillText('Your expression looks softer and more relaxed.', width / 2, 154);
 
   drawRadar(context, radar, width / 2, 560, 330, progress);
 
@@ -209,7 +262,7 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
   context.font = '900 42px Inter, sans-serif';
   context.fillText(`Score ${score}`, 76, 1040);
   context.font = '800 26px Inter, sans-serif';
-  context.fillText(`Streak Day ${result?.streak || habit?.streak || 1}`, 76, 1080);
+  context.fillText(`Top ${Math.max(3, Math.min(18, Math.round(22 - score * 0.14)))}%`, 76, 1080);
 
   context.fillStyle = '#515b59';
   context.font = '500 24px Inter, sans-serif';

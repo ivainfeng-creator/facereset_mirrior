@@ -38,13 +38,7 @@ export default function ResultCard({ result, habit }) {
   };
 
   return (
-    <div className="result-share-card vibe-card" id="result-card">
-      <div className="vibe-header">
-        <p className="eyebrow">Face Reset completed</p>
-        <h1>what’s your reset vibe?</h1>
-        <p>pause and see which face reset mood matches your energy.</p>
-      </div>
-
+    <div className="result-share-card vibe-card result-vibe-card" id="result-card">
       <div className="vibe-radar-stage">
         <RadarGraphic metrics={radar} />
         <button
@@ -71,18 +65,6 @@ export default function ResultCard({ result, habit }) {
           <span className={`vibe-play-button ${isPreviewing ? 'playing' : ''}`} aria-hidden="true" />
         </button>
         {fallbackSnapshot && <img className="vibe-hidden-fallback" alt="" src={fallbackSnapshot} />}
-      </div>
-
-      <div className="vibe-footer">
-        <div>
-          <span>Score</span>
-          <strong>{result?.score ?? 88}</strong>
-        </div>
-        <div>
-          <span>Streak</span>
-          <strong>Day {result?.streak || habit?.streak || 1}</strong>
-        </div>
-        <p>{result?.comment || '今天的眼下雨刷完成！慢慢刷、輕輕滑，臉上的雲有被擦亮一點。'}</p>
       </div>
     </div>
   );

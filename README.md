@@ -11,10 +11,22 @@ This is a wellness and self-care demo, not a medical, beauty-treatment, or face-
 - Demo Mode fallback when camera permission is denied or unavailable
 - Optional MediaPipe Face Landmarker integration for real facial landmarks
 - Landmark-based under-eye trajectory attached to the user's face
-- Guided routine with face overlays, direction cues, countdown, progress, and mock AI scoring
+- Rain-wiper Eye Relax interaction designed around index-finger guided wiper motion
+- Guided routine with face alignment, hand tracking, countdown, progress, sound, and local scoring
 - `localStorage` streak and latest result tracking
-- Downloadable result card generated in the browser
+- Downloadable or shareable animated result video generated in the browser, with PNG fallback
 - No backend, login, or upload flow
+
+## Mobile UI Spec
+
+This app is designed primarily for mobile devices in portrait orientation, using iPhone-sized screens as the reference experience.
+
+- Primary layout target: iPhone portrait, roughly 390-430px wide and 844-932px tall.
+- Desktop browser previews should still feel like a phone-sized prototype, not a wide desktop app.
+- The landing page should keep the main value proposition, start button, and visual preview readable without excessive scrolling.
+- The routine page should prioritize the rain-wiper interaction stage, with the camera preview and score HUD kept compact.
+- The alignment page should use a full-height portrait mirror surface so face positioning feels natural on mobile.
+- Result sharing should favor mobile behavior: preview first, then download or open the native share sheet when available.
 
 ## Setup
 

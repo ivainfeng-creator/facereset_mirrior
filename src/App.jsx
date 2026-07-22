@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import CameraPermission from './components/CameraPermission.jsx';
 import LandingScreen from './components/LandingScreen.jsx';
 import MirrorScreen from './components/MirrorScreen.jsx';
+import PracticeScreen from './components/PracticeScreen.jsx';
 import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import { loadHabit, saveResult } from './utils/storage.js';
@@ -10,6 +11,7 @@ const SCREENS = {
   landing: 'landing',
   permission: 'permission',
   mirror: 'mirror',
+  practice: 'practice',
   routine: 'routine',
   result: 'result',
 };
@@ -42,6 +44,8 @@ export default function App() {
     setCameraError(message);
     setCameraStream(null);
   };
+
+  const beginPractice = () => setScreen(SCREENS.practice);
 
   const beginRoutine = () => setScreen(SCREENS.routine);
 
@@ -76,7 +80,6 @@ export default function App() {
           cameraError={cameraError}
           onCameraReady={handleCameraReady}
           onCameraError={handleCameraError}
-          onDemoMode={startDemoMode}
           onBack={resetToLanding}
         />
       )}
@@ -85,9 +88,17 @@ export default function App() {
         <MirrorScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
-          onBegin={beginRoutine}
-          onDemoMode={startDemoMode}
+          onBegin={beginPractice}
           onBack={startPermission}
+        />
+      )}
+
+      {screen === SCREENS.practice && (
+        <PracticeScreen
+          stream={cameraStream}
+          isDemoMode={isDemoMode}
+          onBegin={beginRoutine}
+          onBack={() => setScreen(SCREENS.mirror)}
         />
       )}
 
@@ -96,6 +107,7 @@ export default function App() {
           stream={cameraStream}
           isDemoMode={isDemoMode}
           onComplete={finishRoutine}
+          onExit={() => setScreen(SCREENS.practice)}
         />
       )}
 
@@ -104,7 +116,6 @@ export default function App() {
           result={latestResult}
           habit={habit}
           onRestart={restartRoutine}
-          onDemoMode={startDemoMode}
         />
       )}
     </main>

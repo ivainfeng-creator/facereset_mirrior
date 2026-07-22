@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { LANDMARK_MODES } from '../utils/faceLandmarks.js';
 import {
   createMockFingertips,
-  createMockFingertip,
-  getIndexFingertip,
+  getIndexFingerControlPoint,
   initializeHandLandmarker,
   mapHandCoordinatesToCanvas,
   normalizeAllHandLandmarks,
-  normalizeHandLandmarks,
 } from '../utils/handTracking.js';
 
 export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, trajectories }) {
@@ -44,34 +42,39 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
       if (video && landmarker && displayRect && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
         try {
+          const now = performance.now();
           const result = landmarker.detectForVideo(video, performance.now());
           const normalizedHands = normalizeAllHandLandmarks(result, LANDMARK_MODES.real);
-          const mappedTips = normalizedHands
-            .map((hand) => mapHandCoordinatesToCanvas(getIndexFingertip(hand), displayRect, { mirrored: true }))
+          const mappedControls = normalizedHands
+            .map((hand) =>
+              mapHandCoordinatesToCanvas(getIndexFingerControlPoint(hand), displayRect, { mirrored: true }),
+            )
             .filter(Boolean)
             .sort((a, b) => a.x - b.x);
-          const normalized = normalizeHandLandmarks(result, LANDMARK_MODES.real);
-          const normalizedTip = getIndexFingertip(normalized);
-          const mappedTip = mapHandCoordinatesToCanvas(normalizedTip, displayRect, { mirrored: true });
 
-          if (mappedTips.length) {
-            const nextFingertips = splitFingertipsByScreenSide(
-              mappedTips,
+          if (mappedControls.length) {
+            const rawFingertips = splitFingertipsByScreenSide(
+              mappedControls,
               displayRect,
               handAssignmentRef.current,
             );
+            const nextFingertips = stabilizeFingertips(rawFingertips, handAssignmentRef.current, now);
             handAssignmentRef.current = {
-              left: nextFingertips.left,
-              right: nextFingertips.right,
+              left: toTrackedEntry(nextFingertips.left, handAssignmentRef.current.left, now),
+              right: toTrackedEntry(nextFingertips.right, handAssignmentRef.current.right, now),
             };
             setFingertips(nextFingertips);
-            setFingertip(mappedTip || mappedTips[0]);
+            setFingertip(nextFingertips.left || nextFingertips.right || mappedControls[0]);
             setHandMode(LANDMARK_MODES.real);
-            setHandMessage(mappedTips.length > 1 ? 'Two index fingertips tracked' : 'One index fingertip tracked');
+            setHandMessage(mappedControls.length > 1 ? 'Two index fingers tracked' : 'One index finger tracked');
           } else {
-            setFingertip(null);
-            setFingertips({ left: null, right: null, all: [] });
-            handAssignmentRef.current = { left: null, right: null };
+            const heldFingertips = stabilizeFingertips({ left: null, right: null, all: [] }, handAssignmentRef.current, now);
+            setFingertip(heldFingertips.left || heldFingertips.right || null);
+            setFingertips(heldFingertips);
+            handAssignmentRef.current = {
+              left: toTrackedEntry(heldFingertips.left, handAssignmentRef.current.left, now),
+              right: toTrackedEntry(heldFingertips.right, handAssignmentRef.current.right, now),
+            };
             setHandMessage('Show both index fingertips');
           }
         } catch {
@@ -121,7 +124,7 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
 
 function splitFingertipsByScreenSide(points, displayRect, previous = {}) {
   const centerX = displayRect.x + displayRect.width / 2;
-  const deadZone = displayRect.width * 0.1;
+  const deadZone = displayRect.width * 0.14;
 
   if (points.length >= 2) {
     const left = points.filter((point) => point.x <= centerX);
@@ -150,9 +153,56 @@ function splitFingertipsByScreenSide(points, displayRect, previous = {}) {
   };
 }
 
+function stabilizeFingertips(raw, previous = {}, timestamp) {
+  const left = stabilizePoint(raw.left, previous.left, timestamp);
+  const right = stabilizePoint(raw.right, previous.right, timestamp);
+
+  return {
+    left,
+    right,
+    all: [left, right].filter(Boolean),
+  };
+}
+
+function stabilizePoint(rawPoint, previousEntry, timestamp) {
+  const previousPoint = getPreviousPoint(previousEntry);
+  const previousTimestamp = previousEntry?.timestamp || 0;
+  const age = timestamp - previousTimestamp;
+
+  if (!rawPoint) {
+    return previousPoint && age < 260 ? { ...previousPoint, held: true } : null;
+  }
+
+  if (!previousPoint) return rawPoint;
+
+  const distance = Math.hypot(rawPoint.x - previousPoint.x, rawPoint.y - previousPoint.y);
+  const alpha = distance > 90 ? 0.9 : distance > 34 ? 0.72 : 0.58;
+
+  return {
+    ...rawPoint,
+    x: previousPoint.x + (rawPoint.x - previousPoint.x) * alpha,
+    y: previousPoint.y + (rawPoint.y - previousPoint.y) * alpha,
+  };
+}
+
+function toTrackedEntry(point, previousEntry, timestamp) {
+  if (!point) return null;
+  return {
+    point,
+    timestamp: point.held ? previousEntry?.timestamp || timestamp : timestamp,
+  };
+}
+
 function getNearestPreviousSide(point, previous) {
-  const leftDistance = previous.left ? Math.hypot(point.x - previous.left.x, point.y - previous.left.y) : Infinity;
-  const rightDistance = previous.right ? Math.hypot(point.x - previous.right.x, point.y - previous.right.y) : Infinity;
+  const previousLeft = getPreviousPoint(previous.left);
+  const previousRight = getPreviousPoint(previous.right);
+  const leftDistance = previousLeft ? Math.hypot(point.x - previousLeft.x, point.y - previousLeft.y) : Infinity;
+  const rightDistance = previousRight ? Math.hypot(point.x - previousRight.x, point.y - previousRight.y) : Infinity;
   if (leftDistance === Infinity && rightDistance === Infinity) return null;
   return leftDistance <= rightDistance ? 'left' : 'right';
+}
+
+function getPreviousPoint(entry) {
+  if (!entry) return null;
+  return entry.point || entry;
 }

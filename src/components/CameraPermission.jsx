@@ -4,13 +4,13 @@ export default function CameraPermission({
   cameraError,
   onCameraReady,
   onCameraError,
-  onDemoMode,
   onBack,
 }) {
-  const [isRequesting, setIsRequesting] = useState(false);
+  const [cameraPhase, setCameraPhase] = useState('idle');
+  const isPrompting = cameraPhase === 'prompting';
 
   const enableCamera = async () => {
-    setIsRequesting(true);
+    setCameraPhase('prompting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -20,42 +20,62 @@ export default function CameraPermission({
         },
         audio: false,
       });
+      const preparingStartedAt = performance.now();
+      setCameraPhase('preparing');
+      await waitForMinimumLoadingTime(preparingStartedAt, 620);
       onCameraReady(stream);
     } catch {
-      onCameraError('Camera permission is needed for the mirror experience. You can still try demo mode.');
-    } finally {
-      setIsRequesting(false);
+      setCameraPhase('idle');
+      onCameraError('Camera permission is needed for the mirror experience. Please allow camera access and try again.');
     }
   };
 
+  if (cameraPhase === 'preparing') {
+    return (
+      <section className="screen preparing-landing">
+        <main className="preparing-card" aria-live="polite" aria-label="Preparing camera">
+          <span className="preparing-spinner" aria-hidden="true" />
+          <p>Preparing...</p>
+        </main>
+      </section>
+    );
+  }
+
   return (
-    <section className="screen centered-screen">
-      <div className="permission-card">
-        <button className="ghost-button top-left" onClick={onBack} aria-label="Back">
-          <span className="button-icon back-icon" aria-hidden="true" />
-        </button>
-        <div className="permission-icon">
-          <span className="button-icon camera-icon" aria-hidden="true" />
-        </div>
-        <p className="eyebrow">Local mirror mode</p>
-        <h1>Enable your camera to start the AI Mirror experience.</h1>
-        <p>
-          This demo processes everything locally and does not upload your video. If camera access is not available,
-          Demo Mode keeps the full guided routine working.
-        </p>
+    <section className="screen intro-landing">
+      <button className="intro-back-button" onClick={onBack} aria-label="Back to welcome" />
 
-        {cameraError && <div className="error-banner">{cameraError}</div>}
-
-        <div className="button-row">
-          <button className="primary-button" onClick={enableCamera} disabled={isRequesting}>
-            <span className="button-icon camera-icon" aria-hidden="true" />
-            {isRequesting ? 'Opening Camera...' : 'Enable Camera'}
-          </button>
-          <button className="secondary-button" onClick={onDemoMode}>
-            Try Demo Mode
-          </button>
+      <main className="intro-copy" aria-label="How Face Reset works">
+        <div className="intro-heading">
+          <h1>How it works?</h1>
+          <p>Complete today's reset in three simple steps.</p>
         </div>
-      </div>
+
+        <ol className="intro-steps">
+          <li>📷 Align your face</li>
+          <li>👇 Follow the guide</li>
+          <li>😊 Relax and finish</li>
+        </ol>
+      </main>
+
+      {cameraError && (
+        <div className="intro-error">
+          <p>{cameraError}</p>
+        </div>
+      )}
+
+      <button className="journey-button" onClick={enableCamera} disabled={isPrompting}>
+        <span>{isPrompting ? 'Waiting for permission' : 'Next'}</span>
+        <span className="journey-arrow" aria-hidden="true" />
+      </button>
     </section>
   );
+}
+
+function waitForMinimumLoadingTime(startedAt, minimumMs) {
+  const elapsed = performance.now() - startedAt;
+  const remaining = Math.max(0, minimumMs - elapsed);
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, remaining);
+  });
 }

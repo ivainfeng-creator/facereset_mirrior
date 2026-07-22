@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
-import { generateFaceOvalPath } from '../utils/overlayPaths.js';
 
-export default function MirrorScreen({ stream, isDemoMode, onBegin, onDemoMode, onBack }) {
+export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
   const videoRef = useRef(null);
   const stageRef = useRef(null);
-  const [readySince, setReadySince] = useState(null);
+  const alignmentRef = useRef(null);
+  const featuresRef = useRef(null);
+  const onBeginRef = useRef(onBegin);
+  const completedRef = useRef(false);
+  const [scanProgress, setScanProgress] = useState(0);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -21,61 +24,79 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onDemoMode, 
   });
 
   useEffect(() => {
+    alignmentRef.current = alignment;
+    featuresRef.current = features;
+    onBeginRef.current = onBegin;
+  }, [alignment, features, onBegin]);
+
+  useEffect(() => {
+    let lastTick = performance.now();
     const timer = window.setInterval(() => {
-      if (!alignment.ready) {
-        setReadySince(null);
-        return;
-      }
+      const now = performance.now();
+      const elapsed = Math.min(180, now - lastTick);
+      lastTick = now;
 
-      setReadySince((current) => current ?? performance.now());
+      const currentAlignment = alignmentRef.current;
+      const currentFeatures = featuresRef.current;
 
-      if (readySince && performance.now() - readySince > 1400) {
-        window.clearInterval(timer);
-        onBegin();
-      }
-    }, 120);
+      setScanProgress((current) => {
+        let next = current;
+        if (!currentFeatures) {
+          next = Math.max(0, current - elapsed / 700);
+        } else if (currentAlignment?.ready) {
+          next = Math.min(1, current + elapsed / 1850);
+        } else if ((currentAlignment?.quality || 0) >= 72) {
+          next = Math.min(0.74, current + elapsed / 3200);
+        } else if ((currentAlignment?.quality || 0) >= 54) {
+          next = Math.min(0.42, current + elapsed / 4200);
+        } else {
+          next = Math.max(0.08, current - elapsed / 2400);
+        }
+
+        if (next >= 1 && !completedRef.current) {
+          completedRef.current = true;
+          window.setTimeout(() => onBeginRef.current(), 220);
+        }
+
+        return next;
+      });
+    }, 90);
     return () => window.clearInterval(timer);
-  }, [alignment.ready, onBegin, readySince]);
+  }, []);
+
+  const alignmentMessage = useMemo(
+    () => getAlignmentScanMessage({ alignment, features, scanProgress }),
+    [alignment, features, scanProgress],
+  );
 
   return (
-    <section className="screen mirror-screen">
-      <div className="mirror-toolbar">
-        <button className="ghost-button" onClick={onBack} aria-label="Back to camera setup">
-          <span className="button-icon back-icon" aria-hidden="true" />
-        </button>
-        <div>
-          <p className="eyebrow">Mirror alignment</p>
-          <h1>對齊你的臉</h1>
+    <section className="screen mirror-screen scan-alignment-screen">
+      <main className="scan-alignment-card" aria-label="Mirror alignment">
+        <div className="scan-alignment-header">
+          <h1>Align your face</h1>
+          <button className="scan-close-button" onClick={onBack} aria-label="Back to intro" />
         </div>
-        <button className="ghost-button" onClick={onDemoMode}>
-          Demo
-        </button>
-      </div>
 
-      <div className="mirror-stage" ref={stageRef}>
-        <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} />
-        <AlignmentLandmarkOverlay
-          alignment={alignment}
-          features={features}
-          width={containerSize.width}
-          height={containerSize.height}
-        />
+        <div className="scan-face-zone">
+          <div className="scan-face-frame" ref={stageRef}>
+            <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} />
+            <div className="scan-face-tint" style={{ '--scan-progress': scanProgress }} />
+          </div>
+          <ScanProgressRing progress={scanProgress} />
+        </div>
+
         <LandmarkLoadingOverlay
           detectorMode={detectorMode}
           isDemoMode={isDemoMode}
           hasFeatures={Boolean(features)}
         />
-        <div className="alignment-card">
-          <span className="pulse-dot" />
-          <span>{alignment.label}</span>
+
+        <div className="scan-copy">
+          <p>{alignmentMessage}</p>
+          <span>{formatDetectorMode(detectorMode)} · {detectorMessage}</span>
         </div>
-        <div className="mode-chip">
-          Eye-only Rain v2 · {formatDetectorMode(detectorMode)} · {detectorMessage}
-        </div>
-        <div className="quality-meter" aria-label={`Face quality ${alignment.quality}%`}>
-          <span style={{ width: `${alignment.quality}%` }} />
-        </div>
-      </div>
+
+      </main>
     </section>
   );
 }
@@ -85,7 +106,7 @@ function LandmarkLoadingOverlay({ detectorMode, isDemoMode, hasFeatures }) {
 
   const message =
     detectorMode === 'mock-landmark'
-      ? 'Real landmarks are not ready. Use Demo if camera landmark loading fails.'
+      ? 'Real landmarks are not ready. Keep your face centered while loading.'
       : 'Loading real facial landmarks';
 
   return (
@@ -98,29 +119,50 @@ function LandmarkLoadingOverlay({ detectorMode, isDemoMode, hasFeatures }) {
   );
 }
 
-function AlignmentLandmarkOverlay({ alignment, features, width, height }) {
-  if (!features || !width || !height) return null;
-  const ovalPath = generateFaceOvalPath(features);
-  const leftEye = features.leftEye.center;
-  const rightEye = features.rightEye.center;
-  const mouth = features.mouth.center;
+function ScanProgressRing({ progress }) {
+  const dots = 56;
+  const center = 120;
+  const radius = 102;
 
   return (
-    <svg className="landmark-overlay alignment-overlay" viewBox={`0 0 ${width} ${height}`}>
-      <path className="face-oval-path" d={ovalPath} />
-      <line className="alignment-feature-line" x1={leftEye.x} y1={leftEye.y} x2={rightEye.x} y2={rightEye.y} />
-      <circle className="alignment-anchor" cx={leftEye.x} cy={leftEye.y} r="4" />
-      <circle className="alignment-anchor" cx={rightEye.x} cy={rightEye.y} r="4" />
-      <circle className="nose-anchor" cx={features.face.noseCenter.x} cy={features.face.noseCenter.y} r="5" />
-      <circle className="alignment-anchor soft" cx={mouth.x} cy={mouth.y} r="4" />
+    <svg className="scan-ring" viewBox="0 0 240 240" aria-hidden="true">
+      {Array.from({ length: dots }, (_, index) => {
+        const angle = -Math.PI / 2 + (index / dots) * Math.PI * 2;
+        const rhythm = (Math.sin(index * 1.93) + 1) * 0.006 + (Math.sin(index * 0.61) + 1) * 0.004;
+        const threshold = Math.max(0, Math.min(0.98, index / dots + rhythm));
+        const active = progress >= threshold;
+        const intensity = active ? 0.78 + Math.sin(index * 1.7) * 0.14 : 0;
+        return (
+          <circle
+            key={index}
+            className={`scan-ring-dot ${active ? 'active' : ''}`}
+            cx={center + Math.cos(angle) * radius}
+            cy={center + Math.sin(angle) * radius}
+            r="3.2"
+            style={{
+              '--dot-delay': `${(index % 9) * 24}ms`,
+              '--dot-opacity': active ? intensity : 1,
+            }}
+          />
+        );
+      })}
     </svg>
   );
+}
+
+function getAlignmentScanMessage({ alignment, features, scanProgress }) {
+  if (!features) return 'Find your face';
+  if (!alignment.ready) return alignment.label || 'Center your face';
+  if (scanProgress < 0.28) return 'Great! Hold still';
+  if (scanProgress < 0.72) return 'Scanning gently';
+  if (scanProgress < 1) return 'Almost done';
+  return 'Done. Nice work';
 }
 
 function formatDetectorMode(mode) {
   if (mode === 'real-landmark') return 'Real landmark mode';
   if (mode === 'mock-landmark') return 'Mock landmark mode';
-  return 'No-camera demo mode';
+  return 'Camera preview';
 }
 
 export function MirrorVideo({ videoRef, isDemoMode }) {

@@ -4,31 +4,32 @@ import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { useHandTracking } from '../hooks/useHandTracking.js';
 import { useRainWiperAudio } from '../hooks/useRainWiperAudio.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
+import { generateUnderEyeMassagePaths } from '../utils/overlayPaths.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
 
 const totalSeconds = STAGE_SECONDS * routineStages.length;
 
-export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
+export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }) {
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
   const previousFingersRef = useRef({ left: null, right: null });
   const snapshotFramesRef = useRef([]);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
-  const sweepCoverageRef = useRef({
-    left: { min: 0.5, max: 0.5 },
-    right: { min: 0.5, max: 0.5 },
+  const massageProgressRef = useRef({
+    left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
+    right: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
   });
   const [elapsed, setElapsed] = useState(0);
   const [stageScores, setStageScores] = useState({});
   const [interaction, setInteraction] = useState({
     score: 0,
     completion: 0,
-    feedback: 'Move your index finger side to side',
+    feedback: 'Glide gently outward under your eyes',
     isOnTrack: false,
-    sweep: 0.5,
-    leftSweep: 0.5,
-    rightSweep: 0.5,
+    sweep: 0,
+    leftSweep: 0,
+    rightSweep: 0,
   });
 
   useEffect(() => {
@@ -67,7 +68,10 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
     () => getRoutineFeedback(stageIndex, stageProgress, globalProgress),
     [stageIndex, stageProgress, globalProgress],
   );
-  const gestureTrajectories = useMemo(() => createWiperGestureTrajectories(containerSize), [containerSize]);
+  const gestureTrajectories = useMemo(
+    () => createUnderEyeGestureTrajectories(features, containerSize),
+    [containerSize, features],
+  );
   const { fingertips, handMessage, handMode, hasFingertips } = useHandTracking({
     videoRef,
     stream,
@@ -83,31 +87,31 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
 
   useEffect(() => {
     previousFingersRef.current = { left: null, right: null };
-    sweepCoverageRef.current = {
-      left: { min: 0.5, max: 0.5 },
-      right: { min: 0.5, max: 0.5 },
+    massageProgressRef.current = {
+      left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
+      right: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
     };
     setInteraction({
       score: 0,
       completion: 0,
-      feedback: 'Move your index finger side to side',
+      feedback: 'Glide gently outward under your eyes',
       isOnTrack: false,
-      sweep: 0.5,
-      leftSweep: 0.5,
-      rightSweep: 0.5,
+      sweep: 0,
+      leftSweep: 0,
+      rightSweep: 0,
     });
   }, [stage.id]);
 
   useEffect(() => {
     const now = performance.now();
     const previous = previousFingersRef.current;
-    const nextInteraction = scoreDualWiperGesture({
+    const nextInteraction = scoreUnderEyeMassageGesture({
       fingertips,
       previousFingertips: previous,
       timestamp: now,
       containerSize,
-      coverageRef: sweepCoverageRef,
-      fallbackSweep: 0.5 - Math.cos(stageProgress * Math.PI * 2) / 2,
+      progressRef: massageProgressRef,
+      trajectories: gestureTrajectories,
     });
 
     setInteraction(nextInteraction);
@@ -115,7 +119,7 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
       left: fingertips.left ? { point: fingertips.left, timestamp: now } : null,
       right: fingertips.right ? { point: fingertips.right, timestamp: now } : null,
     };
-  }, [containerSize, fingertips, stageProgress]);
+  }, [containerSize, fingertips, gestureTrajectories]);
 
   useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
@@ -147,31 +151,12 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
     }
   }, [elapsed, onComplete, stageScores]);
 
-  return (
-    <section className="screen routine-screen">
-      <div className="routine-header">
-        <div>
-          <p className="eyebrow">Guided Face Reset</p>
-          <h1>{stage.zhTitle}</h1>
-        </div>
-        <div className="routine-controls">
-          <button
-            className={`sound-toggle ${isSoundEnabled ? 'active' : ''}`}
-            type="button"
-            aria-pressed={isSoundEnabled}
-            onClick={toggleSound}
-          >
-            <span className="sound-icon" aria-hidden="true" />
-            {isSoundEnabled ? 'Sound on' : 'Sound off'}
-          </button>
-          <div className="timer-ring" style={{ '--progress': `${globalProgress * 360}deg` }}>
-            <span>{formatTime(secondsLeft)}</span>
-          </div>
-        </div>
-      </div>
+  const displayScore = Math.max(stageScores[stage.id] || 0, interaction.score || feedback.score);
 
-      <div className="routine-layout">
-        <div className="mirror-stage routine-mirror" ref={stageRef}>
+  return (
+    <section className="screen routine-screen play-routine-screen">
+      <div className="routine-layout play-routine-layout">
+        <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
           <RainScene interaction={interaction} />
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
           <WindshieldWiperOverlay
@@ -187,51 +172,22 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete }) {
             previewVideoRef={previewVideoRef}
             stream={stream}
           />
-          <div className="ai-label top-label">
-            {formatDetectorMode(detectorMode)} · {formatDetectorMode(handMode)} hand ·{' '}
-            {hasLandmarks && hasFingertips ? `Tracking ${interaction.score}` : handMessage}
+
+          <button className="play-close-button" onClick={onExit} aria-label="Close routine" />
+
+          <div className="play-score">
+            <span>Score</span>
+            <strong>{displayScore}</strong>
           </div>
-          <div className={`ai-label bottom-label ${interaction.isOnTrack ? 'positive' : ''}`}>
-            {interaction.feedback || feedback.label}
+
+          <div className="play-timer timer-ring" style={{ '--progress': `${globalProgress * 360}deg` }}>
+            <span>{formatTime(secondsLeft)}</span>
+          </div>
+
+          <div className="play-feedback">
+            {interaction.isOnTrack ? 'Nice and slow' : interaction.feedback || feedback.label}
           </div>
         </div>
-
-        <aside className="routine-hud">
-          <div className="stage-chip" style={{ '--accent': stage.accent }}>
-            Eye-only Rain v2
-          </div>
-          <div className="hud-copy">
-            <h2>{stage.title}</h2>
-            <p>左食指控制左雨刷，右食指控制右雨刷。</p>
-          </div>
-
-          <div className="score-row">
-            <span>Score</span>
-            <strong>{interaction.score || feedback.score}</strong>
-          </div>
-          <div className="progress-track">
-            <span style={{ width: `${Math.max(globalProgress * 100, interaction.completion * 100)}%` }} />
-          </div>
-
-          <div className="tracking-grid">
-            <div>
-              <span>Sweep range</span>
-              <strong>{toPercent(interaction.accuracy)}</strong>
-            </div>
-            <div>
-              <span>Side movement</span>
-              <strong>{toPercent(interaction.direction)}</strong>
-            </div>
-            <div>
-              <span>Gentle speed</span>
-              <strong>{toPercent(interaction.speed)}</strong>
-            </div>
-            <div>
-              <span>Completion</span>
-              <strong>{toPercent(interaction.completion)}</strong>
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
   );
@@ -589,12 +545,10 @@ function drawRainImpact(context, impact, progress, fade) {
 }
 
 function drawCleanedSweep(context, width, height, interaction) {
-  const leftPivot = { x: width * 0.24, y: height * 0.94 };
-  const rightPivot = { x: width * 0.76, y: height * 0.94 };
-  const radius = Math.min(width * 0.43, height * 0.74) * 0.9;
+  const { leftPivot, rightPivot, radius, leftStart, leftRange, rightStart, rightRange } = getWiperGeometry(width, height);
   const sweeps = [
-    { pivot: leftPivot, start: -58, end: -58 + (interaction.leftSweep ?? 0.5) * 96 },
-    { pivot: rightPivot, start: -38, end: -38 + (interaction.rightSweep ?? 0.5) * 96 },
+    { pivot: leftPivot, start: leftStart, end: leftStart + (interaction.leftSweep ?? 0.5) * leftRange },
+    { pivot: rightPivot, start: rightStart, end: rightStart + (interaction.rightSweep ?? 0.5) * rightRange },
   ];
 
   context.save();
@@ -612,14 +566,27 @@ function drawCleanedSweep(context, width, height, interaction) {
 }
 
 function getWiperFade(drop, width, height, interaction) {
-  const radius = Math.min(width * 0.43, height * 0.74) * 0.9;
-  const leftPivot = { x: width * 0.24, y: height * 0.94 };
-  const rightPivot = { x: width * 0.76, y: height * 0.94 };
-  const leftEnd = -58 + (interaction.leftSweep ?? 0.5) * 96;
-  const rightEnd = -38 + (interaction.rightSweep ?? 0.5) * 96;
-  const inLeft = isNearSweptArc(drop, leftPivot, radius, -58, leftEnd);
-  const inRight = isNearSweptArc(drop, rightPivot, radius, -38, rightEnd);
+  const { leftPivot, rightPivot, radius, leftStart, leftRange, rightStart, rightRange } = getWiperGeometry(width, height);
+  const leftEnd = leftStart + (interaction.leftSweep ?? 0.5) * leftRange;
+  const rightEnd = rightStart + (interaction.rightSweep ?? 0.5) * rightRange;
+  const inLeft = isNearSweptArc(drop, leftPivot, radius, leftStart, leftEnd);
+  const inRight = isNearSweptArc(drop, rightPivot, radius, rightStart, rightEnd);
   return inLeft || inRight ? 0.18 : 1;
+}
+
+function getWiperGeometry(width, height) {
+  const bladeLength = Math.min(width * 0.36, height * 0.58);
+
+  return {
+    leftPivot: { x: width * 0.28, y: height * 0.68 },
+    rightPivot: { x: width * 0.72, y: height * 0.68 },
+    bladeLength,
+    radius: bladeLength * 0.92,
+    leftStart: -48,
+    leftRange: 82,
+    rightStart: -34,
+    rightRange: 82,
+  };
 }
 
 function isNearSweptArc(point, pivot, radius, start, end) {
@@ -670,16 +637,29 @@ function WindshieldWiperOverlay({ fingertips, height, interaction, width }) {
 
   const leftSweep = interaction.leftSweep ?? interaction.sweep ?? 0.5;
   const rightSweep = interaction.rightSweep ?? interaction.sweep ?? 0.5;
-  const leftPivot = { x: width * 0.24, y: height * 0.94 };
-  const rightPivot = { x: width * 0.76, y: height * 0.94 };
-  const bladeLength = Math.min(width * 0.43, height * 0.74);
-  const leftAngle = -58 + leftSweep * 96;
-  const rightAngle = -38 + rightSweep * 96;
+  const { leftPivot, rightPivot, bladeLength, leftStart, leftRange, rightStart, rightRange } = getWiperGeometry(
+    width,
+    height,
+  );
+  const leftAngle = leftStart + leftSweep * leftRange;
+  const rightAngle = rightStart + rightSweep * rightRange;
 
   return (
     <svg className="landmark-overlay wiper-overlay" viewBox={`0 0 ${width} ${height}`}>
-      <WiperClearArc pivot={leftPivot} radius={bladeLength} side="left" progress={interaction.leftCompletion || 0} />
-      <WiperClearArc pivot={rightPivot} radius={bladeLength} side="right" progress={interaction.rightCompletion || 0} />
+      <WiperClearArc
+        endAngle={leftStart + leftRange}
+        pivot={leftPivot}
+        progress={interaction.leftCompletion || 0}
+        radius={bladeLength}
+        startAngle={leftStart}
+      />
+      <WiperClearArc
+        endAngle={rightStart + rightRange}
+        pivot={rightPivot}
+        progress={interaction.rightCompletion || 0}
+        radius={bladeLength}
+        startAngle={rightStart}
+      />
       <WiperBlade pivot={leftPivot} length={bladeLength} angle={leftAngle} />
       <WiperBlade pivot={rightPivot} length={bladeLength} angle={rightAngle} />
       {fingertips?.left && <FingertipDot point={fingertips.left} side="left" isOnTrack={interaction.leftOnTrack} />}
@@ -700,9 +680,7 @@ function WiperBlade({ pivot, length, angle }) {
   );
 }
 
-function WiperClearArc({ pivot, radius, side, progress }) {
-  const startAngle = side === 'left' ? -58 : -38;
-  const endAngle = side === 'left' ? 38 : 58;
+function WiperClearArc({ pivot, radius, startAngle, endAngle, progress }) {
   const path = describeArc(pivot.x, pivot.y, radius * 0.9, startAngle, endAngle);
   const dash = Math.round(22 + progress * 74);
 
@@ -801,54 +779,63 @@ function captureRoutineSnapshot({ video, isDemoMode, progress, score }) {
   };
 }
 
-function createWiperGestureTrajectories(size) {
+function createUnderEyeGestureTrajectories(features, size) {
+  const landmarkPaths = generateUnderEyeMassagePaths(features);
+  if (landmarkPaths.length >= 2) {
+    const sorted = [...landmarkPaths].sort((a, b) => getPathCenterX(a) - getPathCenterX(b));
+    return {
+      left: sorted[0],
+      right: sorted[1],
+      all: sorted,
+    };
+  }
+
   const width = size.width || 720;
   const height = size.height || 520;
-  const y = height * 0.5;
-  const points = Array.from({ length: 40 }, (_, index) => {
-    const t = index / 39;
-    return {
-      x: width * (0.22 + t * 0.56),
-      y: y + Math.sin(t * Math.PI) * height * 0.05,
-    };
+  const y = height * 0.42;
+  const left = createFallbackUnderEyePath({
+    id: 'under-eye-left-fallback',
+    start: { x: width * 0.45, y },
+    control: { x: width * 0.35, y: y + height * 0.035 },
+    end: { x: width * 0.22, y: y + height * 0.01 },
+    tolerance: Math.max(34, width * 0.095),
+  });
+  const right = createFallbackUnderEyePath({
+    id: 'under-eye-right-fallback',
+    start: { x: width * 0.55, y },
+    control: { x: width * 0.65, y: y + height * 0.035 },
+    end: { x: width * 0.78, y: y + height * 0.01 },
+    tolerance: Math.max(34, width * 0.095),
   });
 
-  return [
-    {
-      id: 'wiper-finger-sweep',
-      points,
-      tolerance: height * 0.32,
-    },
-  ];
+  return { left, right, all: [left, right] };
 }
 
-function scoreDualWiperGesture({
+function scoreUnderEyeMassageGesture({
   fingertips,
   previousFingertips,
   timestamp,
   containerSize,
-  coverageRef,
-  fallbackSweep,
+  progressRef,
+  trajectories,
 }) {
-  const width = containerSize.width || 1;
-  const height = containerSize.height || 1;
-  const left = scoreSingleWiperSide({
-    point: fingertips.left,
+  const left = scoreMassagePathSide({
+    point: fingertips.left || getNearestFingerForPath(fingertips, trajectories.left),
     previous: previousFingertips.left,
     timestamp,
     containerSize,
-    coverage: coverageRef.current.left,
+    progressState: progressRef.current.left,
+    path: trajectories.left,
     side: 'left',
-    fallbackSweep,
   });
-  const right = scoreSingleWiperSide({
-    point: fingertips.right,
+  const right = scoreMassagePathSide({
+    point: fingertips.right || getNearestFingerForPath(fingertips, trajectories.right),
     previous: previousFingertips.right,
     timestamp,
     containerSize,
-    coverage: coverageRef.current.right,
+    progressState: progressRef.current.right,
+    path: trajectories.right,
     side: 'right',
-    fallbackSweep,
   });
   const hasLeft = Boolean(fingertips.left);
   const hasRight = Boolean(fingertips.right);
@@ -862,7 +849,7 @@ function scoreDualWiperGesture({
       speed: 0,
       completion: 0,
     };
-  const completion = (left.completion + right.completion) / 2;
+  const completion = Math.max(left.completion, right.completion) * 0.34 + ((left.completion + right.completion) / 2) * 0.66;
   const score = Math.round((average.score + completion * 100) / 2);
 
   return {
@@ -871,7 +858,7 @@ function scoreDualWiperGesture({
     direction: average.direction,
     speed: average.speed,
     completion,
-    feedback: getDualWiperFeedback({ hasLeft, hasRight, left, right, completion }),
+    feedback: getUnderEyeMassageFeedback({ hasLeft, hasRight, left, right, completion }),
     isOnTrack: left.isOnTrack || right.isOnTrack,
     leftOnTrack: left.isOnTrack,
     rightOnTrack: right.isOnTrack,
@@ -883,41 +870,43 @@ function scoreDualWiperGesture({
   };
 }
 
-function scoreSingleWiperSide({ point, previous, timestamp, containerSize, coverage, side, fallbackSweep }) {
+function scoreMassagePathSide({ point, previous, timestamp, containerSize, progressState, path }) {
   const width = containerSize.width || 1;
-  const height = containerSize.height || 1;
-  const isLeft = side === 'left';
 
-  if (!point) {
+  if (!point || !path?.points?.length) {
     return {
       hasPoint: false,
       score: 0,
       accuracy: 0,
       direction: 0,
       speed: 0,
-      completion: clamp((coverage.max - coverage.min) / 0.58, 0, 1),
+      completion: progressState.maxProgress || 0,
       isOnTrack: false,
-      sweep: fallbackSweep,
+      sweep: progressState.lastSweep || progressState.maxProgress || 0,
     };
   }
 
-  const minX = isLeft ? width * 0.06 : width * 0.51;
-  const maxX = isLeft ? width * 0.49 : width * 0.94;
-  const sweep = clamp((point.x - minX) / (maxX - minX), 0, 1);
-  coverage.min = Math.min(coverage.min, sweep);
-  coverage.max = Math.max(coverage.max, sweep);
+  const nearest = getNearestPathProgress(point, path.points);
+  const tolerance = path.tolerance || Math.max(28, width * 0.075);
+  const onTrack = nearest.distance <= tolerance * 1.35;
+  const projectedProgress = clamp(nearest.progress, 0, 1);
+  const forwardMovement = projectedProgress >= (progressState.lastProgress || 0) - 0.08;
+  const meaningfulAdvance = projectedProgress > (progressState.maxProgress || 0) + 0.018;
+  if (onTrack && forwardMovement) {
+    progressState.maxProgress = Math.max(progressState.maxProgress || 0, projectedProgress);
+  }
+  progressState.lastProgress = onTrack ? projectedProgress : progressState.lastProgress || 0;
 
-  const range = coverage.max - coverage.min;
-  const completion = clamp(range / 0.58, 0, 1);
-  const inGestureBand = point.y > height * 0.18 && point.y < height * 0.82;
-  const inSideZone = isLeft ? point.x < width * 0.53 : point.x > width * 0.47;
-  const accuracy = inGestureBand && inSideZone ? clamp(range / 0.42, 0.25, 1) : 0.16;
+  const completion = clamp(progressState.maxProgress || 0, 0, 1);
+  const accuracy = onTrack ? clamp(1 - nearest.distance / (tolerance * 1.35), 0.24, 1) : 0.12;
   const elapsedSeconds = previous?.timestamp ? Math.max(0.016, (timestamp - previous.timestamp) / 1000) : 0.016;
-  const dx = previous?.point ? Math.abs(point.x - previous.point.x) : 0;
-  const velocity = dx / elapsedSeconds;
-  const direction = dx > width * 0.006 ? 1 : 0.38;
-  const speed = velocity < 24 ? 0.42 : velocity < 540 ? 1 : velocity < 820 ? 0.7 : 0.38;
+  const movement = previous?.point ? Math.hypot(point.x - previous.point.x, point.y - previous.point.y) : 0;
+  const velocity = movement / elapsedSeconds;
+  const direction = onTrack && (forwardMovement || meaningfulAdvance) ? 1 : onTrack ? 0.46 : 0.12;
+  const speed = velocity < 18 ? 0.46 : velocity < 430 ? 1 : velocity < 720 ? 0.72 : 0.38;
   const score = Math.round((accuracy * 0.26 + direction * 0.22 + speed * 0.2 + completion * 0.32) * 100);
+  const sweepTarget = clamp(completion * 1.08, 0, 1);
+  progressState.lastSweep = progressState.lastSweep + (sweepTarget - progressState.lastSweep) * 0.22;
 
   return {
     hasPoint: true,
@@ -926,9 +915,66 @@ function scoreSingleWiperSide({ point, previous, timestamp, containerSize, cover
     direction,
     speed,
     completion,
-    isOnTrack: inGestureBand && inSideZone && direction > 0.5,
-    sweep,
+    isOnTrack: onTrack && direction > 0.5,
+    sweep: progressState.lastSweep,
   };
+}
+
+function createFallbackUnderEyePath({ id, start, control, end, tolerance }) {
+  return {
+    id,
+    start,
+    control,
+    end,
+    tolerance,
+    points: sampleQuadraticPoints(start, control, end, 34),
+  };
+}
+
+function sampleQuadraticPoints(start, control, end, count) {
+  return Array.from({ length: count }, (_, index) => {
+    const t = count === 1 ? 0 : index / (count - 1);
+    const inverse = 1 - t;
+    return {
+      x: inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x,
+      y: inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y,
+    };
+  });
+}
+
+function getNearestFingerForPath(fingertips, path) {
+  const candidates = [fingertips.left, fingertips.right].filter(Boolean);
+  if (!candidates.length || !path?.points?.length) return null;
+  return candidates
+    .map((point) => ({
+      point,
+      distance: getNearestPathProgress(point, path.points).distance,
+    }))
+    .sort((a, b) => a.distance - b.distance)[0]?.point || null;
+}
+
+function getNearestPathProgress(point, points) {
+  let best = {
+    distance: Infinity,
+    progress: 0,
+  };
+
+  points.forEach((pathPoint, index) => {
+    const distance = Math.hypot(point.x - pathPoint.x, point.y - pathPoint.y);
+    if (distance < best.distance) {
+      best = {
+        distance,
+        progress: points.length <= 1 ? 0 : index / (points.length - 1),
+      };
+    }
+  });
+
+  return best;
+}
+
+function getPathCenterX(path) {
+  if (!path?.points?.length) return path?.start?.x || 0;
+  return path.points.reduce((total, point) => total + point.x, 0) / path.points.length;
 }
 
 function averageMetrics(items) {
@@ -952,15 +998,14 @@ function averageMetrics(items) {
   };
 }
 
-function getDualWiperFeedback({ hasLeft, hasRight, left, right, completion }) {
-  if (!hasLeft && !hasRight) return 'Show both index fingertips';
-  if (!hasLeft) return 'Show your left index fingertip';
-  if (!hasRight) return 'Show your right index fingertip';
-  if (!left.isOnTrack || !right.isOnTrack) return 'Keep each finger on its own side';
-  if (left.speed < 0.55 || right.speed < 0.55) return 'A little more movement';
-  if (left.speed < 0.78 || right.speed < 0.78) return 'Slower and smoother';
-  if (completion > 0.82) return 'Nice, the windshield is clearing';
-  return 'Good two-hand sweep';
+function getUnderEyeMassageFeedback({ hasLeft, hasRight, left, right, completion }) {
+  if (!hasLeft && !hasRight) return 'Show your index fingertip under your eye';
+  if (!left.isOnTrack && !right.isOnTrack) return 'Place your finger on the under-eye guide';
+  if (left.direction < 0.5 || right.direction < 0.5) return 'Glide from inner eye outward';
+  if (left.speed < 0.55 || right.speed < 0.55) return 'Keep gliding outward gently';
+  if (left.speed < 0.78 || right.speed < 0.78) return 'Slow and smooth is perfect';
+  if (completion > 0.82) return 'Nice, the glass is clearing';
+  return 'Good under-eye glide';
 }
 
 function describeArc(cx, cy, radius, startAngle, endAngle) {

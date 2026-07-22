@@ -104,7 +104,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
 
     if (isDemoMode) {
       setDetectorMode(LANDMARK_MODES.demo);
-      setDetectorMessage('No-camera demo mode');
+      setDetectorMessage('Camera preview unavailable');
       tickMock();
       return () => {
         isCancelled = true;
@@ -134,7 +134,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
       .catch(() => {
         if (isCancelled) return;
         setDetectorMode(LANDMARK_MODES.mock);
-        setDetectorMessage('Landmarks unavailable · Try Demo');
+        setDetectorMessage('Landmarks unavailable');
         setLandmarkData(null);
       });
 
