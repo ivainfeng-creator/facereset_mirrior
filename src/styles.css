@@ -2312,6 +2312,59 @@ h1 {
   z-index: 6;
 }
 
+.mini-wiper-group {
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.2));
+}
+
+.mini-under-eye-highlight {
+  fill: rgba(217, 255, 248, 0.14);
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1;
+}
+
+.mini-under-eye-track {
+  fill: none;
+  stroke: rgba(231, 255, 252, 0.38);
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-dasharray: 2 8;
+}
+
+.mini-under-eye-progress {
+  fill: none;
+  stroke: rgba(192, 247, 243, 0.82);
+  stroke-width: 13;
+  stroke-linecap: round;
+  filter: blur(0.25px) drop-shadow(0 0 14px rgba(203, 255, 250, 0.32));
+  transition: stroke-dasharray 120ms linear;
+}
+
+.mini-wiper-blade {
+  transition: transform 90ms linear;
+}
+
+.mini-wiper-shadow {
+  stroke: rgba(1, 8, 9, 0.58);
+  stroke-width: 13;
+  stroke-linecap: round;
+}
+
+.mini-wiper-rubber {
+  stroke: rgba(5, 13, 14, 0.96);
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.mini-wiper-hinge {
+  fill: rgba(211, 251, 250, 0.94);
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-width: 2;
+}
+
+.mini-wiper-hinge-core {
+  fill: #173d3f;
+}
+
 .wiper-clear-arc {
   fill: none;
   stroke: rgba(221, 255, 250, 0.2);

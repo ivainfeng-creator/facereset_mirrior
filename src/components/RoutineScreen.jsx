@@ -157,12 +157,13 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }
     <section className="screen routine-screen play-routine-screen">
       <div className="routine-layout play-routine-layout">
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
-          <RainScene interaction={interaction} />
+          <RainScene interaction={interaction} trajectories={gestureTrajectories} />
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
           <WindshieldWiperOverlay
             fingertips={fingertips}
             height={containerSize.height}
             interaction={interaction}
+            trajectories={gestureTrajectories}
             width={containerSize.width}
           />
           <CameraPreview
@@ -193,14 +194,19 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }
   );
 }
 
-function RainScene({ interaction }) {
+function RainScene({ interaction, trajectories }) {
   const cleared = Math.round((interaction.completion || 0) * 100);
   const canvasRef = useRef(null);
   const interactionRef = useRef(interaction);
+  const trajectoriesRef = useRef(trajectories);
 
   useEffect(() => {
     interactionRef.current = interaction;
   }, [interaction]);
+
+  useEffect(() => {
+    trajectoriesRef.current = trajectories;
+  }, [trajectories]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -233,8 +239,8 @@ function RainScene({ interaction }) {
       const context = canvas.getContext('2d');
       if (!width || !height) resize();
       drawBlurredRoad(context, width, height, time);
-      drawGlassWater(context, width, height, time, droplets, impacts, interactionRef.current, storm);
-      drawCleanedSweep(context, width, height, interactionRef.current);
+      drawGlassWater(context, width, height, time, droplets, impacts, interactionRef.current, storm, trajectoriesRef.current);
+      drawMiniCleanedSweeps(context, interactionRef.current, trajectoriesRef.current);
       animationFrame = requestAnimationFrame(draw);
     };
 
@@ -365,7 +371,7 @@ function drawBokeh(context, x, y, radius, color, alpha) {
   context.globalAlpha = 1;
 }
 
-function drawGlassWater(context, width, height, time, droplets, impacts, interaction, storm) {
+function drawGlassWater(context, width, height, time, droplets, impacts, interaction, storm, trajectories) {
   context.save();
   context.fillStyle = 'rgba(236, 255, 255, 0.16)';
   context.fillRect(0, 0, width, height);
@@ -381,7 +387,7 @@ function drawGlassWater(context, width, height, time, droplets, impacts, interac
       drop.y = -drop.radius - Math.random() * height * 0.18;
     }
 
-    const fade = getWiperFade(drop, width, height, interaction);
+    const fade = getWiperFade(drop, trajectories, interaction);
     if (fade < 0.08) return;
     drawDroplet(context, drop, fade);
   });
@@ -395,7 +401,7 @@ function drawGlassWater(context, width, height, time, droplets, impacts, interac
       return;
     }
 
-    const fade = getWiperFade(impact, width, height, interaction);
+    const fade = getWiperFade(impact, trajectories, interaction);
     if (fade < 0.08) return;
     drawRainImpact(context, impact, progress, fade);
   });
@@ -544,34 +550,52 @@ function drawRainImpact(context, impact, progress, fade) {
   context.restore();
 }
 
-function drawCleanedSweep(context, width, height, interaction) {
-  const { leftPivot, rightPivot, radius, leftStart, leftRange, rightStart, rightRange } = getWiperGeometry(width, height);
-  const sweeps = [
-    { pivot: leftPivot, start: leftStart, end: leftStart + (interaction.leftSweep ?? 0.5) * leftRange },
-    { pivot: rightPivot, start: rightStart, end: rightStart + (interaction.rightSweep ?? 0.5) * rightRange },
-  ];
-
+function drawMiniCleanedSweeps(context, interaction, trajectories) {
+  const paths = getMiniWiperPaths(trajectories);
+  if (!paths.length) return;
   context.save();
-  context.globalAlpha = 0.34;
+  context.globalAlpha = 0.46;
   context.strokeStyle = 'rgba(236, 255, 255, 0.52)';
   context.lineCap = 'round';
-  context.lineWidth = radius * 0.12;
-  context.filter = 'blur(0.8px)';
-  sweeps.forEach(({ pivot, start, end }) => {
-    context.beginPath();
-    context.arc(pivot.x, pivot.y, radius, degreesToRadians(start - 90), degreesToRadians(end - 90));
-    context.stroke();
+  context.lineJoin = 'round';
+  context.filter = 'blur(1px)';
+  paths.forEach(({ path, side }) => {
+    const progress = side === 'left' ? interaction.leftCompletion || 0 : interaction.rightCompletion || 0;
+    drawPartialPointPath(context, path.points, progress, Math.max(18, (path.trackWidth || path.tolerance || 26) * 1.45));
   });
   context.restore();
 }
 
-function getWiperFade(drop, width, height, interaction) {
-  const { leftPivot, rightPivot, radius, leftStart, leftRange, rightStart, rightRange } = getWiperGeometry(width, height);
-  const leftEnd = leftStart + (interaction.leftSweep ?? 0.5) * leftRange;
-  const rightEnd = rightStart + (interaction.rightSweep ?? 0.5) * rightRange;
-  const inLeft = isNearSweptArc(drop, leftPivot, radius, leftStart, leftEnd);
-  const inRight = isNearSweptArc(drop, rightPivot, radius, rightStart, rightEnd);
-  return inLeft || inRight ? 0.18 : 1;
+function getWiperFade(drop, trajectories, interaction) {
+  const paths = getMiniWiperPaths(trajectories);
+  const cleared = paths.some(({ path, side }) => {
+    const progress = side === 'left' ? interaction.leftCompletion || 0 : interaction.rightCompletion || 0;
+    return isNearClearedPath(drop, path, progress);
+  });
+  return cleared ? 0.18 : 1;
+}
+
+function drawPartialPointPath(context, points = [], progress = 0, lineWidth = 24) {
+  const maxIndex = Math.max(1, Math.floor(clamp(progress, 0, 1) * (points.length - 1)));
+  if (points.length < 2 || maxIndex < 1) return;
+  context.lineWidth = lineWidth;
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  for (let index = 1; index <= maxIndex; index += 1) {
+    context.lineTo(points[index].x, points[index].y);
+  }
+  context.stroke();
+}
+
+function isNearClearedPath(point, path, progress) {
+  if (!path?.points?.length || progress <= 0.02) return false;
+  const maxIndex = Math.max(1, Math.floor(clamp(progress, 0, 1) * (path.points.length - 1)));
+  const tolerance = Math.max(18, (path.trackWidth || path.tolerance || 26) * 1.35);
+  for (let index = 0; index <= maxIndex; index += 1) {
+    const pathPoint = path.points[index];
+    if (Math.hypot(point.x - pathPoint.x, point.y - pathPoint.y) <= tolerance) return true;
+  }
+  return false;
 }
 
 function getWiperGeometry(width, height) {
@@ -587,6 +611,48 @@ function getWiperGeometry(width, height) {
     rightStart: -34,
     rightRange: 82,
   };
+}
+
+function getMiniWiperPaths(trajectories) {
+  if (!trajectories) return [];
+  if (trajectories.left || trajectories.right) {
+    return [
+      trajectories.left && { path: trajectories.left, side: 'left' },
+      trajectories.right && { path: trajectories.right, side: 'right' },
+    ].filter(Boolean);
+  }
+  if (Array.isArray(trajectories.all)) {
+    return trajectories.all.map((path, index) => ({
+      path,
+      side: index === 0 ? 'left' : 'right',
+    }));
+  }
+  if (Array.isArray(trajectories)) {
+    return trajectories.map((path, index) => ({
+      path,
+      side: index === 0 ? 'left' : 'right',
+    }));
+  }
+  return [];
+}
+
+function samplePathPoint(points = [], progress = 0) {
+  if (!points.length) return { x: 0, y: 0 };
+  const scaled = clamp(progress, 0, 1) * (points.length - 1);
+  const index = Math.floor(scaled);
+  const nextIndex = Math.min(points.length - 1, index + 1);
+  const t = scaled - index;
+  const current = points[index];
+  const next = points[nextIndex];
+  return {
+    x: current.x + (next.x - current.x) * t,
+    y: current.y + (next.y - current.y) * t,
+  };
+}
+
+function quadraticPath(start, control, end) {
+  if (!start || !control || !end) return '';
+  return `M ${round(start.x)} ${round(start.y)} Q ${round(control.x)} ${round(control.y)} ${round(end.x)} ${round(end.y)}`;
 }
 
 function isNearSweptArc(point, pivot, radius, start, end) {
@@ -632,39 +698,52 @@ function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, st
   );
 }
 
-function WindshieldWiperOverlay({ fingertips, height, interaction, width }) {
+function WindshieldWiperOverlay({ fingertips, height, interaction, trajectories, width }) {
   if (!width || !height) return null;
 
-  const leftSweep = interaction.leftSweep ?? interaction.sweep ?? 0.5;
-  const rightSweep = interaction.rightSweep ?? interaction.sweep ?? 0.5;
-  const { leftPivot, rightPivot, bladeLength, leftStart, leftRange, rightStart, rightRange } = getWiperGeometry(
-    width,
-    height,
-  );
-  const leftAngle = leftStart + leftSweep * leftRange;
-  const rightAngle = rightStart + rightSweep * rightRange;
+  const miniPaths = getMiniWiperPaths(trajectories);
 
   return (
     <svg className="landmark-overlay wiper-overlay" viewBox={`0 0 ${width} ${height}`}>
-      <WiperClearArc
-        endAngle={leftStart + leftRange}
-        pivot={leftPivot}
-        progress={interaction.leftCompletion || 0}
-        radius={bladeLength}
-        startAngle={leftStart}
-      />
-      <WiperClearArc
-        endAngle={rightStart + rightRange}
-        pivot={rightPivot}
-        progress={interaction.rightCompletion || 0}
-        radius={bladeLength}
-        startAngle={rightStart}
-      />
-      <WiperBlade pivot={leftPivot} length={bladeLength} angle={leftAngle} />
-      <WiperBlade pivot={rightPivot} length={bladeLength} angle={rightAngle} />
+      {miniPaths.map(({ path, side }) => (
+        <MiniUnderEyeWiper
+          key={path.id || side}
+          path={path}
+          progress={side === 'left' ? interaction.leftCompletion || 0 : interaction.rightCompletion || 0}
+          side={side}
+        />
+      ))}
       {fingertips?.left && <FingertipDot point={fingertips.left} side="left" isOnTrack={interaction.leftOnTrack} />}
       {fingertips?.right && <FingertipDot point={fingertips.right} side="right" isOnTrack={interaction.rightOnTrack} />}
     </svg>
+  );
+}
+
+function MiniUnderEyeWiper({ path, progress, side }) {
+  const clamped = clamp(progress, 0, 1);
+  const point = samplePathPoint(path.points, clamped);
+  const nextPoint = samplePathPoint(path.points, Math.min(1, clamped + 0.04));
+  const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x) * (180 / Math.PI);
+  const length = clamp((path.trackWidth || path.tolerance || 28) * 1.42, 28, 56);
+  const pathD = path.d || quadraticPath(path.start, path.control, path.end);
+
+  return (
+    <g className={`mini-wiper-group ${side}`}>
+      {path.highlight && <path className="mini-under-eye-highlight" d={path.highlight} />}
+      <path className="mini-under-eye-track" d={pathD} pathLength="100" />
+      <path
+        className="mini-under-eye-progress"
+        d={pathD}
+        pathLength="100"
+        style={{ strokeDasharray: `${Math.max(6, Math.round(clamped * 100))} 100` }}
+      />
+      <g className="mini-wiper-blade" transform={`translate(${point.x} ${point.y}) rotate(${angle + 88})`}>
+        <line className="mini-wiper-shadow" x1="0" y1={-length / 2} x2="0" y2={length / 2} />
+        <line className="mini-wiper-rubber" x1="0" y1={-length / 2} x2="0" y2={length / 2} />
+        <circle className="mini-wiper-hinge" cx="0" cy="0" r="7" />
+        <circle className="mini-wiper-hinge-core" cx="0" cy="0" r="3" />
+      </g>
+    </g>
   );
 }
 
