@@ -1,35 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STAGE_SECONDS, routineStages } from '../data/routine.js';
+import { SCENE_IDS } from '../data/scenes.js';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { useHandTracking } from '../hooks/useHandTracking.js';
-import { useRainWiperAudio } from '../hooks/useRainWiperAudio.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
 import { generateUnderEyeMassagePaths } from '../utils/overlayPaths.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
 
 const totalSeconds = STAGE_SECONDS * routineStages.length;
 
-export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }) {
+export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, stream, isDemoMode, onComplete, onExit }) {
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
+  const mouthProgressRef = useRef({ score: 0, flow: 0, lastRatio: 0, lastTimestamp: 0, openFrames: 0 });
+  const templeProgressRef = useRef({ score: 0, flow: 0, lastTimestamp: 0, pressFrames: 0 });
   const previousFingersRef = useRef({ left: null, right: null });
-  const snapshotFramesRef = useRef([]);
-  const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const massageProgressRef = useRef({
     left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
     right: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
   });
+  const snapshotFramesRef = useRef([]);
+  const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const [elapsed, setElapsed] = useState(0);
   const [stageScores, setStageScores] = useState({});
   const [interaction, setInteraction] = useState({
     score: 0,
     completion: 0,
-    feedback: 'Glide gently outward under your eyes',
+    feedback: 'Open wide and let little fish drift out',
     isOnTrack: false,
-    sweep: 0,
-    leftSweep: 0,
-    rightSweep: 0,
+    mouthOpen: 0,
+    flow: 0,
+    fishBurst: 0,
+    isOpen: false,
+    leftPress: 0,
+    rightPress: 0,
+    rain: 0,
+    growth: 0,
+    ripple: 0,
+    isPressing: false,
   });
 
   useEffect(() => {
@@ -72,20 +81,25 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }
     () => createUnderEyeGestureTrajectories(features, containerSize),
     [containerSize, features],
   );
-  const { fingertips, handMessage, handMode, hasFingertips } = useHandTracking({
+  const templeTargets = useMemo(
+    () => createTemplePressTargets(features, containerSize),
+    [containerSize, features],
+  );
+  const templeTrajectories = useMemo(
+    () => createTemplePressTrajectories(templeTargets, containerSize),
+    [containerSize, templeTargets],
+  );
+  const { fingertips, handMode } = useHandTracking({
     videoRef,
     stream,
     isDemoMode,
     displayRect,
-    trajectories: gestureTrajectories,
-  });
-
-  const { isSoundEnabled, toggleSound } = useRainWiperAudio({
-    leftSweep: interaction.leftSweep,
-    rightSweep: interaction.rightSweep,
+    trajectories: selectedScene === SCENE_IDS.templeGarden ? templeTrajectories : gestureTrajectories,
   });
 
   useEffect(() => {
+    mouthProgressRef.current = { score: 0, flow: 0, lastRatio: 0, lastTimestamp: 0, openFrames: 0 };
+    templeProgressRef.current = { score: 0, flow: 0, lastTimestamp: 0, pressFrames: 0 };
     previousFingersRef.current = { left: null, right: null };
     massageProgressRef.current = {
       left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
@@ -94,32 +108,59 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }
     setInteraction({
       score: 0,
       completion: 0,
-      feedback: 'Glide gently outward under your eyes',
+      feedback: getInitialFeedback(selectedScene),
       isOnTrack: false,
-      sweep: 0,
-      leftSweep: 0,
-      rightSweep: 0,
+      mouthOpen: 0,
+      flow: 0,
+      fishBurst: 0,
+      isOpen: false,
+      leftPress: 0,
+      rightPress: 0,
+      rain: 0,
+      growth: 0,
+      ripple: 0,
+      isPressing: false,
     });
-  }, [stage.id]);
+  }, [selectedScene, stage.id]);
 
   useEffect(() => {
     const now = performance.now();
-    const previous = previousFingersRef.current;
-    const nextInteraction = scoreUnderEyeMassageGesture({
-      fingertips,
-      previousFingertips: previous,
-      timestamp: now,
-      containerSize,
-      progressRef: massageProgressRef,
-      trajectories: gestureTrajectories,
-    });
+    let nextInteraction;
+
+    if (selectedScene === SCENE_IDS.templeGarden) {
+      nextInteraction = scoreTemplePress({
+          features,
+          fingertips,
+          targets: templeTargets,
+          timestamp: now,
+          progressState: templeProgressRef.current,
+          stageProgress,
+        });
+    } else if (selectedScene === SCENE_IDS.rainWiper) {
+      const previous = previousFingersRef.current;
+      nextInteraction = scoreUnderEyeMassageGesture({
+        fingertips,
+        previousFingertips: previous,
+        timestamp: now,
+        containerSize,
+        progressRef: massageProgressRef,
+        trajectories: gestureTrajectories,
+      });
+      previousFingersRef.current = {
+        left: fingertips.left ? { point: fingertips.left, timestamp: now } : null,
+        right: fingertips.right ? { point: fingertips.right, timestamp: now } : null,
+      };
+    } else {
+      nextInteraction = scoreMouthOpening({
+          features,
+          timestamp: now,
+          progressState: mouthProgressRef.current,
+          stageProgress,
+        });
+    }
 
     setInteraction(nextInteraction);
-    previousFingersRef.current = {
-      left: fingertips.left ? { point: fingertips.left, timestamp: now } : null,
-      right: fingertips.right ? { point: fingertips.right, timestamp: now } : null,
-    };
-  }, [containerSize, fingertips, gestureTrajectories]);
+  }, [containerSize, features, fingertips, gestureTrajectories, selectedScene, stageProgress, templeTargets]);
 
   useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
@@ -157,18 +198,26 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }
     <section className="screen routine-screen play-routine-screen">
       <div className="routine-layout play-routine-layout">
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
-          <RainScene interaction={interaction} trajectories={gestureTrajectories} />
+          {selectedScene === SCENE_IDS.templeGarden ? (
+            <TempleGardenScene interaction={interaction} targets={templeTargets} />
+          ) : selectedScene === SCENE_IDS.rainWiper ? (
+            <>
+              <RainScene interaction={interaction} trajectories={gestureTrajectories} />
+              <WindshieldWiperOverlay
+                fingertips={fingertips}
+                height={containerSize.height}
+                interaction={interaction}
+                trajectories={gestureTrajectories}
+                width={containerSize.width}
+              />
+            </>
+          ) : (
+            <WhaleDreamScene interaction={interaction} />
+          )}
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
-          <WindshieldWiperOverlay
-            fingertips={fingertips}
-            height={containerSize.height}
-            interaction={interaction}
-            trajectories={gestureTrajectories}
-            width={containerSize.width}
-          />
           <CameraPreview
             detectorMode={detectorMode}
-            handMode={handMode}
+            handMode={selectedScene === SCENE_IDS.whaleDream ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
             isDemoMode={isDemoMode}
             previewVideoRef={previewVideoRef}
             stream={stream}
@@ -183,14 +232,226 @@ export default function RoutineScreen({ stream, isDemoMode, onComplete, onExit }
 
           <div className="play-timer timer-ring" style={{ '--progress': `${globalProgress * 360}deg` }}>
             <span>{formatTime(secondsLeft)}</span>
+            <small>~~~</small>
           </div>
 
           <div className="play-feedback">
-            {interaction.isOnTrack ? 'Nice and slow' : interaction.feedback || feedback.label}
+            {interaction.feedback || feedback.label}
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function TempleGardenScene({ interaction }) {
+  const rain = clamp(interaction.rain || 0, 0, 1);
+  const growth = clamp(interaction.growth || 0, 0, 1);
+  const leftPress = clamp(interaction.leftPress || 0, 0, 1);
+  const rightPress = clamp(interaction.rightPress || 0, 0, 1);
+  const drops = useMemo(
+    () =>
+      Array.from({ length: 52 }, (_, index) => ({
+        id: index,
+        side: index % 2 === 0 ? 'left' : 'right',
+        x: 42 + ((index * 17) % 70),
+        y: 178 + ((index * 31) % 172),
+        delay: (index % 13) * 0.08,
+        length: 14 + (index % 5) * 5,
+      })),
+    [],
+  );
+  const flowers = useMemo(
+    () =>
+      Array.from({ length: 22 }, (_, index) => ({
+        id: index,
+        x: 46 + ((index * 29) % 285),
+        y: 468 + ((index * 19) % 78),
+        scale: 0.72 + (index % 6) * 0.1,
+        hue: index % 4,
+      })),
+    [],
+  );
+
+  return (
+    <div
+      className={`temple-garden-scene ${interaction.isPressing ? 'is-pressing' : ''}`}
+      style={{
+        '--left-press': leftPress,
+        '--right-press': rightPress,
+        '--rain': rain,
+        '--growth': growth,
+        '--ripple': interaction.ripple || 0,
+      }}
+      aria-hidden="true"
+    >
+      <div className="temple-copy">
+        <h1>Cloud Garden</h1>
+        <p>Press both temples and let the garden breathe</p>
+      </div>
+
+      <div className="garden-cloud left">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="garden-cloud right">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div className="garden-rain">
+        {drops.map((drop) => (
+          <span
+            key={drop.id}
+            className={drop.side}
+            style={{
+              '--drop-x': `${drop.x}px`,
+              '--drop-y': `${drop.y}px`,
+              '--drop-delay': `${drop.delay}s`,
+              '--drop-length': `${drop.length}px`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="garden-pond">
+        <span className="pond-ripple one" />
+        <span className="pond-ripple two" />
+        <span className="pond-ripple three" />
+      </div>
+
+      <div className="garden-bed">
+        {flowers.map((flower) => (
+          <span
+            key={flower.id}
+            className={`garden-flower hue-${flower.hue}`}
+            style={{
+              '--flower-x': `${flower.x}px`,
+              '--flower-y': `${flower.y}px`,
+              '--flower-scale': flower.scale,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="garden-status-chip">
+        {interaction.isPressing ? '~~ Garden breathing' : 'Touch both temples'}
+      </div>
+    </div>
+  );
+}
+
+function WhaleDreamScene({ interaction }) {
+  const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
+  const fish = useMemo(
+    () =>
+      Array.from({ length: 22 }, (_, index) => ({
+        id: index,
+        delay: (index % 7) * 0.15,
+        size: 0.72 + (index % 5) * 0.13,
+        x: 42 + ((index * 37) % 148),
+        y: 315 + ((index * 29) % 115),
+        driftX: -92 + ((index * 41) % 184),
+        driftY: -54 - ((index * 31) % 110),
+      })),
+    [],
+  );
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 28 }, (_, index) => ({
+        id: index,
+        x: 8 + ((index * 23) % 86),
+        y: 4 + ((index * 37) % 62),
+        size: 1 + (index % 4) * 0.5,
+      })),
+    [],
+  );
+
+  const upperMouth = 355 - mouthOpen * 34;
+  const lowerMouth = 404 + mouthOpen * 46;
+  const mouthPath = [
+    `M 92 ${upperMouth}`,
+    `C 122 ${296 - mouthOpen * 28} 195 ${286 - mouthOpen * 24} 250 ${327 - mouthOpen * 8}`,
+    `C 238 ${386 + mouthOpen * 48} 165 ${448 + mouthOpen * 38} 92 ${lowerMouth}`,
+    `C 64 ${393 + mouthOpen * 22} 64 ${365 - mouthOpen * 8} 92 ${upperMouth}`,
+    'Z',
+  ].join(' ');
+
+  return (
+    <div
+      className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''}`}
+      style={{ '--mouth-open': mouthOpen, '--flow': interaction.flow || 0 }}
+      aria-hidden="true"
+    >
+      <div className="whale-stars">
+        {stars.map((star) => (
+          <span
+            key={star.id}
+            style={{
+              '--star-x': `${star.x}%`,
+              '--star-y': `${star.y}%`,
+              '--star-size': `${star.size}px`,
+              '--star-delay': `${(star.id % 9) * 0.22}s`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="whale-copy">
+        <h1>Whale Dream</h1>
+        <p>Open wide and let little fish drift out</p>
+      </div>
+      <svg className="whale-svg" viewBox="0 0 375 620" role="img" aria-label="Dream whale">
+        <defs>
+          <radialGradient id="whaleGlow" cx="38%" cy="46%" r="65%">
+            <stop offset="0%" stopColor="#8cb5ff" />
+            <stop offset="58%" stopColor="#4267c7" />
+            <stop offset="100%" stopColor="#22357f" />
+          </radialGradient>
+          <radialGradient id="mouthGlow" cx="54%" cy="50%" r="62%">
+            <stop offset="0%" stopColor="#fff3a9" />
+            <stop offset="44%" stopColor="#ffaed2" />
+            <stop offset="100%" stopColor="#5d3a90" />
+          </radialGradient>
+          <linearGradient id="seaGlow" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stopColor="#e7b9ff" stopOpacity="0.74" />
+            <stop offset="100%" stopColor="#71e6ff" stopOpacity="0.18" />
+          </linearGradient>
+        </defs>
+
+        <path className="whale-water" d="M 0 510 C 70 482 132 534 200 504 C 270 474 316 493 375 468 L 375 620 L 0 620 Z" />
+        <path
+          className="whale-body"
+          d="M 101 335 C 111 210 207 161 284 227 C 350 283 344 431 286 495 C 220 568 119 518 89 430 C 59 412 52 372 101 335 Z"
+        />
+        <path className="whale-belly" d="M 103 368 C 135 328 200 320 248 350 C 231 427 174 470 102 424 C 78 409 76 384 103 368 Z" />
+        <path className="whale-mouth-glow" d={mouthPath} />
+        <path className="whale-mouth-line" d={`M 89 ${upperMouth + 7} C 128 318 196 304 256 336`} />
+        <path className="whale-eye" d="M 262 323 C 268 344 291 344 297 323" />
+        <circle className="whale-cheek" cx="300" cy="369" r="18" />
+        <path className="whale-tail" d="M 314 432 C 360 407 354 354 371 342 C 389 383 378 439 337 462 C 366 470 377 501 364 531 C 336 512 313 486 314 432 Z" />
+        <path className="whale-spray" d="M 167 217 C 152 180 142 158 125 132 M 182 215 C 184 174 200 153 219 130 M 192 223 C 228 190 250 170 272 148" />
+      </svg>
+
+      <div className="fish-layer">
+        {fish.map((item) => (
+          <span
+            key={item.id}
+            className="dream-fish"
+            style={{
+              '--fish-x': `${item.x}px`,
+              '--fish-y': `${item.y}px`,
+              '--drift-x': `${item.driftX}px`,
+              '--drift-y': `${item.driftY}px`,
+              '--fish-scale': item.size,
+              '--fish-delay': `${item.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="flow-chip">{interaction.isOpen ? '~~ Good flow' : 'Open your mouth gently'}</div>
+    </div>
   );
 }
 
@@ -888,6 +1149,169 @@ function createUnderEyeGestureTrajectories(features, size) {
   });
 
   return { left, right, all: [left, right] };
+}
+
+function createTemplePressTargets(features, size) {
+  const width = size.width || 375;
+  const height = size.height || 812;
+  if (!features?.leftEye?.outer || !features?.rightEye?.outer) {
+    const fallbackY = height * 0.28;
+    return {
+      left: { x: width * 0.22, y: fallbackY, tolerance: Math.max(42, width * 0.13) },
+      right: { x: width * 0.78, y: fallbackY, tolerance: Math.max(42, width * 0.13) },
+    };
+  }
+
+  const eyes = [features.leftEye, features.rightEye].sort((a, b) => a.center.x - b.center.x);
+  const faceScale = features.faceScale || Math.max(width * 0.46, 160);
+  const outward = clamp(faceScale * 0.16, 26, 62);
+  const lift = clamp(faceScale * 0.05, 8, 22);
+  const tolerance = clamp(faceScale * 0.16, 42, 84);
+
+  return {
+    left: {
+      x: clamp(eyes[0].center.x - outward, 18, width - 18),
+      y: clamp(eyes[0].center.y - lift, 28, height - 28),
+      tolerance,
+    },
+    right: {
+      x: clamp(eyes[1].center.x + outward, 18, width - 18),
+      y: clamp(eyes[1].center.y - lift, 28, height - 28),
+      tolerance,
+    },
+  };
+}
+
+function createTemplePressTrajectories(targets, size) {
+  const width = size.width || 375;
+  const height = size.height || 812;
+  const leftTarget = targets?.left || { x: width * 0.22, y: height * 0.28, tolerance: 48 };
+  const rightTarget = targets?.right || { x: width * 0.78, y: height * 0.28, tolerance: 48 };
+
+  const left = createFallbackUnderEyePath({
+    id: 'temple-left-press',
+    start: { x: clamp(leftTarget.x - width * 0.14, 8, width - 8), y: leftTarget.y + height * 0.015 },
+    control: { x: leftTarget.x - width * 0.06, y: leftTarget.y },
+    end: leftTarget,
+    tolerance: leftTarget.tolerance,
+  });
+  const right = createFallbackUnderEyePath({
+    id: 'temple-right-press',
+    start: { x: clamp(rightTarget.x + width * 0.14, 8, width - 8), y: rightTarget.y + height * 0.015 },
+    control: { x: rightTarget.x + width * 0.06, y: rightTarget.y },
+    end: rightTarget,
+    tolerance: rightTarget.tolerance,
+  });
+
+  return { left, right, all: [left, right] };
+}
+
+function scoreTemplePress({ features, fingertips, targets, timestamp, progressState, stageProgress }) {
+  const left = scoreTempleSide({ point: fingertips.left, target: targets.left });
+  const right = scoreTempleSide({ point: fingertips.right, target: targets.right });
+  const bothPressing = left.press > 0.52 && right.press > 0.52;
+  const onePressing = left.press > 0.42 || right.press > 0.42;
+  const balanced = 1 - Math.min(1, Math.abs(left.press - right.press));
+  const elapsedSeconds = progressState.lastTimestamp
+    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
+    : 0.016;
+  const pulseGain = bothPressing ? (0.022 + balanced * 0.018) * Math.min(2.2, elapsedSeconds * 60) : -0.009;
+
+  progressState.pressFrames = bothPressing ? progressState.pressFrames + 1 : 0;
+  progressState.flow = clamp((progressState.flow || 0) + pulseGain, 0, 1);
+  const baseline = stageProgress * 0.08;
+  const nextScore = Math.round(clamp((progressState.flow * 0.9 + baseline) * 100, 0, 100));
+  progressState.score = Math.max(progressState.score || 0, nextScore);
+  progressState.lastTimestamp = timestamp;
+
+  const rain = clamp((left.press + right.press) / 2, 0, 1);
+  const growth = clamp(progressState.flow, 0, 1);
+
+  return {
+    score: progressState.score,
+    completion: growth,
+    feedback: getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth }),
+    isOnTrack: bothPressing,
+    leftPress: left.press,
+    rightPress: right.press,
+    rain,
+    growth,
+    ripple: onePressing ? clamp(rain * 0.7 + growth * 0.3, 0, 1) : growth * 0.4,
+    flow: growth,
+    isPressing: bothPressing,
+  };
+}
+
+function scoreTempleSide({ point, target }) {
+  if (!point || !target) {
+    return { press: 0, distance: Infinity };
+  }
+  const distance = Math.hypot(point.x - target.x, point.y - target.y);
+  const tolerance = target.tolerance || 54;
+  const press = clamp(1 - distance / tolerance, 0, 1);
+  return { press, distance };
+}
+
+function getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth }) {
+  if (!features) return 'Find your face';
+  if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
+  if (!fingertips.left || !fingertips.right) return 'Use both hands on your temples';
+  if (!onePressing) return 'Move both fingers to your temples';
+  if (!bothPressing) return 'Press both sides at the same time';
+  if (balanced < 0.58) return 'Balance both sides gently';
+  if (growth > 0.78) return 'Great, the garden is breathing';
+  return 'Good pulse, press and release slowly';
+}
+
+function getInitialFeedback(sceneId) {
+  if (sceneId === SCENE_IDS.templeGarden) return 'Press both temples gently';
+  if (sceneId === SCENE_IDS.rainWiper) return 'Glide gently outward under your eyes';
+  return 'Open wide and let little fish drift out';
+}
+
+function scoreMouthOpening({ features, timestamp, progressState, stageProgress }) {
+  const ratio = features?.mouth?.openRatio || 0;
+  const mouthOpen = clamp((ratio - 0.07) / 0.22, 0, 1);
+  const elapsedSeconds = progressState.lastTimestamp
+    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
+    : 0.016;
+  const ratioVelocity = Math.abs(ratio - (progressState.lastRatio || 0)) / elapsedSeconds;
+  const isOpen = mouthOpen > 0.38;
+  const isWide = mouthOpen > 0.62;
+  const isStable = ratioVelocity < 0.9;
+
+  if (isOpen) {
+    progressState.openFrames += 1;
+    progressState.flow = clamp(progressState.flow + (isWide ? 0.028 : 0.016) + (isStable ? 0.012 : 0), 0, 1);
+  } else {
+    progressState.openFrames = 0;
+    progressState.flow = clamp(progressState.flow - 0.006, 0, 1);
+  }
+
+  const baseline = stageProgress * 0.12;
+  const nextScore = Math.round(clamp((progressState.flow * 0.88 + baseline) * 100, 0, 100));
+  progressState.score = Math.max(progressState.score || 0, nextScore);
+  progressState.lastRatio = ratio;
+  progressState.lastTimestamp = timestamp;
+
+  return {
+    score: progressState.score,
+    completion: clamp(progressState.flow, 0, 1),
+    feedback: getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }),
+    isOnTrack: isOpen && isStable,
+    mouthOpen,
+    flow: progressState.flow,
+    fishBurst: isOpen ? clamp(mouthOpen + progressState.flow * 0.25, 0, 1) : 0,
+    isOpen,
+  };
+}
+
+function getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }) {
+  if (!features?.mouth) return 'Find your face';
+  if (!isOpen) return 'Open wide and breathe out';
+  if (!isStable && mouthOpen > 0.45) return 'Hold the whale mouth steady';
+  if (isWide) return 'Great flow, little fish are drifting out';
+  return 'Nice, open a little wider';
 }
 
 function scoreUnderEyeMassageGesture({

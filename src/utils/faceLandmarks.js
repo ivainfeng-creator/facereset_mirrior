@@ -14,6 +14,7 @@ const landmarkIndexes = {
   mouthLeft: 61,
   mouthRight: 291,
   mouthCenter: 13,
+  mouthBottom: 14,
   faceTop: 10,
   faceLeft: 234,
   faceRight: 454,
@@ -41,6 +42,7 @@ const REQUIRED_FEATURES = [
   'mouthLeft',
   'mouthRight',
   'mouthCenter',
+  'mouthBottom',
   'faceTop',
   'faceLeft',
   'faceRight',
@@ -131,6 +133,7 @@ export function createMockLandmarkData(mode = LANDMARK_MODES.mock, time = perfor
     mouthLeft: [center.x - 0.105, center.y + 0.175],
     mouthRight: [center.x + 0.105, center.y + 0.175],
     mouthCenter: [center.x, center.y + 0.155],
+    mouthBottom: [center.x, center.y + 0.155 + 0.018 + (Math.sin(time / 820) + 1) * 0.036],
     jawLeft: [center.x - 0.185, center.y + 0.255],
     jawRight: [center.x + 0.185, center.y + 0.255],
   };
@@ -208,10 +211,19 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     upper: getPoint('rightEyeUpper'),
     lower: getPoint('rightEyeLower'),
   });
+  const mouthUpper = getPoint('mouthCenter');
+  const mouthLower = getPoint('mouthBottom');
+  const mouthWidth = distance(getPoint('mouthLeft'), getPoint('mouthRight'));
+  const mouthOpenDistance = distance(mouthUpper, mouthLower);
   const mouth = {
     leftCorner: getPoint('mouthLeft'),
     rightCorner: getPoint('mouthRight'),
-    center: getPoint('mouthCenter'),
+    upper: mouthUpper,
+    lower: mouthLower,
+    center: midpoint(mouthUpper, mouthLower),
+    openDistance: mouthOpenDistance,
+    openRatio: mouthWidth ? mouthOpenDistance / mouthWidth : 0,
+    width: mouthWidth,
   };
   const jaw = {
     left: getPoint('jawLeft'),

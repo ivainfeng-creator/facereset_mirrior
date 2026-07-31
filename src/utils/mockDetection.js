@@ -26,26 +26,26 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
 }
 
 export function buildResult(stageScores, snapshots = []) {
-  const eye = stageScores.eye ?? 82;
-  const score = Math.round(eye);
+  const temple = stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 82;
+  const score = Math.round(temple);
   const softVariance = Math.round(Math.sin(score * 0.17) * 5);
   const radar = [
-    { label: '放鬆雲量', value: clamp(score + 4, 54, 98) },
-    { label: '雨刷節奏', value: clamp(eye + softVariance, 48, 98) },
-    { label: '眼下亮度', value: clamp(score + 8 - softVariance, 52, 99) },
+    { label: '花園呼吸', value: clamp(score + 4, 54, 98) },
+    { label: '雙側平衡', value: clamp(temple + softVariance, 48, 98) },
+    { label: '雲朵雨量', value: clamp(score + 8 - softVariance, 52, 99) },
     { label: '療癒電波', value: clamp(76 + softVariance * 2, 46, 96) },
     { label: '好玩程度', value: clamp(82 + Math.round(Math.cos(score * 0.11) * 7), 50, 99) },
-    { label: '慢慢來力', value: clamp(88 - Math.abs(84 - score), 45, 98) },
+    { label: '慢慢放鬆', value: clamp(88 - Math.abs(84 - score), 45, 98) },
   ];
 
   return {
     score,
     metrics: {
-      eye,
+      temple,
     },
     radar,
     snapshots,
-    comment: '今天的眼下雨刷完成！慢慢刷、輕輕滑，臉上的雲有被擦亮一點。',
+    comment: '今天的 Cloud Garden 完成！雙手輕按太陽穴，雲朵有下雨，花園也慢慢醒來了。',
   };
 }
 

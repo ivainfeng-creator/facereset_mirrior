@@ -5,12 +5,15 @@ import MirrorScreen from './components/MirrorScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
 import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
+import ThemeScreen from './components/ThemeScreen.jsx';
+import { SCENE_IDS } from './data/scenes.js';
 import { loadHabit, saveResult } from './utils/storage.js';
 
 const SCREENS = {
   landing: 'landing',
   permission: 'permission',
   mirror: 'mirror',
+  theme: 'theme',
   practice: 'practice',
   routine: 'routine',
   result: 'result',
@@ -22,6 +25,7 @@ export default function App() {
   const [cameraError, setCameraError] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [latestResult, setLatestResult] = useState(null);
+  const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
   const habit = useMemo(() => loadHabit(), [latestResult]);
 
   const startPermission = () => setScreen(SCREENS.permission);
@@ -45,7 +49,12 @@ export default function App() {
     setCameraStream(null);
   };
 
-  const beginPractice = () => setScreen(SCREENS.practice);
+  const beginThemeSelect = () => setScreen(SCREENS.theme);
+
+  const selectTheme = (sceneId) => {
+    setSelectedScene(sceneId);
+    setScreen(SCREENS.practice);
+  };
 
   const beginRoutine = () => setScreen(SCREENS.routine);
 
@@ -59,7 +68,7 @@ export default function App() {
   };
 
   const restartRoutine = () => {
-    setScreen(SCREENS.mirror);
+    setScreen(SCREENS.theme);
   };
 
   const resetToLanding = () => {
@@ -88,17 +97,26 @@ export default function App() {
         <MirrorScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
-          onBegin={beginPractice}
+          onBegin={beginThemeSelect}
           onBack={startPermission}
+        />
+      )}
+
+      {screen === SCREENS.theme && (
+        <ThemeScreen
+          selectedScene={selectedScene}
+          onSelect={selectTheme}
+          onBack={() => setScreen(SCREENS.mirror)}
         />
       )}
 
       {screen === SCREENS.practice && (
         <PracticeScreen
+          selectedScene={selectedScene}
           stream={cameraStream}
           isDemoMode={isDemoMode}
           onBegin={beginRoutine}
-          onBack={() => setScreen(SCREENS.mirror)}
+          onBack={() => setScreen(SCREENS.theme)}
         />
       )}
 
@@ -106,6 +124,7 @@ export default function App() {
         <RoutineScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
+          selectedScene={selectedScene}
           onComplete={finishRoutine}
           onExit={() => setScreen(SCREENS.practice)}
         />

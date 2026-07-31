@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { SCENE_IDS, getSceneById } from '../data/scenes.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
 
-export default function PracticeScreen({ stream, isDemoMode, onBegin, onBack }) {
+export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBegin, onBack }) {
   const previewVideoRef = useRef(null);
+  const scene = getSceneById(selectedScene);
+  const guide = getPracticeGuide(scene.id);
 
   useEffect(() => {
     if (previewVideoRef.current && stream) {
@@ -25,13 +28,13 @@ export default function PracticeScreen({ stream, isDemoMode, onBegin, onBack }) 
 
         <div className="practice-guide">
           <p className="practice-kicker">Gesture control</p>
-          <h1>Practice the eye wiper</h1>
-          <p>Place your index finger under your eye, then glide outward slowly.</p>
-          <PracticeMascotGuide />
+          <h1>{guide.title}</h1>
+          <p>{guide.description}</p>
+          <PracticeMascotGuide sceneId={scene.id} />
           <ul>
-            <li>Keep your finger soft and visible.</li>
-            <li>Move left and right like a gentle wiper.</li>
-            <li>Slow motion scores better than speed.</li>
+            {guide.tips.map((tip) => (
+              <li key={tip}>{tip}</li>
+            ))}
           </ul>
         </div>
 
@@ -43,7 +46,30 @@ export default function PracticeScreen({ stream, isDemoMode, onBegin, onBack }) 
   );
 }
 
-function PracticeMascotGuide() {
+function PracticeMascotGuide({ sceneId }) {
+  if (sceneId === SCENE_IDS.whaleDream) {
+    return (
+      <div className="practice-mini-scene whale" aria-hidden="true">
+        <span className="mini-whale" />
+        <span className="mini-fish one" />
+        <span className="mini-fish two" />
+        <span className="mini-fish three" />
+      </div>
+    );
+  }
+
+  if (sceneId === SCENE_IDS.templeGarden) {
+    return (
+      <div className="practice-mini-scene cloud" aria-hidden="true">
+        <span className="mini-cloud left" />
+        <span className="mini-cloud right" />
+        <span className="mini-rain left" />
+        <span className="mini-rain right" />
+        <span className="mini-garden" />
+      </div>
+    );
+  }
+
   return (
     <div className="practice-mascot" aria-hidden="true">
       <img src="/assets/practice-mascot.png" alt="" />
@@ -55,4 +81,28 @@ function PracticeMascotGuide() {
       </svg>
     </div>
   );
+}
+
+function getPracticeGuide(sceneId) {
+  if (sceneId === SCENE_IDS.whaleDream) {
+    return {
+      title: 'Practice Whale Dream',
+      description: 'Open your mouth gently and hold it steady so the whale can release little fish.',
+      tips: ['Keep your face centered.', 'Open wide without rushing.', 'A steady breath creates better flow.'],
+    };
+  }
+
+  if (sceneId === SCENE_IDS.templeGarden) {
+    return {
+      title: 'Practice Cloud Garden',
+      description: 'Place both index fingers on your temples, then press and release slowly.',
+      tips: ['Use both hands at the same time.', 'Keep both fingertips visible.', 'Gentle balanced pressure grows the garden.'],
+    };
+  }
+
+  return {
+    title: 'Practice Rain Wiper',
+    description: 'Place your index finger under your eye, then glide outward slowly.',
+    tips: ['Keep your finger soft and visible.', 'Move left and right like a gentle wiper.', 'Slow motion scores better than speed.'],
+  };
 }
