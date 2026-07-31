@@ -1,13 +1,13 @@
 export const routineStages = [
   {
-    id: 'eye',
-    title: 'Eye Relax',
-    zhTitle: '眼周放鬆',
-    task: '用指尖從眼下內側，輕輕滑向外側。',
-    metricLabel: 'Eye Relax',
-    accent: '#76b7c6',
-    area: 'eyes',
-    prompts: ['Great, slow and gentle.', 'Try moving a little slower.', '眼周放鬆完成度穩定上升'],
+    id: 'temple',
+    title: 'Cloud Garden',
+    zhTitle: '雲朵花園',
+    task: '雙手輕按太陽穴，讓花園慢慢呼吸。',
+    metricLabel: 'Temple Pulse',
+    accent: '#9edff2',
+    area: 'temples',
+    prompts: ['Press both temples gently.', 'Balance both sides slowly.', 'Great, the garden is breathing.'],
   },
 ];
 
