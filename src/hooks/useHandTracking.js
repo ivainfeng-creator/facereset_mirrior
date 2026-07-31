@@ -32,7 +32,7 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
       setFingertips(mock);
       setFingertip(mock.left || mock.right || null);
       setHandMode(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock);
-      setHandMessage(isDemoMode ? 'Mock two-finger demo' : 'Mock two-finger wiper');
+      setHandMessage(isDemoMode ? 'Mock two-finger demo' : 'Mock two-finger controls');
       animationFrame = requestAnimationFrame(tickMock);
     };
 

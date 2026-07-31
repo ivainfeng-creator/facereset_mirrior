@@ -1,6 +1,6 @@
 # Face Reset Mirror
 
-Face Reset Mirror is a mobile-first React hackathon demo for a light AI mirror facial relaxation experience. Users open the app, enable their camera, align their face, and follow a short guided Eye Relax routine focused on the under-eye area.
+Face Reset Mirror is a mobile-first React hackathon demo for a light AI mirror facial relaxation experience. Users open the app, enable their camera, align their face, choose a playful scene, and complete a short guided facial reset.
 
 This is a wellness and self-care demo, not a medical, beauty-treatment, or face-shaping product. The current MVP uses browser camera access plus mock AI feedback so the full routine remains stable even when real computer vision is unavailable.
 
@@ -10,9 +10,8 @@ This is a wellness and self-care demo, not a medical, beauty-treatment, or face-
 - Browser `getUserMedia` camera mirror
 - Demo Mode fallback when camera permission is denied or unavailable
 - Optional MediaPipe Face Landmarker integration for real facial landmarks
-- Landmark-based under-eye trajectory attached to the user's face
-- Rain-wiper Eye Relax interaction designed around index-finger guided wiper motion
-- Guided routine with face alignment, hand tracking, countdown, progress, sound, and local scoring
+- Playful scene prototypes including Whale Dream, Cloud Garden, Flower Collector, and Bubble Gum Bunny
+- Guided routine with face alignment, gesture tracking, countdown, progress, sound, and local scoring
 - `localStorage` streak and latest result tracking
 - Downloadable or shareable animated result video generated in the browser, with PNG fallback
 - No backend, login, or upload flow
@@ -24,7 +23,7 @@ This app is designed primarily for mobile devices in portrait orientation, using
 - Primary layout target: iPhone portrait, roughly 390-430px wide and 844-932px tall.
 - Desktop browser previews should still feel like a phone-sized prototype, not a wide desktop app.
 - The landing page should keep the main value proposition, start button, and visual preview readable without excessive scrolling.
-- The routine page should prioritize the rain-wiper interaction stage, with the camera preview and score HUD kept compact.
+- The routine page should prioritize a full-screen mobile scene, with the camera preview and score HUD kept compact.
 - The alignment page should use a full-height portrait mirror surface so face positioning feels natural on mobile.
 - Result sharing should favor mobile behavior: preview first, then download or open the native share sheet when available.
 

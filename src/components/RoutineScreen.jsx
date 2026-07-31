@@ -4,7 +4,11 @@ import { SCENE_IDS } from '../data/scenes.js';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { useHandTracking } from '../hooks/useHandTracking.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
-import { generateUnderEyeMassagePaths } from '../utils/overlayPaths.js';
+import {
+  consumeTimedEvents,
+  createInteractionSignalState,
+  updateInteractionSignal,
+} from '../utils/interactionSignal.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
 
 const totalSeconds = STAGE_SECONDS * routineStages.length;
@@ -13,23 +17,26 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
-  const mouthProgressRef = useRef({ score: 0, flow: 0, lastRatio: 0, lastTimestamp: 0, openFrames: 0 });
-  const templeProgressRef = useRef({ score: 0, flow: 0, lastTimestamp: 0, pressFrames: 0 });
-  const noseProgressRef = useRef({ score: 0, flow: 0, flowerCount: 0, lastRatio: 0, lastTimestamp: 0, sniffFrames: 0 });
-  const bubbleProgressRef = useRef({ score: 0, bubbleSize: 0.18, holdSeconds: 0, combo: 0, stage: 0, lastRatio: 0, lastTimestamp: 0 });
-  const previousFingersRef = useRef({ left: null, right: null });
-  const massageProgressRef = useRef({
-    left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
-    right: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
+  const mouthProgressRef = useRef(createMouthProgress());
+  const templeProgressRef = useRef(createTempleProgress());
+  const lemonProgressRef = useRef(createLemonProgress());
+  const noseProgressRef = useRef(createNoseProgress());
+  const bubbleProgressRef = useRef(createBubbleProgress());
+  const latestInputsRef = useRef({
+    features: null,
+    fingertips: { left: null, right: null, all: [] },
+    templeTargets: null,
+    lemonTargets: null,
   });
   const snapshotFramesRef = useRef([]);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const [elapsed, setElapsed] = useState(0);
+  const [interactionTick, setInteractionTick] = useState(0);
   const [stageScores, setStageScores] = useState({});
   const [interaction, setInteraction] = useState({
     score: 0,
     completion: 0,
-    feedback: 'Open wide and let little fish drift out',
+    feedback: 'Open wide and guide little fish in',
     isOnTrack: false,
     mouthOpen: 0,
     flow: 0,
@@ -41,6 +48,11 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     growth: 0,
     ripple: 0,
     isPressing: false,
+    squeeze: 0,
+    sodaLevel: 0.16,
+    ingredientStage: 0,
+    sip: 0,
+    isSqueezing: false,
     sniff: 0,
     flowerCount: 0,
     isSniffing: false,
@@ -49,6 +61,8 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     bubbleStage: 0,
     combo: 0,
     isPuffing: false,
+    sync: 0,
+    clarity: 0,
   });
 
   useEffect(() => {
@@ -77,6 +91,11 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const stageIndex = Math.min(routineStages.length - 1, Math.floor(elapsed / STAGE_SECONDS));
   const stage = routineStages[stageIndex];
   const stageElapsed = elapsed - stageIndex * STAGE_SECONDS;
@@ -87,10 +106,6 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     () => getRoutineFeedback(stageIndex, stageProgress, globalProgress),
     [stageIndex, stageProgress, globalProgress],
   );
-  const gestureTrajectories = useMemo(
-    () => createUnderEyeGestureTrajectories(features, containerSize),
-    [containerSize, features],
-  );
   const templeTargets = useMemo(
     () => createTemplePressTargets(features, containerSize),
     [containerSize, features],
@@ -99,24 +114,36 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     () => createTemplePressTrajectories(templeTargets, containerSize),
     [containerSize, templeTargets],
   );
+  const lemonTargets = useMemo(
+    () => createLemonPressTargets(features, containerSize),
+    [containerSize, features],
+  );
+  const lemonTrajectories = useMemo(
+    () => createLemonPressTrajectories(lemonTargets, containerSize),
+    [containerSize, lemonTargets],
+  );
   const { fingertips, handMode } = useHandTracking({
     videoRef,
     stream,
     isDemoMode,
     displayRect,
-    trajectories: selectedScene === SCENE_IDS.templeGarden ? templeTrajectories : gestureTrajectories,
+    trajectories: selectedScene === SCENE_IDS.templeGarden
+      ? templeTrajectories
+      : selectedScene === SCENE_IDS.lemonSqueeze
+        ? lemonTrajectories
+        : undefined,
   });
 
   useEffect(() => {
-    mouthProgressRef.current = { score: 0, flow: 0, lastRatio: 0, lastTimestamp: 0, openFrames: 0 };
-    templeProgressRef.current = { score: 0, flow: 0, lastTimestamp: 0, pressFrames: 0 };
-    noseProgressRef.current = { score: 0, flow: 0, flowerCount: 0, lastRatio: 0, lastTimestamp: 0, sniffFrames: 0 };
-    bubbleProgressRef.current = { score: 0, bubbleSize: 0.18, holdSeconds: 0, combo: 0, stage: 0, lastRatio: 0, lastTimestamp: 0 };
-    previousFingersRef.current = { left: null, right: null };
-    massageProgressRef.current = {
-      left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
-      right: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
-    };
+    latestInputsRef.current = { features, fingertips, templeTargets, lemonTargets };
+  }, [features, fingertips, lemonTargets, templeTargets]);
+
+  useEffect(() => {
+    mouthProgressRef.current = createMouthProgress();
+    templeProgressRef.current = createTempleProgress();
+    lemonProgressRef.current = createLemonProgress();
+    noseProgressRef.current = createNoseProgress();
+    bubbleProgressRef.current = createBubbleProgress();
     setInteraction({
       score: 0,
       completion: 0,
@@ -132,6 +159,11 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       growth: 0,
       ripple: 0,
       isPressing: false,
+      squeeze: 0,
+      sodaLevel: 0.16,
+      ingredientStage: 0,
+      sip: 0,
+      isSqueezing: false,
       sniff: 0,
       flowerCount: 0,
       isSniffing: false,
@@ -140,53 +172,51 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       bubbleStage: 0,
       combo: 0,
       isPuffing: false,
+      sync: 0,
+      clarity: 0,
     });
   }, [selectedScene, stage.id]);
 
   useEffect(() => {
     const now = performance.now();
+    const currentInputs = latestInputsRef.current;
     let nextInteraction;
 
     if (selectedScene === SCENE_IDS.templeGarden) {
       nextInteraction = scoreTemplePress({
-          features,
-          fingertips,
-          targets: templeTargets,
+          features: currentInputs.features,
+          fingertips: currentInputs.fingertips,
+          targets: currentInputs.templeTargets,
           timestamp: now,
           progressState: templeProgressRef.current,
           stageProgress,
         });
-    } else if (selectedScene === SCENE_IDS.rainWiper) {
-      const previous = previousFingersRef.current;
-      nextInteraction = scoreUnderEyeMassageGesture({
-        fingertips,
-        previousFingertips: previous,
+    } else if (selectedScene === SCENE_IDS.lemonSqueeze) {
+      nextInteraction = scoreLemonSqueeze({
+        features: currentInputs.features,
+        fingertips: currentInputs.fingertips,
+        targets: currentInputs.lemonTargets,
         timestamp: now,
-        containerSize,
-        progressRef: massageProgressRef,
-        trajectories: gestureTrajectories,
+        progressState: lemonProgressRef.current,
+        stageProgress,
       });
-      previousFingersRef.current = {
-        left: fingertips.left ? { point: fingertips.left, timestamp: now } : null,
-        right: fingertips.right ? { point: fingertips.right, timestamp: now } : null,
-      };
     } else if (selectedScene === SCENE_IDS.flowerCollector) {
       nextInteraction = scoreNoseSniff({
-        features,
+        features: currentInputs.features,
         timestamp: now,
         progressState: noseProgressRef.current,
         stageProgress,
       });
     } else if (selectedScene === SCENE_IDS.bubbleGumBunny) {
       nextInteraction = scoreCheekPuff({
-        features,
+        features: currentInputs.features,
         timestamp: now,
         progressState: bubbleProgressRef.current,
         stageProgress,
       });
     } else {
       nextInteraction = scoreMouthOpening({
-          features,
+          features: currentInputs.features,
           timestamp: now,
           progressState: mouthProgressRef.current,
           stageProgress,
@@ -194,7 +224,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     }
 
     setInteraction(nextInteraction);
-  }, [containerSize, features, fingertips, gestureTrajectories, selectedScene, stageProgress, templeTargets]);
+  }, [interactionTick, selectedScene, stageProgress]);
 
   useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
@@ -204,21 +234,21 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       video: videoRef.current,
       isDemoMode,
       progress: globalProgress,
-      score: interaction.score || feedback.score,
+      score: interaction.score,
     });
 
     if (snapshot) {
       snapshotFramesRef.current = [...snapshotFramesRef.current, snapshot].slice(-5);
       snapshotTargetsRef.current = snapshotTargetsRef.current.slice(1);
     }
-  }, [feedback.score, globalProgress, interaction.score, isDemoMode]);
+  }, [globalProgress, interaction.score, isDemoMode]);
 
   useEffect(() => {
     setStageScores((current) => ({
       ...current,
-      [selectedScene]: Math.max(current[selectedScene] || 0, interaction.score || feedback.localScore),
+      [selectedScene]: Math.max(current[selectedScene] || 0, interaction.score),
     }));
-  }, [feedback.localScore, interaction.score, selectedScene]);
+  }, [interaction.score, selectedScene]);
 
   useEffect(() => {
     if (elapsed >= totalSeconds) {
@@ -226,7 +256,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     }
   }, [elapsed, onComplete, selectedScene, stageScores]);
 
-  const displayScore = Math.max(stageScores[selectedScene] || 0, interaction.score || feedback.score);
+  const displayScore = Math.max(stageScores[selectedScene] || 0, interaction.score);
 
   return (
     <section className="screen routine-screen play-routine-screen">
@@ -234,28 +264,21 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
           {selectedScene === SCENE_IDS.templeGarden ? (
             <TempleGardenScene interaction={interaction} targets={templeTargets} />
-          ) : selectedScene === SCENE_IDS.rainWiper ? (
-            <>
-              <RainScene interaction={interaction} trajectories={gestureTrajectories} />
-              <WindshieldWiperOverlay
-                fingertips={fingertips}
-                height={containerSize.height}
-                interaction={interaction}
-                trajectories={gestureTrajectories}
-                width={containerSize.width}
-              />
-            </>
+          ) : selectedScene === SCENE_IDS.lemonSqueeze ? (
+            <LemonSqueezeScene interaction={interaction} />
           ) : selectedScene === SCENE_IDS.flowerCollector ? (
             <FlowerCollectorScene interaction={interaction} />
           ) : selectedScene === SCENE_IDS.bubbleGumBunny ? (
             <BubbleGumBunnyScene interaction={interaction} />
+          ) : selectedScene === SCENE_IDS.whaleDream2 ? (
+            <WhaleDream2Scene interaction={interaction} />
           ) : (
             <WhaleDreamScene interaction={interaction} />
           )}
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
           <CameraPreview
             detectorMode={detectorMode}
-            handMode={selectedScene === SCENE_IDS.whaleDream ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
+            handMode={[SCENE_IDS.whaleDream, SCENE_IDS.whaleDream2].includes(selectedScene) ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
             isDemoMode={isDemoMode}
             previewVideoRef={previewVideoRef}
             stream={stream}
@@ -289,7 +312,7 @@ function TempleGardenScene({ interaction }) {
   const rightPress = clamp(interaction.rightPress || 0, 0, 1);
   const drops = useMemo(
     () =>
-      Array.from({ length: 52 }, (_, index) => ({
+      Array.from({ length: 36 }, (_, index) => ({
         id: index,
         side: index % 2 === 0 ? 'left' : 'right',
         x: 42 + ((index * 17) % 70),
@@ -301,7 +324,7 @@ function TempleGardenScene({ interaction }) {
   );
   const flowers = useMemo(
     () =>
-      Array.from({ length: 22 }, (_, index) => ({
+      Array.from({ length: 18 }, (_, index) => ({
         id: index,
         x: 46 + ((index * 29) % 285),
         y: 468 + ((index * 19) % 78),
@@ -317,6 +340,8 @@ function TempleGardenScene({ interaction }) {
       style={{
         '--left-press': leftPress,
         '--right-press': rightPress,
+        '--left-rain': leftPress,
+        '--right-rain': rightPress,
         '--rain': rain,
         '--growth': growth,
         '--ripple': interaction.ripple || 0,
@@ -381,19 +406,149 @@ function TempleGardenScene({ interaction }) {
   );
 }
 
+function LemonSqueezeScene({ interaction }) {
+  const squeeze = clamp(interaction.squeeze || 0, 0, 1);
+  const sodaLevel = clamp(interaction.sodaLevel || 0.16, 0.1, 0.94);
+  const sip = clamp(interaction.sip || 0, 0, 1);
+  const ingredientStage = interaction.ingredientStage || 0;
+  const bubbles = useMemo(
+    () =>
+      Array.from({ length: 28 }, (_, index) => ({
+        id: index,
+        x: 22 + ((index * 31) % 56),
+        y: 19 + ((index * 43) % 70),
+        size: 4 + (index % 5) * 2,
+        delay: (index % 11) * 0.14,
+        duration: 1.8 + (index % 6) * 0.22,
+      })),
+    [],
+  );
+  const fizz = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, index) => ({
+        id: index,
+        x: 7 + ((index * 29) % 86),
+        y: 12 + ((index * 47) % 66),
+        delay: (index % 9) * 0.11,
+      })),
+    [],
+  );
+
+  return (
+    <div
+      className={`lemon-squeeze-scene ${interaction.isSqueezing ? 'is-squeezing' : ''}`}
+      style={{
+        '--squeeze': squeeze,
+        '--left-squeeze': clamp(interaction.leftPress || 0, 0, 1),
+        '--right-squeeze': clamp(interaction.rightPress || 0, 0, 1),
+        '--soda-level': sodaLevel,
+        '--sip': sip,
+        '--combo': interaction.combo || 0,
+      }}
+      aria-hidden="true"
+    >
+      <div className="lemon-copy">
+        <h1>Lemon Squeeze</h1>
+        <p>Press both sides and make a tiny summer soda</p>
+      </div>
+
+      <div className="lemon-sun" />
+      <div className="lemon-arc one" />
+      <div className="lemon-arc two" />
+
+      <div className="lemon-half left">
+        <span className="lemon-face" />
+      </div>
+      <div className="lemon-half right">
+        <span className="lemon-face" />
+      </div>
+
+      <div className="juice-stream left">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="juice-stream right">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div className="soda-glass">
+        <div className="soda-liquid">
+          <span className="soda-surface" />
+          {bubbles.map((bubble) => (
+            <span
+              key={bubble.id}
+              className="soda-bubble"
+              style={{
+                '--bubble-x': `${bubble.x}%`,
+                '--bubble-y': `${bubble.y}%`,
+                '--bubble-size': `${bubble.size}px`,
+                '--bubble-delay': `${bubble.delay}s`,
+                '--bubble-duration': `${bubble.duration}s`,
+              }}
+            />
+          ))}
+        </div>
+        <span className={`soda-ice one ${ingredientStage >= 1 ? 'is-visible' : ''}`} />
+        <span className={`soda-ice two ${ingredientStage >= 2 ? 'is-visible' : ''}`} />
+        <span className={`soda-slice ${ingredientStage >= 3 ? 'is-visible' : ''}`} />
+        <span className={`soda-mint ${ingredientStage >= 4 ? 'is-visible' : ''}`} />
+        <span className="soda-straw" />
+      </div>
+
+      <div className="lemon-fizz-layer">
+        {fizz.map((spark) => (
+          <span
+            key={spark.id}
+            style={{
+              '--fizz-x': `${spark.x}%`,
+              '--fizz-y': `${spark.y}%`,
+              '--fizz-delay': `${spark.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="soda-sipper">
+        <span className="sipper-ear left" />
+        <span className="sipper-ear right" />
+        <span className="sipper-face" />
+      </div>
+
+      <div className="lemon-status-chip">
+        {interaction.isSqueezing ? `Combo ${interaction.combo || 0}` : 'Press beside your nose'}
+      </div>
+    </div>
+  );
+}
+
 function WhaleDreamScene({ interaction }) {
   const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
   const fish = useMemo(
     () =>
-      Array.from({ length: 22 }, (_, index) => ({
-        id: index,
-        delay: (index % 7) * 0.15,
-        size: 0.72 + (index % 5) * 0.13,
-        x: 42 + ((index * 37) % 148),
-        y: 315 + ((index * 29) % 115),
-        driftX: -92 + ((index * 41) % 184),
-        driftY: -54 - ((index * 31) % 110),
-      })),
+      Array.from({ length: 24 }, (_, index) => {
+        const fromLeft = index % 2 === 0;
+        const sideOffset = 48 + ((index * 31) % 112);
+        const startX = fromLeft ? sideOffset : 375 - sideOffset;
+        const startY = 264 + ((index * 43) % 230);
+        const mouthX = 145 + ((index * 17) % 54);
+        const mouthY = 365 + ((index * 19) % 82);
+
+        return {
+          id: index,
+          delay: (index % 9) * 0.11,
+          duration: 1.15 + (index % 7) * 0.14,
+          size: 0.68 + (index % 5) * 0.12,
+          x: startX,
+          y: startY,
+          driftX: mouthX - startX,
+          driftY: mouthY - startY,
+          side: fromLeft ? 'from-left' : 'from-right',
+          special: index % 17 === 0,
+        };
+      }),
     [],
   );
   const stars = useMemo(
@@ -437,8 +592,8 @@ function WhaleDreamScene({ interaction }) {
         ))}
       </div>
       <div className="whale-copy">
-        <h1>Whale Dream</h1>
-        <p>Open wide and let little fish drift out</p>
+        <h1>Whale Mouth</h1>
+        <p>Open wide and guide little fish in</p>
       </div>
       <svg className="whale-svg" viewBox="0 0 375 620" role="img" aria-label="Dream whale">
         <defs>
@@ -476,7 +631,7 @@ function WhaleDreamScene({ interaction }) {
         {fish.map((item) => (
           <span
             key={item.id}
-            className="dream-fish"
+            className={`dream-fish ${item.side} ${item.special ? 'is-special' : ''}`}
             style={{
               '--fish-x': `${item.x}px`,
               '--fish-y': `${item.y}px`,
@@ -484,11 +639,56 @@ function WhaleDreamScene({ interaction }) {
               '--drift-y': `${item.driftY}px`,
               '--fish-scale': item.size,
               '--fish-delay': `${item.delay}s`,
+              '--fish-duration': `${item.duration}s`,
             }}
           />
         ))}
       </div>
-      <div className="flow-chip">{interaction.isOpen ? '~~ Good flow' : 'Open your mouth gently'}</div>
+      <div className="whale-current left" />
+      <div className="whale-current right" />
+      <div className="flow-chip">{interaction.isOpen ? 'Fish are swimming in' : 'Open your mouth gently'}</div>
+    </div>
+  );
+}
+
+function WhaleDream2Scene({ interaction }) {
+  const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
+  const xrFrameRef = useRef(null);
+
+  useEffect(() => {
+    const sendMouthState = () => {
+      xrFrameRef.current?.contentWindow?.postMessage(
+        {
+          type: 'face-reset-mouth',
+          open: mouthOpen,
+          isOpen: Boolean(interaction.isOpen),
+          flow: interaction.flow || 0,
+        },
+        window.location.origin,
+      );
+    };
+
+    sendMouthState();
+    const syncTimer = window.setInterval(sendMouthState, 120);
+    return () => window.clearInterval(syncTimer);
+  }, [interaction.flow, interaction.isOpen, mouthOpen]);
+
+  return (
+    <div
+      className={`whale-dream-2-scene ${interaction.isOpen ? 'is-open' : ''}`}
+      style={{ '--mouth-open': mouthOpen, '--flow': interaction.flow || 0 }}
+      aria-hidden="true"
+    >
+      <iframe
+        ref={xrFrameRef}
+        className="pufferfish-xr-frame"
+        src="/assets/pufferfish-xr.html"
+        title="Pufferfish XR"
+        loading="eager"
+        allow="camera; fullscreen; xr-spatial-tracking; accelerometer; gyroscope"
+        sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-presentation"
+      />
+      <div className="xr-scene-status">{interaction.isOpen ? '~~ Good flow' : 'Open your mouth gently'}</div>
     </div>
   );
 }
@@ -498,7 +698,7 @@ function FlowerCollectorScene({ interaction }) {
   const gathered = clamp(interaction.completion || 0, 0, 1);
   const flowers = useMemo(
     () =>
-      Array.from({ length: 86 }, (_, index) => ({
+      Array.from({ length: 40 }, (_, index) => ({
         ...getFlowerDockPoint(index),
         id: index,
         x: 24 + ((index * 43) % 330),
@@ -513,7 +713,7 @@ function FlowerCollectorScene({ interaction }) {
   );
   const fallingFlowers = useMemo(
     () =>
-      Array.from({ length: 46 }, (_, index) => ({
+      Array.from({ length: 22 }, (_, index) => ({
         id: index,
         x: -8 + ((index * 37) % 112),
         delay: (index % 12) * 0.18,
@@ -525,7 +725,7 @@ function FlowerCollectorScene({ interaction }) {
   );
   const suctionFlowers = useMemo(
     () =>
-      Array.from({ length: 72 }, (_, index) => ({
+      Array.from({ length: 36 }, (_, index) => ({
         ...getFlowerDockPoint(index + 11),
         id: index,
         x: 38 + ((index * 61) % 310),
@@ -540,7 +740,7 @@ function FlowerCollectorScene({ interaction }) {
   );
   const groundFlowers = useMemo(
     () =>
-      Array.from({ length: 58 }, (_, index) => ({
+      Array.from({ length: 34 }, (_, index) => ({
         id: index,
         x: -5 + ((index * 23) % 112),
         y: 74 + ((index * 19) % 28),
@@ -551,7 +751,7 @@ function FlowerCollectorScene({ interaction }) {
   );
   const sparkles = useMemo(
     () =>
-      Array.from({ length: 30 }, (_, index) => ({
+      Array.from({ length: 18 }, (_, index) => ({
         id: index,
         x: 4 + ((index * 29) % 92),
         y: 12 + ((index * 41) % 78),
@@ -639,7 +839,6 @@ function FlowerCollectorScene({ interaction }) {
               '--suction-delay': `${flower.delay}s`,
               '--suction-duration': `${flower.duration}s`,
               '--suction-size': flower.size,
-              animationPlayState: interaction.isSniffing ? 'running' : 'paused',
             }}
           />
         ))}
@@ -684,7 +883,7 @@ function BubbleGumBunnyScene({ interaction }) {
   const bubbleSize = clamp(interaction.bubbleSize || 0.18, 0.12, 1);
   const sparkles = useMemo(
     () =>
-      Array.from({ length: 26 }, (_, index) => ({
+      Array.from({ length: 18 }, (_, index) => ({
         id: index,
         x: 12 + ((index * 31) % 78),
         y: 14 + ((index * 47) % 68),
@@ -695,7 +894,7 @@ function BubbleGumBunnyScene({ interaction }) {
   );
   const hearts = useMemo(
     () =>
-      Array.from({ length: 10 }, (_, index) => ({
+      Array.from({ length: 8 }, (_, index) => ({
         id: index,
         x: 16 + ((index * 53) % 70),
         y: 24 + ((index * 41) % 58),
@@ -800,481 +999,6 @@ function getFlowerDockPoint(index) {
   };
 }
 
-function RainScene({ interaction, trajectories }) {
-  const cleared = Math.round((interaction.completion || 0) * 100);
-  const canvasRef = useRef(null);
-  const interactionRef = useRef(interaction);
-  const trajectoriesRef = useRef(trajectories);
-
-  useEffect(() => {
-    interactionRef.current = interaction;
-  }, [interaction]);
-
-  useEffect(() => {
-    trajectoriesRef.current = trajectories;
-  }, [trajectories]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-
-    let animationFrame = 0;
-    let width = 0;
-    let height = 0;
-    let droplets = [];
-    let impacts = [];
-    const storm = {
-      nextBurstAt: 0,
-    };
-
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = Math.max(1, rect.width);
-      height = Math.max(1, rect.height);
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      const context = canvas.getContext('2d');
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      droplets = createRainDroplets(width, height);
-      impacts = createRainImpacts(width, height);
-      storm.nextBurstAt = 0;
-    };
-
-    const draw = (time) => {
-      const context = canvas.getContext('2d');
-      if (!width || !height) resize();
-      drawBlurredRoad(context, width, height, time);
-      drawGlassWater(context, width, height, time, droplets, impacts, interactionRef.current, storm, trajectoriesRef.current);
-      drawMiniCleanedSweeps(context, interactionRef.current, trajectoriesRef.current);
-      animationFrame = requestAnimationFrame(draw);
-    };
-
-    resize();
-    animationFrame = requestAnimationFrame(draw);
-    window.addEventListener('resize', resize);
-
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
-  return (
-    <div className="rain-scene" aria-hidden="true">
-      <canvas ref={canvasRef} className="rain-canvas" />
-      <div className="cleared-meter" style={{ '--cleared': `${cleared}%` }}>
-        <span />
-      </div>
-    </div>
-  );
-}
-
-function createRainDroplets(width, height) {
-  const count = Math.round(Math.min(190, Math.max(82, (width * height) / 5200)));
-  return Array.from({ length: count }, (_, index) => {
-    const sizeBias = Math.random() ** 1.8;
-    return {
-      id: index,
-      x: Math.random() * width,
-      y: Math.random() * height,
-      radius: 1.4 + sizeBias * 12,
-      stretch: 0.7 + Math.random() * 1.8,
-      speed: 0.03 + Math.random() * 0.42,
-      opacity: 0.22 + Math.random() * 0.48,
-      trail: Math.random() > 0.68 ? 16 + Math.random() * 80 : 0,
-      wobble: Math.random() * Math.PI * 2,
-    };
-  });
-}
-
-function createRainImpacts(width, height) {
-  return Array.from({ length: 64 }, (_, index) => ({
-    id: index,
-    active: false,
-    x: Math.random() * width,
-    y: Math.random() * height,
-    startedAt: 0,
-    duration: 900,
-    size: 8,
-    trail: 32,
-    drift: 0,
-    opacity: 1,
-    seed: Math.random() * Math.PI * 2,
-  }));
-}
-
-function drawBlurredRoad(context, width, height, time) {
-  const drift = Math.sin(time / 6000) * width * 0.012;
-  const sky = context.createLinearGradient(0, 0, 0, height);
-  sky.addColorStop(0, '#dcebea');
-  sky.addColorStop(0.34, '#b6cbca');
-  sky.addColorStop(0.58, '#879d9e');
-  sky.addColorStop(1, '#2e3d42');
-  context.fillStyle = sky;
-  context.fillRect(0, 0, width, height);
-
-  context.save();
-  context.filter = `blur(${Math.max(10, width * 0.018)}px) saturate(0.92)`;
-  context.translate(drift, 0);
-
-  const horizon = height * 0.52;
-  context.fillStyle = 'rgba(66, 91, 88, 0.34)';
-  context.fillRect(-width * 0.12, horizon - height * 0.07, width * 1.24, height * 0.18);
-
-  const road = context.createLinearGradient(0, horizon, 0, height);
-  road.addColorStop(0, 'rgba(148, 163, 157, 0.48)');
-  road.addColorStop(0.52, 'rgba(82, 95, 93, 0.62)');
-  road.addColorStop(1, 'rgba(20, 30, 31, 0.86)');
-  context.fillStyle = road;
-  context.beginPath();
-  context.moveTo(-width * 0.2, height);
-  context.lineTo(width * 0.36, horizon);
-  context.lineTo(width * 0.64, horizon);
-  context.lineTo(width * 1.2, height);
-  context.closePath();
-  context.fill();
-
-  context.strokeStyle = 'rgba(241, 236, 187, 0.42)';
-  context.lineWidth = Math.max(7, width * 0.018);
-  context.beginPath();
-  context.moveTo(width * 0.42, height);
-  context.lineTo(width * 0.5, horizon + height * 0.05);
-  context.moveTo(width * 0.58, height);
-  context.lineTo(width * 0.52, horizon + height * 0.05);
-  context.stroke();
-
-  drawBlurredVehicle(context, width * 0.18, horizon - height * 0.03, width * 0.24, height * 0.11, '#e7eeea');
-  drawBlurredVehicle(context, width * 0.74, horizon - height * 0.02, width * 0.22, height * 0.12, '#45585a');
-  drawBokeh(context, width * 0.23, horizon + height * 0.02, width * 0.035, '#d02028', 0.85);
-  drawBokeh(context, width * 0.88, horizon - height * 0.01, width * 0.052, '#ff9c22', 0.95);
-  drawBokeh(context, width * 0.62, horizon + height * 0.015, width * 0.025, '#e91d2e', 0.72);
-  drawBokeh(context, width * 0.45, horizon - height * 0.22, width * 0.06, '#f4f5de', 0.28);
-
-  context.restore();
-
-  context.fillStyle = 'rgba(218, 239, 238, 0.12)';
-  context.fillRect(0, 0, width, height);
-}
-
-function drawBlurredVehicle(context, x, y, width, height, color) {
-  context.fillStyle = color;
-  context.beginPath();
-  context.roundRect(x, y, width, height, Math.min(18, height * 0.22));
-  context.fill();
-}
-
-function drawBokeh(context, x, y, radius, color, alpha) {
-  const glow = context.createRadialGradient(x, y, 0, x, y, radius);
-  glow.addColorStop(0, color);
-  glow.addColorStop(0.42, color);
-  glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  context.globalAlpha = alpha;
-  context.fillStyle = glow;
-  context.beginPath();
-  context.arc(x, y, radius, 0, Math.PI * 2);
-  context.fill();
-  context.globalAlpha = 1;
-}
-
-function drawGlassWater(context, width, height, time, droplets, impacts, interaction, storm, trajectories) {
-  context.save();
-  context.fillStyle = 'rgba(236, 255, 255, 0.16)';
-  context.fillRect(0, 0, width, height);
-  context.restore();
-
-  spawnRainBursts(impacts, width, height, time, storm);
-
-  droplets.forEach((drop) => {
-    drop.y += drop.speed;
-    drop.x += Math.sin(time / 1700 + drop.wobble) * 0.014;
-    if (drop.y - drop.radius > height + 90) {
-      drop.x = Math.random() * width;
-      drop.y = -drop.radius - Math.random() * height * 0.18;
-    }
-
-    const fade = getWiperFade(drop, trajectories, interaction);
-    if (fade < 0.08) return;
-    drawDroplet(context, drop, fade);
-  });
-
-  impacts.forEach((impact) => {
-    if (!impact.active || time < impact.startedAt) return;
-
-    const progress = (time - impact.startedAt) / impact.duration;
-    if (progress > 1) {
-      impact.active = false;
-      return;
-    }
-
-    const fade = getWiperFade(impact, trajectories, interaction);
-    if (fade < 0.08) return;
-    drawRainImpact(context, impact, progress, fade);
-  });
-}
-
-function spawnRainBursts(impacts, width, height, time, storm) {
-  if (!storm.nextBurstAt) {
-    storm.nextBurstAt = time + 160;
-  }
-  if (time < storm.nextBurstAt) return;
-
-  const mood = Math.random();
-  const count =
-    mood > 0.9 ? 10 + Math.floor(Math.random() * 10) : mood > 0.58 ? 3 + Math.floor(Math.random() * 5) : 1;
-  const bandBias = Math.random();
-  const baseY = bandBias > 0.72 ? height * (0.18 + Math.random() * 0.28) : height * (0.05 + Math.random() * 0.76);
-
-  for (let index = 0; index < count; index += 1) {
-    const slot = impacts.find((impact) => !impact.active);
-    if (!slot) break;
-
-    const sizeBias = Math.random() ** 1.35;
-    const size = 4 + sizeBias * 24;
-    Object.assign(slot, {
-      active: true,
-      x: clamp(Math.random() * width + (Math.random() - 0.5) * width * 0.1, 0, width),
-      y: clamp(baseY + (Math.random() - 0.5) * height * 0.18, height * 0.04, height * 0.88),
-      startedAt: time + Math.random() * 220,
-      duration: 680 + Math.random() * 1080,
-      size,
-      trail: 18 + Math.random() * (size > 17 ? 128 : 70),
-      drift: (Math.random() - 0.5) * 18,
-      opacity: 0.58 + Math.random() * 0.42,
-      seed: Math.random() * Math.PI * 2,
-    });
-  }
-
-  storm.nextBurstAt = time + 90 + Math.random() * (mood > 0.9 ? 220 : 540);
-}
-
-function drawDroplet(context, drop, fade) {
-  const rx = drop.radius * drop.stretch;
-  const ry = drop.radius;
-  context.save();
-  context.globalAlpha = drop.opacity * fade;
-  context.translate(drop.x, drop.y);
-
-  if (drop.trail) {
-    const trail = context.createLinearGradient(0, -drop.trail * 0.1, 0, drop.trail);
-    trail.addColorStop(0, 'rgba(255,255,255,0.34)');
-    trail.addColorStop(0.42, 'rgba(220,246,246,0.14)');
-    trail.addColorStop(1, 'rgba(220,246,246,0)');
-    context.fillStyle = trail;
-    context.beginPath();
-    context.ellipse(0, drop.trail * 0.38, Math.max(1.3, rx * 0.22), drop.trail * 0.58, 0, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  const rim = context.createRadialGradient(-rx * 0.28, -ry * 0.32, 0, 0, 0, Math.max(rx, ry) * 1.2);
-  rim.addColorStop(0, 'rgba(255,255,255,0.9)');
-  rim.addColorStop(0.18, 'rgba(255,255,255,0.34)');
-  rim.addColorStop(0.48, 'rgba(84,105,103,0.12)');
-  rim.addColorStop(0.72, 'rgba(20,38,39,0.34)');
-  rim.addColorStop(1, 'rgba(255,255,255,0.24)');
-  context.fillStyle = rim;
-  context.beginPath();
-  context.ellipse(0, 0, rx, ry, drop.wobble * 0.08, 0, Math.PI * 2);
-  context.fill();
-
-  context.strokeStyle = 'rgba(245,255,255,0.62)';
-  context.lineWidth = Math.max(0.8, drop.radius * 0.16);
-  context.beginPath();
-  context.ellipse(0, 0, rx, ry, drop.wobble * 0.08, -Math.PI * 0.82, Math.PI * 0.22);
-  context.stroke();
-
-  context.fillStyle = 'rgba(255,255,255,0.86)';
-  context.beginPath();
-  context.arc(-rx * 0.34, -ry * 0.34, Math.max(0.8, drop.radius * 0.13), 0, Math.PI * 2);
-  context.fill();
-  context.restore();
-}
-
-function drawRainImpact(context, impact, progress, fade) {
-  const appear = clamp(progress / 0.16, 0, 1);
-  const fadeOut = 1 - clamp((progress - 0.36) / 0.64, 0, 1);
-  const splash = Math.sin(clamp(progress / 0.58, 0, 1) * Math.PI);
-  const alpha = impact.opacity * fade * fadeOut;
-  const x = impact.x + impact.drift * progress;
-  const y = impact.y + impact.trail * Math.max(0, progress - 0.26) * 0.42;
-  const radius = impact.size * (0.48 + progress * 0.72);
-
-  context.save();
-
-  if (progress > 0.22) {
-    const trailProgress = clamp((progress - 0.22) / 0.78, 0, 1);
-    const trailLength = impact.trail * trailProgress;
-    const trailGradient = context.createLinearGradient(x, y - impact.size * 0.2, x, y + trailLength);
-    trailGradient.addColorStop(0, `rgba(255,255,255,${0.4 * alpha})`);
-    trailGradient.addColorStop(0.3, `rgba(208,244,247,${0.26 * alpha})`);
-    trailGradient.addColorStop(1, 'rgba(208,244,247,0)');
-    context.strokeStyle = trailGradient;
-    context.lineWidth = Math.max(1.2, impact.size * 0.22);
-    context.lineCap = 'round';
-    context.beginPath();
-    context.moveTo(x, y);
-    context.bezierCurveTo(
-      x + Math.sin(impact.seed) * impact.size * 0.34,
-      y + trailLength * 0.24,
-      x - Math.cos(impact.seed) * impact.size * 0.28,
-      y + trailLength * 0.62,
-      x + impact.drift * 0.24,
-      y + trailLength,
-    );
-    context.stroke();
-  }
-
-  const glow = context.createRadialGradient(x - impact.size * 0.22, y - impact.size * 0.24, 0, x, y, radius * 1.65);
-  glow.addColorStop(0, `rgba(255,255,255,${0.92 * alpha * appear})`);
-  glow.addColorStop(0.2, `rgba(235,252,255,${0.46 * alpha})`);
-  glow.addColorStop(0.58, `rgba(28,49,51,${0.16 * alpha})`);
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  context.fillStyle = glow;
-  context.beginPath();
-  context.ellipse(x, y, radius * 0.86, radius * 0.62, impact.seed * 0.08, 0, Math.PI * 2);
-  context.fill();
-
-  context.globalAlpha = alpha * splash * 0.75;
-  context.strokeStyle = 'rgba(243, 255, 255, 0.78)';
-  context.lineWidth = Math.max(0.8, impact.size * 0.08);
-  context.beginPath();
-  context.ellipse(x, y, radius * 1.12, radius * 0.78, impact.seed * 0.08, 0, Math.PI * 2);
-  context.stroke();
-
-  for (let index = 0; index < 4; index += 1) {
-    const angle = impact.seed + index * 1.62;
-    const distance = impact.size * (0.4 + progress * 1.15);
-    const dotX = x + Math.cos(angle) * distance;
-    const dotY = y + Math.sin(angle) * distance * 0.58;
-    context.globalAlpha = alpha * splash * (0.42 - index * 0.05);
-    context.fillStyle = 'rgba(248, 255, 255, 0.9)';
-    context.beginPath();
-    context.arc(dotX, dotY, Math.max(0.7, impact.size * 0.07), 0, Math.PI * 2);
-    context.fill();
-  }
-
-  context.restore();
-}
-
-function drawMiniCleanedSweeps(context, interaction, trajectories) {
-  const paths = getMiniWiperPaths(trajectories);
-  if (!paths.length) return;
-  context.save();
-  context.globalAlpha = 0.46;
-  context.strokeStyle = 'rgba(236, 255, 255, 0.52)';
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-  context.filter = 'blur(1px)';
-  paths.forEach(({ path, side }) => {
-    const progress = side === 'left' ? interaction.leftCompletion || 0 : interaction.rightCompletion || 0;
-    drawPartialPointPath(context, path.points, progress, Math.max(18, (path.trackWidth || path.tolerance || 26) * 1.45));
-  });
-  context.restore();
-}
-
-function getWiperFade(drop, trajectories, interaction) {
-  const paths = getMiniWiperPaths(trajectories);
-  const cleared = paths.some(({ path, side }) => {
-    const progress = side === 'left' ? interaction.leftCompletion || 0 : interaction.rightCompletion || 0;
-    return isNearClearedPath(drop, path, progress);
-  });
-  return cleared ? 0.18 : 1;
-}
-
-function drawPartialPointPath(context, points = [], progress = 0, lineWidth = 24) {
-  const maxIndex = Math.max(1, Math.floor(clamp(progress, 0, 1) * (points.length - 1)));
-  if (points.length < 2 || maxIndex < 1) return;
-  context.lineWidth = lineWidth;
-  context.beginPath();
-  context.moveTo(points[0].x, points[0].y);
-  for (let index = 1; index <= maxIndex; index += 1) {
-    context.lineTo(points[index].x, points[index].y);
-  }
-  context.stroke();
-}
-
-function isNearClearedPath(point, path, progress) {
-  if (!path?.points?.length || progress <= 0.02) return false;
-  const maxIndex = Math.max(1, Math.floor(clamp(progress, 0, 1) * (path.points.length - 1)));
-  const tolerance = Math.max(18, (path.trackWidth || path.tolerance || 26) * 1.35);
-  for (let index = 0; index <= maxIndex; index += 1) {
-    const pathPoint = path.points[index];
-    if (Math.hypot(point.x - pathPoint.x, point.y - pathPoint.y) <= tolerance) return true;
-  }
-  return false;
-}
-
-function getWiperGeometry(width, height) {
-  const bladeLength = Math.min(width * 0.36, height * 0.58);
-
-  return {
-    leftPivot: { x: width * 0.28, y: height * 0.68 },
-    rightPivot: { x: width * 0.72, y: height * 0.68 },
-    bladeLength,
-    radius: bladeLength * 0.92,
-    leftStart: -48,
-    leftRange: 82,
-    rightStart: -34,
-    rightRange: 82,
-  };
-}
-
-function getMiniWiperPaths(trajectories) {
-  if (!trajectories) return [];
-  if (trajectories.left || trajectories.right) {
-    return [
-      trajectories.left && { path: trajectories.left, side: 'left' },
-      trajectories.right && { path: trajectories.right, side: 'right' },
-    ].filter(Boolean);
-  }
-  if (Array.isArray(trajectories.all)) {
-    return trajectories.all.map((path, index) => ({
-      path,
-      side: index === 0 ? 'left' : 'right',
-    }));
-  }
-  if (Array.isArray(trajectories)) {
-    return trajectories.map((path, index) => ({
-      path,
-      side: index === 0 ? 'left' : 'right',
-    }));
-  }
-  return [];
-}
-
-function samplePathPoint(points = [], progress = 0) {
-  if (!points.length) return { x: 0, y: 0 };
-  const scaled = clamp(progress, 0, 1) * (points.length - 1);
-  const index = Math.floor(scaled);
-  const nextIndex = Math.min(points.length - 1, index + 1);
-  const t = scaled - index;
-  const current = points[index];
-  const next = points[nextIndex];
-  return {
-    x: current.x + (next.x - current.x) * t,
-    y: current.y + (next.y - current.y) * t,
-  };
-}
-
-function quadraticPath(start, control, end) {
-  if (!start || !control || !end) return '';
-  return `M ${round(start.x)} ${round(start.y)} Q ${round(control.x)} ${round(control.y)} ${round(end.x)} ${round(end.y)}`;
-}
-
-function isNearSweptArc(point, pivot, radius, start, end) {
-  const dx = point.x - pivot.x;
-  const dy = point.y - pivot.y;
-  const distanceFromArc = Math.abs(Math.hypot(dx, dy) - radius);
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-  const minAngle = Math.min(start, end) - 8;
-  const maxAngle = Math.max(start, end) + 8;
-  return distanceFromArc < radius * 0.13 && angle >= minAngle && angle <= maxAngle;
-}
-
-function degreesToRadians(degrees) {
-  return (degrees * Math.PI) / 180;
-}
-
 function TrackingVideo({ videoRef, isDemoMode }) {
   if (isDemoMode) {
     return <div className="tracking-video-placeholder" />;
@@ -1301,81 +1025,6 @@ function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, st
         {formatDetectorMode(detectorMode)} face · {formatDetectorMode(handMode)} hand
       </div>
     </div>
-  );
-}
-
-function WindshieldWiperOverlay({ fingertips, height, interaction, trajectories, width }) {
-  if (!width || !height) return null;
-
-  const miniPaths = getMiniWiperPaths(trajectories);
-
-  return (
-    <svg className="landmark-overlay wiper-overlay" viewBox={`0 0 ${width} ${height}`}>
-      {miniPaths.map(({ path, side }) => (
-        <MiniUnderEyeWiper
-          key={path.id || side}
-          path={path}
-          progress={side === 'left' ? interaction.leftCompletion || 0 : interaction.rightCompletion || 0}
-          side={side}
-        />
-      ))}
-      {fingertips?.left && <FingertipDot point={fingertips.left} side="left" isOnTrack={interaction.leftOnTrack} />}
-      {fingertips?.right && <FingertipDot point={fingertips.right} side="right" isOnTrack={interaction.rightOnTrack} />}
-    </svg>
-  );
-}
-
-function MiniUnderEyeWiper({ path, progress, side }) {
-  const clamped = clamp(progress, 0, 1);
-  const point = samplePathPoint(path.points, clamped);
-  const nextPoint = samplePathPoint(path.points, Math.min(1, clamped + 0.04));
-  const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x) * (180 / Math.PI);
-  const length = clamp((path.trackWidth || path.tolerance || 28) * 1.42, 28, 56);
-  const pathD = path.d || quadraticPath(path.start, path.control, path.end);
-
-  return (
-    <g className={`mini-wiper-group ${side}`}>
-      {path.highlight && <path className="mini-under-eye-highlight" d={path.highlight} />}
-      <path className="mini-under-eye-track" d={pathD} pathLength="100" />
-      <path
-        className="mini-under-eye-progress"
-        d={pathD}
-        pathLength="100"
-        style={{ strokeDasharray: `${Math.max(6, Math.round(clamped * 100))} 100` }}
-      />
-      <g className="mini-wiper-blade" transform={`translate(${point.x} ${point.y}) rotate(${angle + 88})`}>
-        <line className="mini-wiper-shadow" x1="0" y1={-length / 2} x2="0" y2={length / 2} />
-        <line className="mini-wiper-rubber" x1="0" y1={-length / 2} x2="0" y2={length / 2} />
-        <circle className="mini-wiper-hinge" cx="0" cy="0" r="7" />
-        <circle className="mini-wiper-hinge-core" cx="0" cy="0" r="3" />
-      </g>
-    </g>
-  );
-}
-
-function WiperBlade({ pivot, length, angle }) {
-  return (
-    <g className="wiper-blade" transform={`translate(${pivot.x} ${pivot.y}) rotate(${angle})`}>
-      <line className="wiper-arm-metal" x1="0" y1="0" x2="0" y2={-length * 0.92} />
-      <line className="wiper-arm-shadow" x1="0" y1={-length * 0.16} x2="0" y2={-length} />
-      <line className="wiper-rubber" x1="0" y1={-length * 0.16} x2="0" y2={-length} />
-      <circle className="wiper-pivot" cx="0" cy="0" r="15" />
-      <circle className="wiper-pivot-core" cx="0" cy="0" r="6" />
-    </g>
-  );
-}
-
-function WiperClearArc({ pivot, radius, startAngle, endAngle, progress }) {
-  const path = describeArc(pivot.x, pivot.y, radius * 0.9, startAngle, endAngle);
-  const dash = Math.round(22 + progress * 74);
-
-  return (
-    <path
-      className="wiper-clear-arc"
-      d={path}
-      pathLength="100"
-      style={{ strokeDasharray: `${dash} 100`, strokeWidth: radius * 0.2 }}
-    />
   );
 }
 
@@ -1464,38 +1113,6 @@ function captureRoutineSnapshot({ video, isDemoMode, progress, score }) {
   };
 }
 
-function createUnderEyeGestureTrajectories(features, size) {
-  const landmarkPaths = generateUnderEyeMassagePaths(features);
-  if (landmarkPaths.length >= 2) {
-    const sorted = [...landmarkPaths].sort((a, b) => getPathCenterX(a) - getPathCenterX(b));
-    return {
-      left: sorted[0],
-      right: sorted[1],
-      all: sorted,
-    };
-  }
-
-  const width = size.width || 720;
-  const height = size.height || 520;
-  const y = height * 0.42;
-  const left = createFallbackUnderEyePath({
-    id: 'under-eye-left-fallback',
-    start: { x: width * 0.45, y },
-    control: { x: width * 0.35, y: y + height * 0.035 },
-    end: { x: width * 0.22, y: y + height * 0.01 },
-    tolerance: Math.max(34, width * 0.095),
-  });
-  const right = createFallbackUnderEyePath({
-    id: 'under-eye-right-fallback',
-    start: { x: width * 0.55, y },
-    control: { x: width * 0.65, y: y + height * 0.035 },
-    end: { x: width * 0.78, y: y + height * 0.01 },
-    tolerance: Math.max(34, width * 0.095),
-  });
-
-  return { left, right, all: [left, right] };
-}
-
 function createTemplePressTargets(features, size) {
   const width = size.width || 375;
   const height = size.height || 812;
@@ -1533,14 +1150,14 @@ function createTemplePressTrajectories(targets, size) {
   const leftTarget = targets?.left || { x: width * 0.22, y: height * 0.28, tolerance: 48 };
   const rightTarget = targets?.right || { x: width * 0.78, y: height * 0.28, tolerance: 48 };
 
-  const left = createFallbackUnderEyePath({
+  const left = createGesturePath({
     id: 'temple-left-press',
     start: { x: clamp(leftTarget.x - width * 0.14, 8, width - 8), y: leftTarget.y + height * 0.015 },
     control: { x: leftTarget.x - width * 0.06, y: leftTarget.y },
     end: leftTarget,
     tolerance: leftTarget.tolerance,
   });
-  const right = createFallbackUnderEyePath({
+  const right = createGesturePath({
     id: 'temple-right-press',
     start: { x: clamp(rightTarget.x + width * 0.14, 8, width - 8), y: rightTarget.y + height * 0.015 },
     control: { x: rightTarget.x + width * 0.06, y: rightTarget.y },
@@ -1551,343 +1168,64 @@ function createTemplePressTrajectories(targets, size) {
   return { left, right, all: [left, right] };
 }
 
-function scoreTemplePress({ features, fingertips, targets, timestamp, progressState, stageProgress }) {
-  const left = scoreTempleSide({ point: fingertips.left, target: targets.left });
-  const right = scoreTempleSide({ point: fingertips.right, target: targets.right });
-  const bothPressing = left.press > 0.52 && right.press > 0.52;
-  const onePressing = left.press > 0.42 || right.press > 0.42;
-  const balanced = 1 - Math.min(1, Math.abs(left.press - right.press));
-  const elapsedSeconds = progressState.lastTimestamp
-    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
-    : 0.016;
-  const pulseGain = bothPressing ? (0.022 + balanced * 0.018) * Math.min(2.2, elapsedSeconds * 60) : -0.009;
+function createLemonPressTargets(features, size) {
+  const width = size.width || 375;
+  const height = size.height || 812;
+  const fallbackY = height * 0.3;
 
-  progressState.pressFrames = bothPressing ? progressState.pressFrames + 1 : 0;
-  progressState.flow = clamp((progressState.flow || 0) + pulseGain, 0, 1);
-  const baseline = stageProgress * 0.08;
-  const nextScore = Math.round(clamp((progressState.flow * 0.9 + baseline) * 100, 0, 100));
-  progressState.score = Math.max(progressState.score || 0, nextScore);
-  progressState.lastTimestamp = timestamp;
-
-  const rain = clamp((left.press + right.press) / 2, 0, 1);
-  const growth = clamp(progressState.flow, 0, 1);
-
-  return {
-    score: progressState.score,
-    completion: growth,
-    feedback: getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth }),
-    isOnTrack: bothPressing,
-    leftPress: left.press,
-    rightPress: right.press,
-    rain,
-    growth,
-    ripple: onePressing ? clamp(rain * 0.7 + growth * 0.3, 0, 1) : growth * 0.4,
-    flow: growth,
-    isPressing: bothPressing,
-  };
-}
-
-function scoreTempleSide({ point, target }) {
-  if (!point || !target) {
-    return { press: 0, distance: Infinity };
-  }
-  const distance = Math.hypot(point.x - target.x, point.y - target.y);
-  const tolerance = target.tolerance || 54;
-  const press = clamp(1 - distance / tolerance, 0, 1);
-  return { press, distance };
-}
-
-function getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth }) {
-  if (!features) return 'Find your face';
-  if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
-  if (!fingertips.left || !fingertips.right) return 'Use both hands on your temples';
-  if (!onePressing) return 'Move both fingers to your temples';
-  if (!bothPressing) return 'Press both sides at the same time';
-  if (balanced < 0.58) return 'Balance both sides gently';
-  if (growth > 0.78) return 'Great, the garden is breathing';
-  return 'Good pulse, press and release slowly';
-}
-
-function getInitialFeedback(sceneId) {
-  if (sceneId === SCENE_IDS.templeGarden) return 'Press both temples gently';
-  if (sceneId === SCENE_IDS.rainWiper) return 'Glide gently outward under your eyes';
-  if (sceneId === SCENE_IDS.flowerCollector) return 'Scrunch your nose to inhale blossoms';
-  if (sceneId === SCENE_IDS.bubbleGumBunny) return 'Puff your cheeks to grow the bubble';
-  return 'Open wide and let little fish drift out';
-}
-
-function scoreCheekPuff({ features, timestamp, progressState, stageProgress }) {
-  const ratio = features?.cheeks?.puffRatio || 0;
-  const puff = clamp((ratio - 0.12) / 0.6, 0, 1);
-  const elapsedSeconds = progressState.lastTimestamp
-    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
-    : 0.016;
-  const ratioVelocity = Math.abs(ratio - (progressState.lastRatio || 0)) / elapsedSeconds;
-  const isPuffing = puff > 0.32;
-  const isStable = ratioVelocity < 1.05;
-
-  if (isPuffing) {
-    progressState.holdSeconds += elapsedSeconds;
-    progressState.bubbleSize = clamp(
-      progressState.bubbleSize + (0.018 + puff * 0.045 + (isStable ? 0.018 : 0)) * elapsedSeconds,
-      0.18,
-      1,
-    );
-  } else {
-    if (progressState.holdSeconds >= 1.45) {
-      progressState.combo = Math.min(12, (progressState.combo || 0) + 1);
-    }
-    progressState.holdSeconds = 0;
-    progressState.bubbleSize = clamp(progressState.bubbleSize - 0.028 * elapsedSeconds, 0.18, 1);
-  }
-
-  const nextStage = Math.floor(progressState.bubbleSize * 5);
-  if (nextStage > (progressState.stage || 0)) {
-    progressState.score = (progressState.score || 0) + (nextStage - (progressState.stage || 0)) * 7;
-    progressState.stage = nextStage;
-  }
-
-  const holdBonus = progressState.holdSeconds >= 2 ? 0.55 * elapsedSeconds * 10 : 0;
-  const comboBonus = (progressState.combo || 0) >= 3 ? 0.38 * elapsedSeconds * 10 : 0;
-  const baseline = stageProgress * 0.1;
-  const nextScore = Math.round(clamp(
-    (progressState.bubbleSize * 0.62 + baseline) * 100 + holdBonus + comboBonus + (progressState.combo || 0) * 2,
-    0,
-    100,
-  ));
-  progressState.score = Math.max(progressState.score || 0, nextScore);
-  progressState.lastRatio = ratio;
-  progressState.lastTimestamp = timestamp;
-
-  return {
-    score: Math.round(clamp(progressState.score, 0, 100)),
-    completion: progressState.bubbleSize,
-    feedback: getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
-    isOnTrack: isPuffing && isStable,
-    puff,
-    bubbleSize: progressState.bubbleSize,
-    bubbleStage: progressState.stage || 0,
-    combo: progressState.combo || 0,
-    isPuffing,
-  };
-}
-
-function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo }) {
-  if (!features?.cheeks) return 'Find your face';
-  if (!isPuffing) return 'Puff your cheeks, then relax softly';
-  if (!isStable) return 'Hold the bubble steady';
-  if (combo >= 3) return 'Combo rhythm, bunny loves it';
-  if (bubbleSize > 0.78) return 'Big bubble sparkle bonus';
-  return 'Nice puff, keep the bubble growing';
-}
-
-function scoreNoseSniff({ features, timestamp, progressState, stageProgress }) {
-  const ratio = features?.nose?.sniffRatio || 0;
-  const sniff = clamp((ratio - 0.12) / 0.58, 0, 1);
-  const elapsedSeconds = progressState.lastTimestamp
-    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
-    : 0.016;
-  const ratioVelocity = Math.abs(ratio - (progressState.lastRatio || 0)) / elapsedSeconds;
-  const isSniffing = sniff > 0.28;
-  const isStrong = sniff > 0.54;
-  const isControlled = ratioVelocity < 1.35;
-
-  if (isSniffing) {
-    progressState.sniffFrames += 1;
-    progressState.flow = clamp(
-      progressState.flow + (0.015 + sniff * 0.026 + (isControlled ? 0.01 : 0)) * Math.min(2.1, elapsedSeconds * 60),
-      0,
-      1,
-    );
-    progressState.flowerCount = (progressState.flowerCount || 0)
-      + (4 + sniff * 18 + (isStrong ? 8 : 0)) * elapsedSeconds;
-  } else {
-    progressState.sniffFrames = 0;
-    progressState.flow = clamp(progressState.flow - 0.007 * Math.min(2.1, elapsedSeconds * 60), 0, 1);
-    progressState.flowerCount = Math.max(progressState.flowerCount || 0, progressState.flow * 86);
-  }
-
-  const baseline = stageProgress * 0.08;
-  const nextScore = Math.round(clamp((progressState.flow * 0.92 + baseline) * 100, 0, 100));
-  progressState.score = Math.max(progressState.score || 0, nextScore);
-  progressState.lastRatio = ratio;
-  progressState.lastTimestamp = timestamp;
-
-  return {
-    score: progressState.score,
-    completion: clamp(progressState.flow, 0, 1),
-    feedback: getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }),
-    isOnTrack: isSniffing && isControlled,
-    sniff,
-    flowerCount: Math.round(progressState.flowerCount || clamp(progressState.flow, 0, 1) * 86),
-    flow: progressState.flow,
-    isSniffing,
-  };
-}
-
-function getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }) {
-  if (!features?.nose) return 'Find your face';
-  if (!isSniffing) return 'Wrinkle your nose like smelling a flower';
-  if (!isControlled) return 'Hold the scent gently';
-  if (isStrong) return 'Lovely inhale, blossoms are gathering';
-  return 'Good, scrunch a little stronger';
-}
-
-function scoreMouthOpening({ features, timestamp, progressState, stageProgress }) {
-  const ratio = features?.mouth?.openRatio || 0;
-  const mouthOpen = clamp((ratio - 0.07) / 0.22, 0, 1);
-  const elapsedSeconds = progressState.lastTimestamp
-    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
-    : 0.016;
-  const ratioVelocity = Math.abs(ratio - (progressState.lastRatio || 0)) / elapsedSeconds;
-  const isOpen = mouthOpen > 0.38;
-  const isWide = mouthOpen > 0.62;
-  const isStable = ratioVelocity < 0.9;
-
-  if (isOpen) {
-    progressState.openFrames += 1;
-    progressState.flow = clamp(progressState.flow + (isWide ? 0.028 : 0.016) + (isStable ? 0.012 : 0), 0, 1);
-  } else {
-    progressState.openFrames = 0;
-    progressState.flow = clamp(progressState.flow - 0.006, 0, 1);
-  }
-
-  const baseline = stageProgress * 0.12;
-  const nextScore = Math.round(clamp((progressState.flow * 0.88 + baseline) * 100, 0, 100));
-  progressState.score = Math.max(progressState.score || 0, nextScore);
-  progressState.lastRatio = ratio;
-  progressState.lastTimestamp = timestamp;
-
-  return {
-    score: progressState.score,
-    completion: clamp(progressState.flow, 0, 1),
-    feedback: getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }),
-    isOnTrack: isOpen && isStable,
-    mouthOpen,
-    flow: progressState.flow,
-    fishBurst: isOpen ? clamp(mouthOpen + progressState.flow * 0.25, 0, 1) : 0,
-    isOpen,
-  };
-}
-
-function getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }) {
-  if (!features?.mouth) return 'Find your face';
-  if (!isOpen) return 'Open wide and breathe out';
-  if (!isStable && mouthOpen > 0.45) return 'Hold the whale mouth steady';
-  if (isWide) return 'Great flow, little fish are drifting out';
-  return 'Nice, open a little wider';
-}
-
-function scoreUnderEyeMassageGesture({
-  fingertips,
-  previousFingertips,
-  timestamp,
-  containerSize,
-  progressRef,
-  trajectories,
-}) {
-  const left = scoreMassagePathSide({
-    point: fingertips.left || getNearestFingerForPath(fingertips, trajectories.left),
-    previous: previousFingertips.left,
-    timestamp,
-    containerSize,
-    progressState: progressRef.current.left,
-    path: trajectories.left,
-    side: 'left',
-  });
-  const right = scoreMassagePathSide({
-    point: fingertips.right || getNearestFingerForPath(fingertips, trajectories.right),
-    previous: previousFingertips.right,
-    timestamp,
-    containerSize,
-    progressState: progressRef.current.right,
-    path: trajectories.right,
-    side: 'right',
-  });
-  const hasLeft = Boolean(fingertips.left);
-  const hasRight = Boolean(fingertips.right);
-  const activeScores = [left, right].filter((item) => item.hasPoint);
-  const average = activeScores.length
-    ? averageMetrics(activeScores)
-    : {
-      score: 0,
-      accuracy: 0,
-      direction: 0,
-      speed: 0,
-      completion: 0,
-    };
-  const completion = Math.max(left.completion, right.completion) * 0.34 + ((left.completion + right.completion) / 2) * 0.66;
-  const score = Math.round((average.score + completion * 100) / 2);
-
-  return {
-    score,
-    accuracy: average.accuracy,
-    direction: average.direction,
-    speed: average.speed,
-    completion,
-    feedback: getUnderEyeMassageFeedback({ hasLeft, hasRight, left, right, completion }),
-    isOnTrack: left.isOnTrack || right.isOnTrack,
-    leftOnTrack: left.isOnTrack,
-    rightOnTrack: right.isOnTrack,
-    leftCompletion: left.completion,
-    rightCompletion: right.completion,
-    sweep: (left.sweep + right.sweep) / 2,
-    leftSweep: left.sweep,
-    rightSweep: right.sweep,
-  };
-}
-
-function scoreMassagePathSide({ point, previous, timestamp, containerSize, progressState, path }) {
-  const width = containerSize.width || 1;
-
-  if (!point || !path?.points?.length) {
+  if (!features?.face?.noseCenter || !features?.leftEye?.center || !features?.rightEye?.center) {
     return {
-      hasPoint: false,
-      score: 0,
-      accuracy: 0,
-      direction: 0,
-      speed: 0,
-      completion: progressState.maxProgress || 0,
-      isOnTrack: false,
-      sweep: progressState.lastSweep || progressState.maxProgress || 0,
+      left: { x: width * 0.42, y: fallbackY, tolerance: Math.max(34, width * 0.11) },
+      right: { x: width * 0.58, y: fallbackY, tolerance: Math.max(34, width * 0.11) },
     };
   }
 
-  const nearest = getNearestPathProgress(point, path.points);
-  const tolerance = path.tolerance || Math.max(28, width * 0.075);
-  const onTrack = nearest.distance <= tolerance * 1.35;
-  const projectedProgress = clamp(nearest.progress, 0, 1);
-  const forwardMovement = projectedProgress >= (progressState.lastProgress || 0) - 0.08;
-  const meaningfulAdvance = projectedProgress > (progressState.maxProgress || 0) + 0.018;
-  if (onTrack && forwardMovement) {
-    progressState.maxProgress = Math.max(progressState.maxProgress || 0, projectedProgress);
-  }
-  progressState.lastProgress = onTrack ? projectedProgress : progressState.lastProgress || 0;
-
-  const completion = clamp(progressState.maxProgress || 0, 0, 1);
-  const accuracy = onTrack ? clamp(1 - nearest.distance / (tolerance * 1.35), 0.24, 1) : 0.12;
-  const elapsedSeconds = previous?.timestamp ? Math.max(0.016, (timestamp - previous.timestamp) / 1000) : 0.016;
-  const movement = previous?.point ? Math.hypot(point.x - previous.point.x, point.y - previous.point.y) : 0;
-  const velocity = movement / elapsedSeconds;
-  const direction = onTrack && (forwardMovement || meaningfulAdvance) ? 1 : onTrack ? 0.46 : 0.12;
-  const speed = velocity < 18 ? 0.46 : velocity < 430 ? 1 : velocity < 720 ? 0.72 : 0.38;
-  const score = Math.round((accuracy * 0.26 + direction * 0.22 + speed * 0.2 + completion * 0.32) * 100);
-  const sweepTarget = clamp(completion * 1.08, 0, 1);
-  progressState.lastSweep = progressState.lastSweep + (sweepTarget - progressState.lastSweep) * 0.22;
+  const eyeDistance = Math.max(72, Math.abs(features.rightEye.center.x - features.leftEye.center.x));
+  const faceScale = features.faceScale || Math.max(width * 0.42, 150);
+  const sideOffset = clamp(eyeDistance * 0.22, 24, 52);
+  const lift = clamp(faceScale * 0.08, 12, 34);
+  const tolerance = clamp(faceScale * 0.14, 38, 72);
+  const nose = features.face.noseCenter;
 
   return {
-    hasPoint: true,
-    score,
-    accuracy,
-    direction,
-    speed,
-    completion,
-    isOnTrack: onTrack && direction > 0.5,
-    sweep: progressState.lastSweep,
+    left: {
+      x: clamp(nose.x - sideOffset, 18, width - 18),
+      y: clamp(nose.y - lift, 34, height - 34),
+      tolerance,
+    },
+    right: {
+      x: clamp(nose.x + sideOffset, 18, width - 18),
+      y: clamp(nose.y - lift, 34, height - 34),
+      tolerance,
+    },
   };
 }
 
-function createFallbackUnderEyePath({ id, start, control, end, tolerance }) {
+function createLemonPressTrajectories(targets, size) {
+  const width = size.width || 375;
+  const height = size.height || 812;
+  const leftTarget = targets?.left || { x: width * 0.42, y: height * 0.3, tolerance: 44 };
+  const rightTarget = targets?.right || { x: width * 0.58, y: height * 0.3, tolerance: 44 };
+
+  const left = createGesturePath({
+    id: 'lemon-left-squeeze',
+    start: { x: clamp(leftTarget.x - width * 0.12, 8, width - 8), y: leftTarget.y + height * 0.012 },
+    control: { x: leftTarget.x - width * 0.04, y: leftTarget.y },
+    end: leftTarget,
+    tolerance: leftTarget.tolerance,
+  });
+  const right = createGesturePath({
+    id: 'lemon-right-squeeze',
+    start: { x: clamp(rightTarget.x + width * 0.12, 8, width - 8), y: rightTarget.y + height * 0.012 },
+    control: { x: rightTarget.x + width * 0.04, y: rightTarget.y },
+    end: rightTarget,
+    tolerance: rightTarget.tolerance,
+  });
+
+  return { left, right, all: [left, right] };
+}
+
+function createGesturePath({ id, start, control, end, tolerance }) {
   return {
     id,
     start,
@@ -1909,97 +1247,421 @@ function sampleQuadraticPoints(start, control, end, count) {
   });
 }
 
-function getNearestFingerForPath(fingertips, path) {
-  const candidates = [fingertips.left, fingertips.right].filter(Boolean);
-  if (!candidates.length || !path?.points?.length) return null;
-  return candidates
-    .map((point) => ({
-      point,
-      distance: getNearestPathProgress(point, path.points).distance,
-    }))
-    .sort((a, b) => a.distance - b.distance)[0]?.point || null;
-}
+function scoreTemplePress({ features, fingertips, targets, timestamp, progressState, stageProgress }) {
+  const leftRaw = scoreTempleSide({ point: fingertips.left, target: targets?.left });
+  const rightRaw = scoreTempleSide({ point: fingertips.right, target: targets?.right });
+  const left = updateInteractionSignal(leftRaw.available ? leftRaw.press : null, timestamp, progressState.leftSignal, PRESS_SIGNAL_OPTIONS);
+  const right = updateInteractionSignal(rightRaw.available ? rightRaw.press : null, timestamp, progressState.rightSignal, PRESS_SIGNAL_OPTIONS);
+  const bothPressing = left.active && right.active;
+  const onePressing = left.active || right.active || left.value > 0.3 || right.value > 0.3;
+  const balanced = 1 - Math.min(1, Math.abs(left.value - right.value));
+  const deltaSeconds = Math.max(left.deltaSeconds, right.deltaSeconds);
 
-function getNearestPathProgress(point, points) {
-  let best = {
-    distance: Infinity,
-    progress: 0,
-  };
+  if (bothPressing) {
+    progressState.flow = clamp(progressState.flow + deltaSeconds * (0.12 + balanced * 0.08), 0, 1);
+    const holdEvents = consumeTimedEvents(progressState, 'rainHold', 0.7 + balanced * 0.35, deltaSeconds);
+    progressState.score += holdEvents * (balanced > 0.7 ? 3 : 2);
+  } else {
+    progressState.flow = clamp(progressState.flow - deltaSeconds * 0.09, 0.12, 1);
+  }
 
-  points.forEach((pathPoint, index) => {
-    const distance = Math.hypot(point.x - pathPoint.x, point.y - pathPoint.y);
-    if (distance < best.distance) {
-      best = {
-        distance,
-        progress: points.length <= 1 ? 0 : index / (points.length - 1),
-      };
+  if (left.justReleased || right.justReleased) {
+    const completedBoth = left.holdSeconds >= 0.35 && right.holdSeconds >= 0.35;
+    if (completedBoth) {
+      progressState.combo = Math.min(12, progressState.combo + 1);
+      progressState.score += 5 + (balanced > 0.72 ? 3 : 0);
+      progressState.gardenCycle += 1;
     }
-  });
+  }
 
-  return best;
-}
+  const rain = clamp((left.value + right.value) / 2, 0, 1);
+  const gardenPulse = (progressState.gardenCycle % 4) / 4;
+  const growth = clamp(0.18 + gardenPulse * 0.52 + progressState.flow * 0.3, 0, 1);
+  progressState.score = Math.min(100, progressState.score);
 
-function getPathCenterX(path) {
-  if (!path?.points?.length) return path?.start?.x || 0;
-  return path.points.reduce((total, point) => total + point.x, 0) / path.points.length;
-}
-
-function averageMetrics(items) {
-  const total = items.reduce(
-    (current, item) => ({
-      score: current.score + item.score,
-      accuracy: current.accuracy + item.accuracy,
-      direction: current.direction + item.direction,
-      speed: current.speed + item.speed,
-      completion: current.completion + item.completion,
-    }),
-    { score: 0, accuracy: 0, direction: 0, speed: 0, completion: 0 },
-  );
-  const count = items.length || 1;
   return {
-    score: total.score / count,
-    accuracy: total.accuracy / count,
-    direction: total.direction / count,
-    speed: total.speed / count,
-    completion: total.completion / count,
+    score: Math.round(progressState.score),
+    completion: growth,
+    feedback: getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth }),
+    isOnTrack: bothPressing,
+    leftPress: left.value,
+    rightPress: right.value,
+    rain,
+    growth,
+    ripple: onePressing ? clamp(rain * 0.7 + growth * 0.3, 0, 1) : growth * 0.4,
+    flow: growth,
+    isPressing: bothPressing,
+    combo: progressState.combo,
+    phase: bothPressing ? 'holding' : onePressing ? 'detecting' : 'idle',
   };
 }
 
-function getUnderEyeMassageFeedback({ hasLeft, hasRight, left, right, completion }) {
-  if (!hasLeft && !hasRight) return 'Show your index fingertip under your eye';
-  if (!left.isOnTrack && !right.isOnTrack) return 'Place your finger on the under-eye guide';
-  if (left.direction < 0.5 || right.direction < 0.5) return 'Glide from inner eye outward';
-  if (left.speed < 0.55 || right.speed < 0.55) return 'Keep gliding outward gently';
-  if (left.speed < 0.78 || right.speed < 0.78) return 'Slow and smooth is perfect';
-  if (completion > 0.82) return 'Nice, the glass is clearing';
-  return 'Good under-eye glide';
+function scoreTempleSide({ point, target }) {
+  if (!point || !target) {
+    return { press: 0, distance: Infinity, available: false };
+  }
+  const distance = Math.hypot(point.x - target.x, point.y - target.y);
+  const tolerance = target.tolerance || 54;
+  const press = clamp(1 - distance / tolerance, 0, 1);
+  return { press, distance, available: true };
 }
 
-function describeArc(cx, cy, radius, startAngle, endAngle) {
-  const start = polarToCartesian(cx, cy, radius, endAngle);
-  const end = polarToCartesian(cx, cy, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-
-  return [
-    'M',
-    round(start.x),
-    round(start.y),
-    'A',
-    round(radius),
-    round(radius),
-    0,
-    largeArcFlag,
-    0,
-    round(end.x),
-    round(end.y),
-  ].join(' ');
+function getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth }) {
+  if (!features) return 'Find your face';
+  if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
+  if (!fingertips.left || !fingertips.right) return 'Use both hands on your temples';
+  if (!onePressing) return 'Move both fingers to your temples';
+  if (!bothPressing) return 'Press both sides at the same time';
+  if (balanced < 0.58) return 'Balance both sides gently';
+  if (growth > 0.78) return 'Great, the garden is breathing';
+  return 'Good pulse, press and release slowly';
 }
 
-function polarToCartesian(cx, cy, radius, angleInDegrees) {
-  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
+function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressState, stageProgress }) {
+  const leftRaw = scoreTempleSide({ point: fingertips.left, target: targets?.left });
+  const rightRaw = scoreTempleSide({ point: fingertips.right, target: targets?.right });
+  const left = updateInteractionSignal(leftRaw.available ? leftRaw.press : null, timestamp, progressState.leftSignal, PRESS_SIGNAL_OPTIONS);
+  const right = updateInteractionSignal(rightRaw.available ? rightRaw.press : null, timestamp, progressState.rightSignal, PRESS_SIGNAL_OPTIONS);
+  const bothPressing = left.active && right.active;
+  const onePressing = left.active || right.active || left.value > 0.28 || right.value > 0.28;
+  const balanced = 1 - Math.min(1, Math.abs(left.value - right.value));
+  const squeeze = clamp((left.value + right.value) / 2, 0, 1);
+  const elapsedSeconds = Math.max(left.deltaSeconds, right.deltaSeconds);
+
+  if (bothPressing) {
+    progressState.sodaLevel = clamp(
+      progressState.sodaLevel + (0.055 + squeeze * 0.06 + balanced * 0.025) * elapsedSeconds,
+      0.12,
+      0.94,
+    );
+  }
+
+  const ingredientStage = Math.min(4, Math.max(0, Math.floor((progressState.sodaLevel - 0.14) * 5.4)));
+  if (ingredientStage > progressState.ingredientStage) {
+    progressState.score += (ingredientStage - progressState.ingredientStage) * 4;
+    progressState.ingredientStage = ingredientStage;
+  }
+
+  if (left.justReleased || right.justReleased) {
+    const completedBoth = left.holdSeconds >= 0.3 && right.holdSeconds >= 0.3;
+    if (completedBoth) {
+      progressState.combo = Math.min(12, progressState.combo + 1);
+      progressState.score += 5 + (balanced > 0.72 ? 3 : 0);
+    }
+  }
+
+  let sip = 0;
+  if (progressState.sodaLevel > progressState.nextSipLevel) {
+    progressState.sipCycle += elapsedSeconds;
+    sip = Math.sin(Math.min(1, progressState.sipCycle / 1.2) * Math.PI);
+    if (progressState.sipCycle > 1.2) {
+      progressState.sodaLevel = clamp(progressState.sodaLevel - (0.2 + (progressState.sipCount % 3) * 0.035), 0.38, 0.74);
+      progressState.score += 8;
+      progressState.sipCount += 1;
+      progressState.sipCycle = 0;
+      progressState.nextSipLevel = 0.8 + (progressState.sipCount % 3) * 0.035;
+      progressState.ingredientStage = Math.min(4, Math.max(0, Math.floor((progressState.sodaLevel - 0.14) * 5.4)));
+    }
+  } else {
+    progressState.sipCycle = Math.max(0, progressState.sipCycle - elapsedSeconds * 1.5);
+  }
+
+  progressState.score = Math.min(100, progressState.score);
+
   return {
-    x: cx + radius * Math.cos(angleInRadians),
-    y: cy + radius * Math.sin(angleInRadians),
+    score: Math.round(progressState.score),
+    completion: clamp(progressState.sodaLevel, 0, 1),
+    feedback: getLemonSqueezeFeedback({ features, fingertips, bothPressing, onePressing, balanced, sodaLevel: progressState.sodaLevel }),
+    isOnTrack: bothPressing && balanced > 0.54,
+    leftPress: left.value,
+    rightPress: right.value,
+    squeeze,
+    sodaLevel: progressState.sodaLevel,
+    ingredientStage: progressState.ingredientStage,
+    sip,
+    combo: progressState.combo,
+    flow: progressState.sodaLevel,
+    isSqueezing: bothPressing,
+  };
+}
+
+function getLemonSqueezeFeedback({ features, fingertips, bothPressing, onePressing, balanced, sodaLevel }) {
+  if (!features?.face?.noseCenter) return 'Find your face';
+  if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
+  if (!fingertips.left || !fingertips.right) return 'Use both fingers beside your nose';
+  if (!onePressing) return 'Move fingers beside your nose bridge';
+  if (!bothPressing) return 'Squeeze both lemon halves together';
+  if (balanced < 0.54) return 'Balance left and right squeeze';
+  if (sodaLevel > 0.8) return 'Tiny friend is stealing a sip';
+  return 'Fresh squeeze, bubbles rising';
+}
+
+function getInitialFeedback(sceneId) {
+  if (sceneId === SCENE_IDS.templeGarden) return 'Press both temples gently';
+  if (sceneId === SCENE_IDS.lemonSqueeze) return 'Press both sides of your nose';
+  if (sceneId === SCENE_IDS.flowerCollector) return 'Scrunch your nose to inhale blossoms';
+  if (sceneId === SCENE_IDS.bubbleGumBunny) return 'Puff your cheeks to grow the bubble';
+  return 'Open wide and guide little fish in';
+}
+
+function scoreCheekPuff({ features, timestamp, progressState, stageProgress }) {
+  const ratio = features?.cheeks?.puffRatio;
+  const rawPuff = Number.isFinite(ratio) ? clamp((ratio - 0.12) / 0.6, 0, 1) : null;
+  const signal = updateInteractionSignal(rawPuff, timestamp, progressState.signal, {
+    enterThreshold: 0.32,
+    releaseThreshold: 0.2,
+    activateMs: 130,
+    releaseMs: 220,
+    attackSeconds: 0.13,
+    releaseSeconds: 0.28,
+  });
+  const puff = signal.value;
+  const isPuffing = signal.active;
+  const isStable = signal.phase === 'holding';
+  const elapsedSeconds = signal.deltaSeconds;
+
+  if (isPuffing) {
+    progressState.bubbleSize = clamp(progressState.bubbleSize + (0.07 + puff * 0.12) * elapsedSeconds, 0.18, 1);
+    const holdEvents = consumeTimedEvents(progressState, 'bubbleHold', signal.holdSeconds > 1.1 ? 0.55 : 0, elapsedSeconds);
+    progressState.score += holdEvents * 3;
+  } else {
+    progressState.bubbleSize = clamp(progressState.bubbleSize - 0.045 * elapsedSeconds, 0.18, 1);
+  }
+
+  const nextStage = Math.min(4, Math.floor(progressState.bubbleSize * 4.2));
+  if (nextStage > progressState.stage) {
+    progressState.score += (nextStage - progressState.stage) * 4;
+    progressState.stage = nextStage;
+  }
+
+  if (progressState.bubbleSize >= 0.985) {
+    progressState.maxHold += elapsedSeconds;
+    if (progressState.maxHold >= 0.8) {
+      progressState.bubbleSize = 0.56;
+      progressState.stage = 2;
+      progressState.maxHold = 0;
+      progressState.combo = Math.min(12, progressState.combo + 1);
+      progressState.score += 10 + (progressState.combo >= 3 ? 4 : 0);
+    }
+  } else {
+    progressState.maxHold = 0;
+  }
+
+  if (signal.justReleased && signal.holdSeconds >= 0.6) {
+    progressState.combo = Math.min(12, progressState.combo + 1);
+    progressState.score += 5 + (signal.holdSeconds >= 1.8 ? 3 : 0);
+  }
+  progressState.score = Math.min(100, progressState.score);
+
+  return {
+    score: Math.round(progressState.score),
+    completion: progressState.bubbleSize,
+    feedback: getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
+    isOnTrack: isPuffing && isStable,
+    puff,
+    bubbleSize: progressState.bubbleSize,
+    bubbleStage: progressState.stage,
+    combo: progressState.combo,
+    isPuffing,
+    phase: signal.phase,
+  };
+}
+
+function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo }) {
+  if (!features?.cheeks) return 'Find your face';
+  if (!isPuffing) return 'Puff your cheeks, then relax softly';
+  if (!isStable) return 'Hold the bubble steady';
+  if (combo >= 3) return 'Combo rhythm, bunny loves it';
+  if (bubbleSize > 0.78) return 'Big bubble sparkle bonus';
+  return 'Nice puff, keep the bubble growing';
+}
+
+function scoreNoseSniff({ features, timestamp, progressState, stageProgress }) {
+  const ratio = features?.nose?.sniffRatio;
+  const rawSniff = Number.isFinite(ratio) ? clamp((ratio - 0.12) / 0.58, 0, 1) : null;
+  const signal = updateInteractionSignal(rawSniff, timestamp, progressState.signal, {
+    enterThreshold: 0.28,
+    releaseThreshold: 0.17,
+    activateMs: 100,
+    releaseMs: 210,
+    attackSeconds: 0.1,
+    releaseSeconds: 0.26,
+  });
+  const sniff = signal.value;
+  const isSniffing = signal.active;
+  const isStrong = sniff > 0.58;
+  const isControlled = signal.phase === 'holding';
+  const elapsedSeconds = signal.deltaSeconds;
+
+  if (isSniffing) {
+    progressState.flow = clamp(progressState.flow + elapsedSeconds * (0.16 + sniff * 0.18), 0, 1);
+    const collected = consumeTimedEvents(progressState, 'flower', 1 + sniff * 2.5 + (isStrong ? 0.7 : 0), elapsedSeconds);
+    if (collected > 0) {
+      progressState.flowerCount += collected;
+      const special = Math.floor(progressState.flowerCount / 25) - progressState.specialFlowers;
+      progressState.specialFlowers += Math.max(0, special);
+      progressState.score += collected + Math.max(0, special) * 3;
+    }
+  } else {
+    progressState.flow = clamp(progressState.flow - elapsedSeconds * 0.12, 0.08, 1);
+  }
+
+  if (signal.justReleased && signal.holdSeconds >= 0.55) {
+    progressState.combo = Math.min(12, progressState.combo + 1);
+    progressState.score += progressState.combo >= 3 ? 3 : 1;
+  }
+  progressState.score = Math.min(100, progressState.score);
+
+  return {
+    score: Math.round(progressState.score),
+    completion: clamp((progressState.flowerCount % 24) / 24, 0, 1),
+    feedback: getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }),
+    isOnTrack: isSniffing && isControlled,
+    sniff,
+    flowerCount: progressState.flowerCount,
+    flow: progressState.flow,
+    isSniffing,
+    combo: progressState.combo,
+    phase: signal.phase,
+  };
+}
+
+function getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }) {
+  if (!features?.nose) return 'Find your face';
+  if (!isSniffing) return 'Wrinkle your nose like smelling a flower';
+  if (!isControlled) return 'Hold the scent gently';
+  if (isStrong) return 'Lovely inhale, blossoms are gathering';
+  return 'Good, scrunch a little stronger';
+}
+
+function scoreMouthOpening({ features, timestamp, progressState, stageProgress }) {
+  const ratio = features?.mouth?.openRatio;
+  const rawOpen = Number.isFinite(ratio) ? clamp((ratio - 0.07) / 0.22, 0, 1) : null;
+  const signal = updateInteractionSignal(rawOpen, timestamp, progressState.signal, {
+    enterThreshold: 0.36,
+    releaseThreshold: 0.2,
+    activateMs: 90,
+    releaseMs: 190,
+    attackSeconds: 0.09,
+    releaseSeconds: 0.22,
+  });
+  const mouthOpen = signal.value;
+  const elapsedSeconds = signal.deltaSeconds;
+  const isOpen = signal.active;
+  const isWide = mouthOpen > 0.65;
+  const isStable = signal.phase === 'holding';
+
+  if (isOpen) {
+    progressState.flow = clamp(progressState.flow + elapsedSeconds * (0.13 + mouthOpen * 0.18), 0, 1);
+    const eaten = consumeTimedEvents(progressState, 'fish', 1 + mouthOpen * 2.4 + (isStable ? 0.5 : 0), elapsedSeconds);
+    if (eaten > 0) {
+      progressState.fishCount += eaten;
+      const special = Math.floor(progressState.fishCount / 25) - progressState.specialFish;
+      progressState.specialFish += Math.max(0, special);
+      progressState.score += eaten + Math.max(0, special) * 4;
+    }
+  } else {
+    progressState.flow = clamp(progressState.flow - elapsedSeconds * 0.1, 0.08, 1);
+  }
+
+  if (signal.justReleased && signal.holdSeconds >= 0.45) {
+    progressState.combo = Math.min(12, progressState.combo + 1);
+    progressState.score += signal.holdSeconds >= 1.2 ? 5 : 2;
+  }
+  progressState.score = Math.min(100, progressState.score);
+
+  return {
+    score: Math.round(progressState.score),
+    completion: clamp((progressState.fishCount % 18) / 18, 0, 1),
+    feedback: getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }),
+    isOnTrack: isOpen && isStable,
+    mouthOpen,
+    flow: progressState.flow,
+    fishBurst: isOpen ? clamp(mouthOpen + progressState.flow * 0.25, 0, 1) : 0,
+    fishCount: progressState.fishCount,
+    combo: progressState.combo,
+    isOpen,
+    phase: signal.phase,
+  };
+}
+
+function getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }) {
+  if (!features?.mouth) return 'Find your face';
+  if (!isOpen) return 'Open wide and invite the fish in';
+  if (!isStable && mouthOpen > 0.45) return 'Hold the whale mouth steady';
+  if (isWide) return 'Great flow, little fish are swimming in';
+  return 'Nice, open a little wider';
+}
+
+const PRESS_SIGNAL_OPTIONS = {
+  enterThreshold: 0.46,
+  releaseThreshold: 0.25,
+  activateMs: 110,
+  releaseMs: 210,
+  missingToleranceMs: 280,
+  attackSeconds: 0.1,
+  releaseSeconds: 0.24,
+};
+
+function createMouthProgress() {
+  return {
+    score: 0,
+    flow: 0.08,
+    fishCount: 0,
+    specialFish: 0,
+    combo: 0,
+    fishAccumulator: 0,
+    signal: createInteractionSignalState(),
+  };
+}
+
+function createTempleProgress() {
+  return {
+    score: 0,
+    flow: 0.12,
+    combo: 0,
+    gardenCycle: 0,
+    rainHoldAccumulator: 0,
+    leftSignal: createInteractionSignalState(),
+    rightSignal: createInteractionSignalState(),
+  };
+}
+
+function createLemonProgress() {
+  return {
+    score: 0,
+    sodaLevel: 0.16,
+    ingredientStage: 0,
+    sipCycle: 0,
+    sipCount: 0,
+    nextSipLevel: 0.82,
+    combo: 0,
+    leftSignal: createInteractionSignalState(),
+    rightSignal: createInteractionSignalState(),
+  };
+}
+
+function createNoseProgress() {
+  return {
+    score: 0,
+    flow: 0.08,
+    flowerCount: 0,
+    specialFlowers: 0,
+    combo: 0,
+    flowerAccumulator: 0,
+    signal: createInteractionSignalState(),
+  };
+}
+
+function createBubbleProgress() {
+  return {
+    score: 0,
+    bubbleSize: 0.18,
+    combo: 0,
+    stage: 0,
+    maxHold: 0,
+    bubbleHoldAccumulator: 0,
+    signal: createInteractionSignalState(),
   };
 }
 

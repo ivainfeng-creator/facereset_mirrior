@@ -23,11 +23,13 @@ const SCREENS = {
   leaderboard: 'leaderboard',
 };
 
+const isDemoPreview = new URLSearchParams(window.location.search).get('demo') === '1';
+
 export default function App() {
-  const [screen, setScreen] = useState(SCREENS.landing);
+  const [screen, setScreen] = useState(isDemoPreview ? SCREENS.theme : SCREENS.landing);
   const [cameraStream, setCameraStream] = useState(null);
   const [cameraError, setCameraError] = useState('');
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
   const [latestResult, setLatestResult] = useState(null);
   const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
   const habit = useMemo(() => loadHabit(), [latestResult]);

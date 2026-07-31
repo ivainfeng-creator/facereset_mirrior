@@ -1,33 +1,34 @@
 export const SCENE_IDS = {
-  rainWiper: 'rainWiper',
   whaleDream: 'whaleDream',
+  whaleDream2: 'whaleDream2',
   templeGarden: 'templeGarden',
   flowerCollector: 'flowerCollector',
   bubbleGumBunny: 'bubbleGumBunny',
+  lemonSqueeze: 'lemonSqueeze',
 };
 
 export const interactionScenes = [
   {
-    id: SCENE_IDS.rainWiper,
-    title: 'Rain Wiper',
-    subtitle: 'Glide under your eyes and clear a rainy window.',
-    action: 'Under-eye glide',
-    area: 'Under-eye',
-    areaKey: 'underEye',
-    stamp: 'Eyes',
-    mood: 'Cozy rain',
-    symbol: 'rain',
-  },
-  {
     id: SCENE_IDS.whaleDream,
-    title: 'Whale Dream',
-    subtitle: 'Open wide and let little fish drift out.',
+    title: 'Whale Mouth',
+    subtitle: 'Open wide and guide little fish into the whale.',
     action: 'Mouth opening',
     area: 'Mouth + jaw',
     areaKey: 'mouth',
     stamp: 'Mouth',
-    mood: 'Dream ocean',
+    mood: 'Whale mouth',
     symbol: 'whale',
+  },
+  {
+    id: SCENE_IDS.whaleDream2,
+    title: 'Whale Dream 2',
+    subtitle: 'Open wide and wake the pufferfish dream.',
+    action: 'Mouth opening',
+    area: 'Mouth + jaw',
+    areaKey: 'mouth',
+    stamp: 'Mouth',
+    mood: 'Pufferfish XR',
+    symbol: 'puffer',
   },
   {
     id: SCENE_IDS.templeGarden,
@@ -62,8 +63,19 @@ export const interactionScenes = [
     mood: 'Pastel cute',
     symbol: 'bunny',
   },
+  {
+    id: SCENE_IDS.lemonSqueeze,
+    title: 'Lemon Squeeze',
+    subtitle: 'Press both sides of your nose to make lemon soda.',
+    action: 'Nose bridge press',
+    area: 'Nose bridge',
+    areaKey: 'nose',
+    stamp: 'Lemon',
+    mood: 'Summer soda',
+    symbol: 'lemon',
+  },
 ];
 
 export function getSceneById(sceneId) {
-  return interactionScenes.find((scene) => scene.id === sceneId) || interactionScenes[1];
+  return interactionScenes.find((scene) => scene.id === sceneId) || interactionScenes[0];
 }

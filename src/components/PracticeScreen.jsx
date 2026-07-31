@@ -47,7 +47,7 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
 }
 
 function PracticeMascotGuide({ sceneId }) {
-  if (sceneId === SCENE_IDS.whaleDream) {
+  if (sceneId === SCENE_IDS.whaleDream || sceneId === SCENE_IDS.whaleDream2) {
     return (
       <div className="practice-mini-scene whale" aria-hidden="true">
         <span className="mini-whale" />
@@ -98,6 +98,21 @@ function PracticeMascotGuide({ sceneId }) {
     );
   }
 
+  if (sceneId === SCENE_IDS.lemonSqueeze) {
+    return (
+      <div className="practice-mini-scene lemon" aria-hidden="true">
+        <span className="mini-lemon-half left" />
+        <span className="mini-lemon-half right" />
+        <span className="mini-lemon-drop one" />
+        <span className="mini-lemon-drop two" />
+        <span className="mini-lemon-glass" />
+        <span className="mini-lemon-bubble one" />
+        <span className="mini-lemon-bubble two" />
+        <span className="mini-mint-leaf" />
+      </div>
+    );
+  }
+
   return (
     <div className="practice-mascot" aria-hidden="true">
       <img src="/assets/practice-mascot.png" alt="" />
@@ -114,9 +129,17 @@ function PracticeMascotGuide({ sceneId }) {
 function getPracticeGuide(sceneId) {
   if (sceneId === SCENE_IDS.whaleDream) {
     return {
-      title: 'Practice Whale Dream',
-      description: 'Open your mouth gently and hold it steady so the whale can release little fish.',
-      tips: ['Keep your face centered.', 'Open wide without rushing.', 'A steady breath creates better flow.'],
+      title: 'Practice Whale Mouth',
+      description: 'Open your mouth gently and hold it steady so little fish can swim into the whale.',
+      tips: ['Keep your face centered.', 'Open wide without rushing.', 'Hold for one calm second.'],
+    };
+  }
+
+  if (sceneId === SCENE_IDS.whaleDream2) {
+    return {
+      title: 'Practice Whale Dream 2',
+      description: 'Open your mouth gently and hold it steady so the pufferfish dream can wake up.',
+      tips: ['Keep your face centered.', 'Open wide without rushing.', 'Let the ocean scene react to your breath.'],
     };
   }
 
@@ -144,9 +167,17 @@ function getPracticeGuide(sceneId) {
     };
   }
 
+  if (sceneId === SCENE_IDS.lemonSqueeze) {
+    return {
+      title: 'Practice Lemon Squeeze',
+      description: 'Place both index fingers beside your nose bridge, press inward gently, then release.',
+      tips: ['Keep both fingertips visible.', 'Press both sides together.', 'Slow squeeze and release makes more soda.'],
+    };
+  }
+
   return {
-    title: 'Practice Rain Wiper',
-    description: 'Place your index finger under your eye, then glide outward slowly.',
-    tips: ['Keep your finger soft and visible.', 'Move left and right like a gentle wiper.', 'Slow motion scores better than speed.'],
+    title: 'Practice Whale Mouth',
+    description: 'Open your mouth gently and hold it steady so little fish can swim into the whale.',
+    tips: ['Keep your face centered.', 'Open wide without rushing.', 'Hold for one calm second.'],
   };
 }

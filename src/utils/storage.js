@@ -149,10 +149,11 @@ export function buildLeaderboard(habit = loadHabit()) {
   const streak = habit.streak || 0;
   const rows = [
     { name: 'You', score, detail: `${streak || 1} day streak`, isUser: true },
-    { name: 'Soft Orbit', score: Math.min(99, score + 7), detail: 'Whale Dream' },
+    { name: 'Soft Orbit', score: Math.min(99, score + 7), detail: 'Whale Mouth' },
+    { name: 'Puffer Club', score: Math.min(98, score + 5), detail: 'Whale Dream 2' },
     { name: 'Face Garden', score: Math.min(98, score + 4), detail: 'Cloud Garden' },
     { name: 'Bubble Hero', score: Math.max(64, score - 2), detail: 'Bubble Gum Bunny' },
-    { name: 'Rain Calm', score: Math.max(60, score - 7), detail: 'Rain Wiper' },
+    { name: 'Bloom Crew', score: Math.max(60, score - 7), detail: 'Flower Collector' },
   ].sort((a, b) => b.score - a.score);
 
   return rows.map((row, index) => ({

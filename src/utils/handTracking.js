@@ -133,7 +133,7 @@ export function createMockFingertips(trajectories, time = performance.now()) {
     right,
     all: [left, right],
     mode: LANDMARK_MODES.demo,
-    label: 'Mock two-finger wiper',
+    label: 'Mock two-finger controls',
   };
 }
 

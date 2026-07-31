@@ -45,6 +45,17 @@ export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.tem
 }
 
 function getSceneRadar(sceneId, score, softVariance) {
+  if (sceneId === SCENE_IDS.lemonSqueeze) {
+    return [
+      { label: '檸檬同步', value: clamp(score + 5, 52, 99) },
+      { label: '氣泡咕嚕', value: clamp(score + 9 - softVariance, 50, 99) },
+      { label: '鼻樑節奏', value: clamp(score + softVariance, 46, 98) },
+      { label: '清爽療癒', value: clamp(82 + softVariance * 2, 48, 98) },
+      { label: '偷喝彩蛋', value: clamp(84 + Math.round(Math.cos(score * 0.1) * 8), 50, 99) },
+      { label: 'Combo 感', value: clamp(78 + Math.round(Math.sin(score * 0.13) * 10), 45, 98) },
+    ];
+  }
+
   if (sceneId === SCENE_IDS.bubbleGumBunny) {
     return [
       { label: '泡泡膨脹', value: clamp(score + 6, 52, 99) },
@@ -67,24 +78,13 @@ function getSceneRadar(sceneId, score, softVariance) {
     ];
   }
 
-  if (sceneId === SCENE_IDS.whaleDream) {
+  if (sceneId === SCENE_IDS.whaleDream || sceneId === SCENE_IDS.whaleDream2) {
     return [
-      { label: '鯨魚呼吸', value: clamp(score + 4, 54, 98) },
-      { label: '小魚流量', value: clamp(score + 8 - softVariance, 52, 99) },
+      { label: sceneId === SCENE_IDS.whaleDream2 ? '河豚呼吸' : '鯨魚張嘴', value: clamp(score + 4, 54, 98) },
+      { label: '小魚入口', value: clamp(score + 8 - softVariance, 52, 99) },
       { label: '張嘴穩定', value: clamp(score + softVariance, 48, 98) },
-      { label: '夢境感', value: clamp(82 + softVariance * 2, 46, 98) },
+      { label: '海流順暢', value: clamp(82 + softVariance * 2, 46, 98) },
       { label: '好玩程度', value: clamp(84 + Math.round(Math.cos(score * 0.11) * 7), 50, 99) },
-      { label: '慢慢放鬆', value: clamp(88 - Math.abs(84 - score), 45, 98) },
-    ];
-  }
-
-  if (sceneId === SCENE_IDS.rainWiper) {
-    return [
-      { label: '眼下滑順', value: clamp(score + 4, 54, 98) },
-      { label: '雨刷節奏', value: clamp(score + softVariance, 48, 98) },
-      { label: '玻璃清晰', value: clamp(score + 8 - softVariance, 52, 99) },
-      { label: '療癒電波', value: clamp(76 + softVariance * 2, 46, 96) },
-      { label: '好玩程度', value: clamp(82 + Math.round(Math.cos(score * 0.11) * 7), 50, 99) },
       { label: '慢慢放鬆', value: clamp(88 - Math.abs(84 - score), 45, 98) },
     ];
   }
@@ -100,6 +100,9 @@ function getSceneRadar(sceneId, score, softVariance) {
 }
 
 function getSceneComment(sceneId) {
+  if (sceneId === SCENE_IDS.lemonSqueeze) {
+    return '今天的 Lemon Squeeze 完成！雙側擠壓很同步，Lemon Soda 咕嚕咕嚕冒泡，還被小角色偷喝了一口。';
+  }
   if (sceneId === SCENE_IDS.bubbleGumBunny) {
     return '今天的 Bubble Gum Bunny 完成！鼓臉節奏很穩，粉紅泡泡也越吹越可愛。';
   }
@@ -107,10 +110,10 @@ function getSceneComment(sceneId) {
     return '今天的 Flower Collector 完成！鼻子輕輕一皺，花朵都被香氣吸進來了。';
   }
   if (sceneId === SCENE_IDS.whaleDream) {
-    return '今天的 Whale Dream 完成！張嘴呼吸很穩，小魚也漂得很夢幻。';
+    return '今天的 Whale Mouth 完成！張嘴節奏很穩，小魚順著海流游進鯨魚嘴裡。';
   }
-  if (sceneId === SCENE_IDS.rainWiper) {
-    return '今天的 Rain Wiper 完成！眼下慢慢滑過，玻璃也被刷得更清楚了。';
+  if (sceneId === SCENE_IDS.whaleDream2) {
+    return '今天的 Whale Dream 2 完成！張嘴節奏很穩，河豚夢境也被你慢慢喚醒了。';
   }
   return '今天的 Cloud Garden 完成！雙手輕按太陽穴，雲朵有下雨，花園也慢慢醒來了。';
 }
