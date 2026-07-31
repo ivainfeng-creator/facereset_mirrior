@@ -7319,3 +7319,296 @@ h1 {
     margin-bottom: 16px;
   }
 }
+
+/* Responsive layout experiment: mobile portrait remains the source layout. */
+@media (min-width: 600px) {
+  body {
+    background:
+      radial-gradient(circle at 14% 18%, rgba(118, 183, 198, 0.22), transparent 28%),
+      radial-gradient(circle at 88% 12%, rgba(228, 138, 161, 0.2), transparent 24%),
+      linear-gradient(145deg, #f7fbf8 0%, #eaf5f2 45%, #f7edf3 100%);
+  }
+
+  .app-shell {
+    display: grid;
+    min-height: 100svh;
+    place-items: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .app-shell:has(.welcome-landing),
+  .app-shell:has(.intro-landing),
+  .app-shell:has(.scan-alignment-screen),
+  .app-shell:has(.theme-screen),
+  .app-shell:has(.practice-screen),
+  .app-shell:has(.reset-result-screen),
+  .app-shell:has(.passport-screen),
+  .app-shell:has(.leaderboard-screen) {
+    padding: clamp(24px, 4svh, 48px) clamp(24px, 5vw, 72px);
+    background:
+      radial-gradient(circle at 16% 16%, rgba(136, 219, 220, 0.24), transparent 28%),
+      radial-gradient(circle at 88% 10%, rgba(235, 178, 209, 0.24), transparent 26%),
+      linear-gradient(145deg, #fbfdfb 0%, #eff8f4 45%, #fbf0f5 100%);
+  }
+
+  .welcome-landing,
+  .intro-landing {
+    width: min(100%, 760px);
+    min-height: min(680px, calc(100svh - 48px));
+    border-radius: 28px;
+    padding: clamp(34px, 5svh, 62px) clamp(42px, 7vw, 92px) clamp(32px, 5svh, 56px);
+    overflow: hidden;
+    box-shadow: 0 30px 90px rgba(48, 67, 64, 0.1);
+  }
+
+  .welcome-copy,
+  .intro-copy {
+    padding-bottom: 0;
+  }
+
+  .welcome-copy h1,
+  .intro-heading h1 {
+    font-size: clamp(3rem, 7vw, 5.25rem);
+  }
+
+  .welcome-copy p,
+  .intro-heading p {
+    max-width: 460px;
+    font-size: clamp(1.02rem, 1.8vw, 1.28rem);
+  }
+
+  .intro-copy {
+    gap: clamp(56px, 9svh, 96px);
+  }
+
+  .intro-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    width: min(100%, 560px);
+    text-align: center;
+  }
+
+  .intro-steps li {
+    border-radius: 18px;
+    padding: 16px 12px;
+    background: rgba(255, 255, 255, 0.62);
+  }
+
+  .journey-button {
+    justify-self: center;
+  }
+
+  .preparing-landing {
+    width: min(100%, 760px);
+    min-height: min(680px, calc(100svh - 48px));
+    border-radius: 28px;
+    overflow: hidden;
+  }
+
+  .scan-alignment-screen {
+    width: min(100%, 760px);
+    min-height: min(720px, calc(100svh - 48px));
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 30px 90px rgba(48, 67, 64, 0.1);
+  }
+
+  .scan-face-zone {
+    transform: scale(1.08);
+  }
+
+  .theme-screen,
+  .practice-screen,
+  .passport-screen,
+  .leaderboard-screen {
+    width: min(100%, 1040px);
+    min-height: min(760px, calc(100svh - 48px));
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 30px 90px rgba(48, 67, 64, 0.1);
+  }
+
+  .theme-card {
+    gap: 30px;
+    padding: clamp(40px, 6svh, 66px) clamp(34px, 5vw, 64px) clamp(34px, 5svh, 54px);
+  }
+
+  .theme-copy {
+    max-width: 720px;
+  }
+
+  .theme-copy h1 {
+    font-size: clamp(2.8rem, 5vw, 4.8rem);
+  }
+
+  .theme-copy span {
+    max-width: 560px;
+  }
+
+  .theme-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 14px;
+  }
+
+  .theme-option {
+    min-height: 140px;
+    border-radius: 22px;
+  }
+
+  .theme-action {
+    grid-column: 1 / -1;
+    margin-left: 66px;
+  }
+
+  .practice-card {
+    grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    gap: 20px 34px;
+    align-items: start;
+    padding: clamp(34px, 5svh, 56px) clamp(34px, 5vw, 64px);
+  }
+
+  .practice-preview {
+    width: 112px;
+    height: 148px;
+  }
+
+  .practice-guide {
+    align-self: center;
+    justify-items: start;
+    padding: 0;
+    text-align: left;
+  }
+
+  .practice-guide h1,
+  .practice-guide > p:not(.practice-kicker),
+  .practice-guide ul {
+    max-width: 420px;
+  }
+
+  .practice-guide h1 {
+    font-size: clamp(2rem, 4vw, 3.1rem);
+  }
+
+  .practice-mini-scene,
+  .practice-mascot {
+    margin-top: 14px;
+  }
+
+  .practice-got-it {
+    grid-column: 1 / -1;
+    width: min(240px, 100%);
+  }
+
+  .reset-result-screen {
+    width: min(100%, 760px);
+    min-height: min(760px, calc(100svh - 48px));
+    border-radius: 28px;
+    padding: clamp(42px, 6svh, 70px) clamp(46px, 7vw, 82px) clamp(30px, 5svh, 42px);
+    overflow: hidden;
+    box-shadow: 0 30px 90px rgba(48, 67, 64, 0.1);
+  }
+
+  .reset-result-screen .vibe-radar-stage {
+    width: min(100%, 340px);
+    margin: clamp(26px, 4svh, 42px) auto clamp(18px, 3svh, 28px);
+  }
+
+  .result-passport-update {
+    max-width: 480px;
+    justify-self: center;
+  }
+
+  .passport-card,
+  .leaderboard-card {
+    padding: clamp(40px, 5svh, 62px) clamp(34px, 5vw, 64px);
+  }
+
+  .leaderboard-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .theme-screen,
+  .practice-screen,
+  .passport-screen,
+  .leaderboard-screen {
+    width: min(100%, 1120px);
+  }
+
+  .theme-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .leaderboard-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 600px) {
+  .app-shell:has(.play-routine-screen) {
+    place-items: center;
+    padding: clamp(16px, 3svh, 32px) clamp(20px, 4vw, 48px);
+    background:
+      radial-gradient(circle at 18% 18%, rgba(120, 220, 224, 0.2), transparent 28%),
+      radial-gradient(circle at 84% 12%, rgba(236, 169, 208, 0.2), transparent 26%),
+      linear-gradient(145deg, #f5fbf8 0%, #e9f5f4 48%, #f8edf3 100%);
+  }
+
+  .app-shell:has(.temple-garden-scene) {
+    background:
+      radial-gradient(circle at 26% 72%, rgba(102, 227, 188, 0.24), transparent 30%),
+      radial-gradient(circle at 76% 18%, rgba(70, 129, 196, 0.22), transparent 28%),
+      linear-gradient(180deg, #d9ecff 0%, #beeaf3 46%, #bdece2 100%);
+  }
+
+  .app-shell:has(.whale-dream-scene),
+  .app-shell:has(.whale-dream-2-scene) {
+    background:
+      radial-gradient(circle at 20% 18%, rgba(135, 205, 255, 0.24), transparent 28%),
+      radial-gradient(circle at 76% 80%, rgba(176, 143, 255, 0.22), transparent 30%),
+      linear-gradient(180deg, #132c6d 0%, #355dc0 52%, #8f7fe4 100%);
+  }
+
+  .app-shell:has(.flower-collector-scene) {
+    background:
+      radial-gradient(circle at 18% 82%, rgba(255, 198, 220, 0.34), transparent 28%),
+      radial-gradient(circle at 82% 20%, rgba(255, 236, 169, 0.3), transparent 26%),
+      linear-gradient(180deg, #e7f9f3 0%, #fbf5df 50%, #c8e6b6 100%);
+  }
+
+  .app-shell:has(.bubble-bunny-scene) {
+    background:
+      radial-gradient(circle at 26% 18%, rgba(255, 191, 220, 0.28), transparent 28%),
+      radial-gradient(circle at 74% 82%, rgba(255, 239, 174, 0.28), transparent 30%),
+      linear-gradient(180deg, #fff0f7 0%, #fff8e8 52%, #e4f7ee 100%);
+  }
+
+  .app-shell:has(.lemon-squeeze-scene) {
+    background:
+      radial-gradient(circle at 20% 18%, rgba(255, 230, 91, 0.34), transparent 28%),
+      radial-gradient(circle at 82% 80%, rgba(139, 233, 194, 0.3), transparent 32%),
+      linear-gradient(180deg, #fff8cf 0%, #e9fbe8 50%, #b8e6d1 100%);
+  }
+
+  .play-routine-screen {
+    width: min(56.25svh, calc(100vw - 48px), 520px);
+    min-height: 0;
+    aspect-ratio: 9 / 16;
+    overflow: hidden;
+    border-radius: clamp(18px, 3vw, 32px);
+    box-shadow: 0 28px 90px rgba(20, 34, 38, 0.18);
+  }
+
+  .play-routine-screen .routine-layout,
+  .play-routine-screen .routine-mirror,
+  .play-routine-screen .tracking-video,
+  .play-routine-screen .tracking-video-placeholder {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+}
