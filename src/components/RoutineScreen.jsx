@@ -15,6 +15,8 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   const stageRef = useRef(null);
   const mouthProgressRef = useRef({ score: 0, flow: 0, lastRatio: 0, lastTimestamp: 0, openFrames: 0 });
   const templeProgressRef = useRef({ score: 0, flow: 0, lastTimestamp: 0, pressFrames: 0 });
+  const noseProgressRef = useRef({ score: 0, flow: 0, flowerCount: 0, lastRatio: 0, lastTimestamp: 0, sniffFrames: 0 });
+  const bubbleProgressRef = useRef({ score: 0, bubbleSize: 0.18, holdSeconds: 0, combo: 0, stage: 0, lastRatio: 0, lastTimestamp: 0 });
   const previousFingersRef = useRef({ left: null, right: null });
   const massageProgressRef = useRef({
     left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
@@ -39,6 +41,14 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     growth: 0,
     ripple: 0,
     isPressing: false,
+    sniff: 0,
+    flowerCount: 0,
+    isSniffing: false,
+    puff: 0,
+    bubbleSize: 0.18,
+    bubbleStage: 0,
+    combo: 0,
+    isPuffing: false,
   });
 
   useEffect(() => {
@@ -100,6 +110,8 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   useEffect(() => {
     mouthProgressRef.current = { score: 0, flow: 0, lastRatio: 0, lastTimestamp: 0, openFrames: 0 };
     templeProgressRef.current = { score: 0, flow: 0, lastTimestamp: 0, pressFrames: 0 };
+    noseProgressRef.current = { score: 0, flow: 0, flowerCount: 0, lastRatio: 0, lastTimestamp: 0, sniffFrames: 0 };
+    bubbleProgressRef.current = { score: 0, bubbleSize: 0.18, holdSeconds: 0, combo: 0, stage: 0, lastRatio: 0, lastTimestamp: 0 };
     previousFingersRef.current = { left: null, right: null };
     massageProgressRef.current = {
       left: { maxProgress: 0, lastProgress: 0, lastSweep: 0 },
@@ -120,6 +132,14 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       growth: 0,
       ripple: 0,
       isPressing: false,
+      sniff: 0,
+      flowerCount: 0,
+      isSniffing: false,
+      puff: 0,
+      bubbleSize: 0.18,
+      bubbleStage: 0,
+      combo: 0,
+      isPuffing: false,
     });
   }, [selectedScene, stage.id]);
 
@@ -150,6 +170,20 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
         left: fingertips.left ? { point: fingertips.left, timestamp: now } : null,
         right: fingertips.right ? { point: fingertips.right, timestamp: now } : null,
       };
+    } else if (selectedScene === SCENE_IDS.flowerCollector) {
+      nextInteraction = scoreNoseSniff({
+        features,
+        timestamp: now,
+        progressState: noseProgressRef.current,
+        stageProgress,
+      });
+    } else if (selectedScene === SCENE_IDS.bubbleGumBunny) {
+      nextInteraction = scoreCheekPuff({
+        features,
+        timestamp: now,
+        progressState: bubbleProgressRef.current,
+        stageProgress,
+      });
     } else {
       nextInteraction = scoreMouthOpening({
           features,
@@ -182,17 +216,17 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   useEffect(() => {
     setStageScores((current) => ({
       ...current,
-      [stage.id]: Math.max(current[stage.id] || 0, interaction.score || feedback.localScore),
+      [selectedScene]: Math.max(current[selectedScene] || 0, interaction.score || feedback.localScore),
     }));
-  }, [feedback.localScore, interaction.score, stage.id]);
+  }, [feedback.localScore, interaction.score, selectedScene]);
 
   useEffect(() => {
     if (elapsed >= totalSeconds) {
-      onComplete(buildResult(stageScores, snapshotFramesRef.current));
+      onComplete(buildResult(stageScores, snapshotFramesRef.current, selectedScene));
     }
-  }, [elapsed, onComplete, stageScores]);
+  }, [elapsed, onComplete, selectedScene, stageScores]);
 
-  const displayScore = Math.max(stageScores[stage.id] || 0, interaction.score || feedback.score);
+  const displayScore = Math.max(stageScores[selectedScene] || 0, interaction.score || feedback.score);
 
   return (
     <section className="screen routine-screen play-routine-screen">
@@ -211,6 +245,10 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
                 width={containerSize.width}
               />
             </>
+          ) : selectedScene === SCENE_IDS.flowerCollector ? (
+            <FlowerCollectorScene interaction={interaction} />
+          ) : selectedScene === SCENE_IDS.bubbleGumBunny ? (
+            <BubbleGumBunnyScene interaction={interaction} />
           ) : (
             <WhaleDreamScene interaction={interaction} />
           )}
@@ -453,6 +491,313 @@ function WhaleDreamScene({ interaction }) {
       <div className="flow-chip">{interaction.isOpen ? '~~ Good flow' : 'Open your mouth gently'}</div>
     </div>
   );
+}
+
+function FlowerCollectorScene({ interaction }) {
+  const sniff = clamp(interaction.sniff || 0, 0, 1);
+  const gathered = clamp(interaction.completion || 0, 0, 1);
+  const flowers = useMemo(
+    () =>
+      Array.from({ length: 86 }, (_, index) => ({
+        ...getFlowerDockPoint(index),
+        id: index,
+        x: 24 + ((index * 43) % 330),
+        y: 146 + ((index * 67) % 494),
+        size: 0.52 + (index % 7) * 0.1,
+        delay: (index % 13) * 0.07,
+        hue: index % 5,
+        drift: 0.74 + (index % 8) * 0.05,
+        settle: 0.76 + (index % 6) * 0.04,
+      })),
+    [],
+  );
+  const fallingFlowers = useMemo(
+    () =>
+      Array.from({ length: 46 }, (_, index) => ({
+        id: index,
+        x: -8 + ((index * 37) % 112),
+        delay: (index % 12) * 0.18,
+        duration: 4.2 + (index % 7) * 0.36,
+        size: 0.42 + (index % 5) * 0.1,
+        hue: index % 5,
+      })),
+    [],
+  );
+  const suctionFlowers = useMemo(
+    () =>
+      Array.from({ length: 72 }, (_, index) => ({
+        ...getFlowerDockPoint(index + 11),
+        id: index,
+        x: 38 + ((index * 61) % 310),
+        y: 248 + ((index * 73) % 420),
+        size: 0.42 + (index % 6) * 0.1,
+        delay: (index % 18) * 0.055,
+        duration: 0.86 + (index % 8) * 0.055,
+        hue: index % 5,
+        curveX: -18 + (index % 7) * 6,
+      })),
+    [],
+  );
+  const groundFlowers = useMemo(
+    () =>
+      Array.from({ length: 58 }, (_, index) => ({
+        id: index,
+        x: -5 + ((index * 23) % 112),
+        y: 74 + ((index * 19) % 28),
+        size: 0.5 + (index % 8) * 0.09,
+        hue: index % 5,
+      })),
+    [],
+  );
+  const sparkles = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, index) => ({
+        id: index,
+        x: 4 + ((index * 29) % 92),
+        y: 12 + ((index * 41) % 78),
+        delay: (index % 8) * 0.16,
+      })),
+    [],
+  );
+
+  return (
+    <div
+      className={`flower-collector-scene ${interaction.isSniffing ? 'is-sniffing' : ''}`}
+      style={{
+        '--sniff': sniff,
+        '--gathered': gathered,
+      }}
+      aria-hidden="true"
+    >
+      <div className="flower-sky-glow" />
+      <div className="flower-copy">
+        <h1>Flower Collector</h1>
+        <p>Inhale and gather the blossoms</p>
+      </div>
+
+      <div className="scent-bottle">
+        <span className="bottle-neck" />
+        <span className="bottle-face" />
+        <span className="bottle-bloom one" />
+        <span className="bottle-bloom two" />
+        <span className="bottle-bloom three" />
+      </div>
+
+      <div className="scent-streams">
+        <span className="stream one" />
+        <span className="stream two" />
+        <span className="stream three" />
+      </div>
+
+      <div className="flower-field">
+        {flowers.map((flower) => (
+          <span
+            key={flower.id}
+            className={`collector-flower hue-${flower.hue}`}
+            style={{
+              '--flower-x': `${flower.x}px`,
+              '--flower-y': `${flower.y}px`,
+              '--flower-size': flower.size,
+              '--flower-delay': `${flower.delay}s`,
+              '--flower-drift': flower.drift,
+              opacity: 0.38 + sniff * 0.62,
+              transform: `translate(${(flower.dockX - flower.x) * sniff * flower.drift}px, ${(flower.dockY - flower.y) * sniff * flower.drift}px) scale(${flower.size * (0.72 + sniff * 0.36) * flower.settle})`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="falling-flower-layer">
+        {fallingFlowers.map((flower) => (
+          <span
+            key={flower.id}
+            className={`falling-flower hue-${flower.hue}`}
+            style={{
+              '--fall-x': `${flower.x}%`,
+              '--fall-delay': `${flower.delay}s`,
+              '--fall-duration': `${flower.duration}s`,
+              '--fall-size': flower.size,
+              opacity: 0.24 + sniff * 0.56,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="suction-flower-layer">
+        {suctionFlowers.map((flower) => (
+          <span
+            key={flower.id}
+            className={`suction-flower hue-${flower.hue}`}
+            style={{
+              '--suction-start-x': `${flower.x}px`,
+              '--suction-start-y': `${flower.y}px`,
+              '--suction-end-x': `${flower.dockX}px`,
+              '--suction-end-y': `${flower.dockY}px`,
+              '--suction-mid-x': `${(flower.x + flower.dockX) / 2 + flower.curveX}px`,
+              '--suction-mid-y': `${(flower.y + flower.dockY) / 2 - 38}px`,
+              '--suction-curve-x': `${flower.curveX}px`,
+              '--suction-delay': `${flower.delay}s`,
+              '--suction-duration': `${flower.duration}s`,
+              '--suction-size': flower.size,
+              animationPlayState: interaction.isSniffing ? 'running' : 'paused',
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="flower-ground">
+        {groundFlowers.map((flower) => (
+          <span
+            key={flower.id}
+            className={`ground-flower hue-${flower.hue}`}
+            style={{
+              '--ground-x': `${flower.x}%`,
+              '--ground-y': `${flower.y}%`,
+              '--ground-size': flower.size,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="flower-sparkles">
+        {sparkles.map((sparkle) => (
+          <span
+            key={sparkle.id}
+            style={{
+              '--sparkle-x': `${sparkle.x}%`,
+              '--sparkle-y': `${sparkle.y}%`,
+              '--sparkle-delay': `${sparkle.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="flower-status-chip">
+        {interaction.isSniffing ? `Collected ${interaction.flowerCount || 0} blossoms` : 'Scrunch your nose to inhale'}
+      </div>
+    </div>
+  );
+}
+
+function BubbleGumBunnyScene({ interaction }) {
+  const puff = clamp(interaction.puff || 0, 0, 1);
+  const bubbleSize = clamp(interaction.bubbleSize || 0.18, 0.12, 1);
+  const sparkles = useMemo(
+    () =>
+      Array.from({ length: 26 }, (_, index) => ({
+        id: index,
+        x: 12 + ((index * 31) % 78),
+        y: 14 + ((index * 47) % 68),
+        delay: (index % 9) * 0.12,
+        size: 2 + (index % 4),
+      })),
+    [],
+  );
+  const hearts = useMemo(
+    () =>
+      Array.from({ length: 10 }, (_, index) => ({
+        id: index,
+        x: 16 + ((index * 53) % 70),
+        y: 24 + ((index * 41) % 58),
+        delay: (index % 6) * 0.22,
+      })),
+    [],
+  );
+
+  return (
+    <div
+      className={`bubble-bunny-scene ${interaction.isPuffing ? 'is-puffing' : ''}`}
+      style={{
+        '--puff': puff,
+        '--bubble-size': bubbleSize,
+        '--combo': interaction.combo || 0,
+      }}
+      aria-hidden="true"
+    >
+      <div className="bunny-copy">
+        <h1>Bubble Gum Bunny</h1>
+        <p>Puff, relax, and grow the bubble</p>
+      </div>
+
+      <div className="bunny-sparkles">
+        {sparkles.map((sparkle) => (
+          <span
+            key={sparkle.id}
+            style={{
+              '--sparkle-x': `${sparkle.x}%`,
+              '--sparkle-y': `${sparkle.y}%`,
+              '--sparkle-delay': `${sparkle.delay}s`,
+              '--sparkle-size': `${sparkle.size}px`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="bunny-hearts">
+        {hearts.map((heart) => (
+          <span
+            key={heart.id}
+            style={{
+              '--heart-x': `${heart.x}%`,
+              '--heart-y': `${heart.y}%`,
+              '--heart-delay': `${heart.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="bunny-character">
+        <span className="bunny-ear left" />
+        <span className="bunny-ear right" />
+        <span className="bunny-head" />
+        <span className="bunny-cheek left" />
+        <span className="bunny-cheek right" />
+        <span className="bunny-eye left" />
+        <span className="bunny-eye right" />
+        <span className="bunny-mouth" />
+        <span className="gum-bubble" />
+      </div>
+
+      <div className="bubble-stage-chip">
+        {interaction.isPuffing ? `Combo ${interaction.combo || 0}` : 'Puff your cheeks'}
+      </div>
+    </div>
+  );
+}
+
+function getFlowerDockPoint(index) {
+  const preview = {
+    x: 30,
+    y: 30,
+    width: 102,
+    height: 148,
+    margin: 10,
+  };
+  const side = index % 4;
+  const t = ((index * 37) % 100) / 100;
+
+  if (side === 0) {
+    return {
+      dockX: preview.x - preview.margin,
+      dockY: preview.y + preview.height * t,
+    };
+  }
+  if (side === 1) {
+    return {
+      dockX: preview.x + preview.width + preview.margin,
+      dockY: preview.y + preview.height * t,
+    };
+  }
+  if (side === 2) {
+    return {
+      dockX: preview.x + preview.width * t,
+      dockY: preview.y - preview.margin,
+    };
+  }
+  return {
+    dockX: preview.x + preview.width * t,
+    dockY: preview.y + preview.height + preview.margin,
+  };
 }
 
 function RainScene({ interaction, trajectories }) {
@@ -1266,7 +1611,126 @@ function getTemplePressFeedback({ features, fingertips, bothPressing, onePressin
 function getInitialFeedback(sceneId) {
   if (sceneId === SCENE_IDS.templeGarden) return 'Press both temples gently';
   if (sceneId === SCENE_IDS.rainWiper) return 'Glide gently outward under your eyes';
+  if (sceneId === SCENE_IDS.flowerCollector) return 'Scrunch your nose to inhale blossoms';
+  if (sceneId === SCENE_IDS.bubbleGumBunny) return 'Puff your cheeks to grow the bubble';
   return 'Open wide and let little fish drift out';
+}
+
+function scoreCheekPuff({ features, timestamp, progressState, stageProgress }) {
+  const ratio = features?.cheeks?.puffRatio || 0;
+  const puff = clamp((ratio - 0.12) / 0.6, 0, 1);
+  const elapsedSeconds = progressState.lastTimestamp
+    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
+    : 0.016;
+  const ratioVelocity = Math.abs(ratio - (progressState.lastRatio || 0)) / elapsedSeconds;
+  const isPuffing = puff > 0.32;
+  const isStable = ratioVelocity < 1.05;
+
+  if (isPuffing) {
+    progressState.holdSeconds += elapsedSeconds;
+    progressState.bubbleSize = clamp(
+      progressState.bubbleSize + (0.018 + puff * 0.045 + (isStable ? 0.018 : 0)) * elapsedSeconds,
+      0.18,
+      1,
+    );
+  } else {
+    if (progressState.holdSeconds >= 1.45) {
+      progressState.combo = Math.min(12, (progressState.combo || 0) + 1);
+    }
+    progressState.holdSeconds = 0;
+    progressState.bubbleSize = clamp(progressState.bubbleSize - 0.028 * elapsedSeconds, 0.18, 1);
+  }
+
+  const nextStage = Math.floor(progressState.bubbleSize * 5);
+  if (nextStage > (progressState.stage || 0)) {
+    progressState.score = (progressState.score || 0) + (nextStage - (progressState.stage || 0)) * 7;
+    progressState.stage = nextStage;
+  }
+
+  const holdBonus = progressState.holdSeconds >= 2 ? 0.55 * elapsedSeconds * 10 : 0;
+  const comboBonus = (progressState.combo || 0) >= 3 ? 0.38 * elapsedSeconds * 10 : 0;
+  const baseline = stageProgress * 0.1;
+  const nextScore = Math.round(clamp(
+    (progressState.bubbleSize * 0.62 + baseline) * 100 + holdBonus + comboBonus + (progressState.combo || 0) * 2,
+    0,
+    100,
+  ));
+  progressState.score = Math.max(progressState.score || 0, nextScore);
+  progressState.lastRatio = ratio;
+  progressState.lastTimestamp = timestamp;
+
+  return {
+    score: Math.round(clamp(progressState.score, 0, 100)),
+    completion: progressState.bubbleSize,
+    feedback: getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
+    isOnTrack: isPuffing && isStable,
+    puff,
+    bubbleSize: progressState.bubbleSize,
+    bubbleStage: progressState.stage || 0,
+    combo: progressState.combo || 0,
+    isPuffing,
+  };
+}
+
+function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo }) {
+  if (!features?.cheeks) return 'Find your face';
+  if (!isPuffing) return 'Puff your cheeks, then relax softly';
+  if (!isStable) return 'Hold the bubble steady';
+  if (combo >= 3) return 'Combo rhythm, bunny loves it';
+  if (bubbleSize > 0.78) return 'Big bubble sparkle bonus';
+  return 'Nice puff, keep the bubble growing';
+}
+
+function scoreNoseSniff({ features, timestamp, progressState, stageProgress }) {
+  const ratio = features?.nose?.sniffRatio || 0;
+  const sniff = clamp((ratio - 0.12) / 0.58, 0, 1);
+  const elapsedSeconds = progressState.lastTimestamp
+    ? Math.max(0.016, (timestamp - progressState.lastTimestamp) / 1000)
+    : 0.016;
+  const ratioVelocity = Math.abs(ratio - (progressState.lastRatio || 0)) / elapsedSeconds;
+  const isSniffing = sniff > 0.28;
+  const isStrong = sniff > 0.54;
+  const isControlled = ratioVelocity < 1.35;
+
+  if (isSniffing) {
+    progressState.sniffFrames += 1;
+    progressState.flow = clamp(
+      progressState.flow + (0.015 + sniff * 0.026 + (isControlled ? 0.01 : 0)) * Math.min(2.1, elapsedSeconds * 60),
+      0,
+      1,
+    );
+    progressState.flowerCount = (progressState.flowerCount || 0)
+      + (4 + sniff * 18 + (isStrong ? 8 : 0)) * elapsedSeconds;
+  } else {
+    progressState.sniffFrames = 0;
+    progressState.flow = clamp(progressState.flow - 0.007 * Math.min(2.1, elapsedSeconds * 60), 0, 1);
+    progressState.flowerCount = Math.max(progressState.flowerCount || 0, progressState.flow * 86);
+  }
+
+  const baseline = stageProgress * 0.08;
+  const nextScore = Math.round(clamp((progressState.flow * 0.92 + baseline) * 100, 0, 100));
+  progressState.score = Math.max(progressState.score || 0, nextScore);
+  progressState.lastRatio = ratio;
+  progressState.lastTimestamp = timestamp;
+
+  return {
+    score: progressState.score,
+    completion: clamp(progressState.flow, 0, 1),
+    feedback: getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }),
+    isOnTrack: isSniffing && isControlled,
+    sniff,
+    flowerCount: Math.round(progressState.flowerCount || clamp(progressState.flow, 0, 1) * 86),
+    flow: progressState.flow,
+    isSniffing,
+  };
+}
+
+function getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }) {
+  if (!features?.nose) return 'Find your face';
+  if (!isSniffing) return 'Wrinkle your nose like smelling a flower';
+  if (!isControlled) return 'Hold the scent gently';
+  if (isStrong) return 'Lovely inhale, blossoms are gathering';
+  return 'Good, scrunch a little stronger';
 }
 
 function scoreMouthOpening({ features, timestamp, progressState, stageProgress }) {

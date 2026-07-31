@@ -70,6 +70,34 @@ function PracticeMascotGuide({ sceneId }) {
     );
   }
 
+  if (sceneId === SCENE_IDS.flowerCollector) {
+    return (
+      <div className="practice-mini-scene flower" aria-hidden="true">
+        <span className="mini-bottle" />
+        <span className="mini-scent-stream one" />
+        <span className="mini-scent-stream two" />
+        <span className="mini-practice-flower one" />
+        <span className="mini-practice-flower two" />
+        <span className="mini-practice-flower three" />
+        <span className="mini-practice-flower four" />
+      </div>
+    );
+  }
+
+  if (sceneId === SCENE_IDS.bubbleGumBunny) {
+    return (
+      <div className="practice-mini-scene bunny" aria-hidden="true">
+        <span className="mini-bunny-ear left" />
+        <span className="mini-bunny-ear right" />
+        <span className="mini-bunny-face" />
+        <span className="mini-bunny-bubble" />
+        <span className="mini-bunny-sparkle one" />
+        <span className="mini-bunny-sparkle two" />
+        <span className="mini-bunny-sparkle three" />
+      </div>
+    );
+  }
+
   return (
     <div className="practice-mascot" aria-hidden="true">
       <img src="/assets/practice-mascot.png" alt="" />
@@ -97,6 +125,22 @@ function getPracticeGuide(sceneId) {
       title: 'Practice Cloud Garden',
       description: 'Place both index fingers on your temples, then press and release slowly.',
       tips: ['Use both hands at the same time.', 'Keep both fingertips visible.', 'Gentle balanced pressure grows the garden.'],
+    };
+  }
+
+  if (sceneId === SCENE_IDS.flowerCollector) {
+    return {
+      title: 'Practice Flower Collector',
+      description: 'Wrinkle your nose like you are smelling a flower, then relax and repeat.',
+      tips: ['Keep your face centered.', 'Scrunch your nose gently.', 'Each good inhale gathers more blossoms.'],
+    };
+  }
+
+  if (sceneId === SCENE_IDS.bubbleGumBunny) {
+    return {
+      title: 'Practice Bubble Gum Bunny',
+      description: 'Puff your cheeks, relax softly, then puff again to grow the bubble.',
+      tips: ['Keep your lips closed.', 'Hold each puff for about two seconds.', 'Steady rhythm grows the biggest bubble.'],
     };
   }
 

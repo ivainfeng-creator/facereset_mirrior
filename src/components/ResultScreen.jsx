@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import ResultCard from './ResultCard.jsx';
 
-export default function ResultScreen({ result, habit, onRestart }) {
+export default function ResultScreen({ result, habit, onRestart, onPassport, onLeaderboard }) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const score = result?.score ?? 88;
   const topPercent = Math.max(3, Math.min(18, Math.round(22 - score * 0.14)));
+  const checkedArea = result?.area || 'Face';
+  const checkedStamp = result?.stamp || 'Reset';
 
   const downloadVideo = async () => {
     setIsExporting(true);
@@ -75,6 +77,18 @@ export default function ResultScreen({ result, habit, onRestart }) {
         </p>
         <small>Among all Face Reset sessions today.</small>
       </div>
+
+      <section className="result-passport-update" aria-label="Passport update">
+        <div>
+          <span>Today checked in</span>
+          <strong>{checkedStamp} relaxed</strong>
+          <small>{checkedArea} · {habit?.streak || result?.streak || 1} day streak</small>
+        </div>
+        <div className="result-passport-links">
+          <button type="button" onClick={onPassport}>Passport</button>
+          <button type="button" onClick={onLeaderboard}>Rank</button>
+        </div>
+      </section>
 
       <div className="result-actions result-icon-actions">
         <button className="result-icon-button" onClick={onRestart} disabled={isExporting} type="button">

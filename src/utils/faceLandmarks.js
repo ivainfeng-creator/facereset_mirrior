@@ -69,7 +69,7 @@ export async function createFaceLandmarker() {
         const options = {
           runningMode: 'VIDEO',
           numFaces: 1,
-          outputFaceBlendshapes: false,
+          outputFaceBlendshapes: true,
           outputFacialTransformationMatrixes: false,
         };
 
@@ -100,6 +100,7 @@ export async function createFaceLandmarker() {
 export function normalizeLandmarkData(result, mode = LANDMARK_MODES.real) {
   const landmarks = result?.faceLandmarks?.[0];
   if (!Array.isArray(landmarks) || landmarks.length === 0) return null;
+  const blendshapes = normalizeBlendshapes(result?.faceBlendshapes?.[0]);
   return {
     mode,
     normalizedLandmarks: landmarks.map((point) => ({
@@ -107,6 +108,7 @@ export function normalizeLandmarkData(result, mode = LANDMARK_MODES.real) {
       y: clamp(point.y, -0.5, 1.5),
       z: point.z ?? 0,
     })),
+    blendshapes,
     detectedAt: performance.now(),
   };
 }
@@ -154,6 +156,14 @@ export function createMockLandmarkData(mode = LANDMARK_MODES.mock, time = perfor
   return {
     mode,
     normalizedLandmarks: landmarks,
+    blendshapes: {
+      noseSneerLeft: (Math.sin(time / 720) + 1) * 0.44,
+      noseSneerRight: (Math.sin(time / 760 + 0.6) + 1) * 0.42,
+      mouthUpperUpLeft: (Math.sin(time / 720 + 0.3) + 1) * 0.28,
+      mouthUpperUpRight: (Math.sin(time / 760 + 0.9) + 1) * 0.26,
+      cheekPuff: (Math.sin(time / 1100) + 1) * 0.46,
+      mouthPucker: (Math.sin(time / 1180 + 0.45) + 1) * 0.32,
+    },
     detectedAt: time,
   };
 }
@@ -249,11 +259,71 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     jaw,
     face,
     faceScale,
+    blendshapes: landmarkData.blendshapes || {},
+    nose: {
+      center: face.noseCenter,
+      sniffRatio: getNoseSniffRatio({
+        blendshapes: landmarkData.blendshapes || {},
+        face,
+        mouth,
+        faceScale,
+      }),
+    },
+    cheeks: {
+      puffRatio: getCheekPuffRatio({
+        blendshapes: landmarkData.blendshapes || {},
+        mouth,
+        faceScale,
+      }),
+    },
     eyeRegions: extractEyeRegions({ leftEye, rightEye, mouth, faceScale }),
     hasRequiredLandmarks: hasRequiredLandmarks(landmarkData.normalizedLandmarks),
     bounds,
     faceOval,
   };
+}
+
+function normalizeBlendshapes(faceBlendshape) {
+  const categories = faceBlendshape?.categories;
+  if (!Array.isArray(categories)) return {};
+  return categories.reduce((result, category) => {
+    if (category?.categoryName) {
+      result[category.categoryName] = category.score || 0;
+    }
+    return result;
+  }, {});
+}
+
+function getNoseSniffRatio({ blendshapes, face, mouth, faceScale }) {
+  const blendshapeSignal = Math.max(
+    blendshapes.noseSneerLeft || 0,
+    blendshapes.noseSneerRight || 0,
+    ((blendshapes.mouthUpperUpLeft || 0) + (blendshapes.mouthUpperUpRight || 0)) * 0.62,
+  );
+
+  if (blendshapeSignal > 0.03) {
+    return clamp(blendshapeSignal / 0.72, 0, 1);
+  }
+
+  const noseToMouth = distance(face.noseCenter, mouth.upper);
+  const normalized = faceScale ? noseToMouth / faceScale : 0.16;
+  return clamp((0.18 - normalized) / 0.07, 0, 1);
+}
+
+function getCheekPuffRatio({ blendshapes, mouth, faceScale }) {
+  const blendshapeSignal = Math.max(
+    blendshapes.cheekPuff || 0,
+    (blendshapes.mouthPucker || 0) * 0.72,
+    (blendshapes.mouthFunnel || 0) * 0.56,
+  );
+
+  if (blendshapeSignal > 0.03) {
+    return clamp(blendshapeSignal / 0.72, 0, 1);
+  }
+
+  const mouthOpen = mouth.openRatio || 0;
+  const mouthWidthRatio = faceScale ? mouth.width / faceScale : 0.26;
+  return clamp((0.32 - mouthWidthRatio) / 0.14 + (0.12 - mouthOpen) / 0.18, 0, 1);
 }
 
 export function getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval = [] }) {

@@ -85,12 +85,6 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
           <ScanProgressRing progress={scanProgress} />
         </div>
 
-        <LandmarkLoadingOverlay
-          detectorMode={detectorMode}
-          isDemoMode={isDemoMode}
-          hasFeatures={Boolean(features)}
-        />
-
         <div className="scan-copy">
           <p>{alignmentMessage}</p>
           <span>{formatDetectorMode(detectorMode)} · {detectorMessage}</span>
@@ -98,24 +92,6 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
 
       </main>
     </section>
-  );
-}
-
-function LandmarkLoadingOverlay({ detectorMode, isDemoMode, hasFeatures }) {
-  if (hasFeatures || isDemoMode) return null;
-
-  const message =
-    detectorMode === 'mock-landmark'
-      ? 'Real landmarks are not ready. Keep your face centered while loading.'
-      : 'Loading real facial landmarks';
-
-  return (
-    <div className="landmark-loading-overlay">
-      <div className="landmark-loading-card">
-        <span className="pulse-dot" />
-        <span>{message}</span>
-      </div>
-    </div>
   );
 }
 

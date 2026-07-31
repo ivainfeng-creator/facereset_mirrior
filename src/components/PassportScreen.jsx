@@ -1,0 +1,62 @@
+import { buildPassport } from '../utils/storage.js';
+
+export default function PassportScreen({ habit, onBack, onLeaderboard, onRestart }) {
+  const passport = buildPassport(habit);
+
+  return (
+    <section className="screen passport-screen">
+      <main className="passport-card" aria-label="Face Reset Passport">
+        <button className="passport-back-button" onClick={onBack} type="button" aria-label="Back" />
+
+        <header className="passport-header">
+          <p>Face Reset Passport</p>
+          <h1>{passport.faceCompletion}% unwound</h1>
+          <span>{passport.streak || 0} day streak · Guest mode</span>
+        </header>
+
+        <section className="passport-week" aria-label="Weekly check-ins">
+          {passport.weekDays.map((day) => (
+            <div className={`passport-day ${day.completed ? 'done' : ''}`} key={day.key}>
+              <span>{day.label}</span>
+              <strong>{day.completed ? day.entry?.stamp || 'Reset' : '-'}</strong>
+            </div>
+          ))}
+        </section>
+
+        <section className="passport-face-map" aria-label="Face area progress">
+          <div className="passport-face-visual" aria-hidden="true">
+            {passport.areaProgress.map((area) => (
+              <span
+                className={`passport-area-dot ${area.key} ${area.completed ? 'done' : ''}`}
+                key={area.key}
+                style={{ '--area-progress': area.progress }}
+              />
+            ))}
+          </div>
+          <div className="passport-area-list">
+            {passport.areaProgress.map((area) => (
+              <article key={area.key}>
+                <div>
+                  <strong>{area.label}</strong>
+                  <span>{area.count}/{area.target}</span>
+                </div>
+                <progress value={area.progress} max="1" />
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="passport-save-card">
+          <p>Save your passport across devices</p>
+          <span>Login can be added later with VIVERSE. For now, guest progress stays on this device.</span>
+          <button type="button">Sign in later</button>
+        </section>
+
+        <footer className="passport-actions">
+          <button type="button" onClick={onRestart}>Do another reset</button>
+          <button type="button" onClick={onLeaderboard}>View leaderboard</button>
+        </footer>
+      </main>
+    </section>
+  );
+}

@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import CameraPermission from './components/CameraPermission.jsx';
 import LandingScreen from './components/LandingScreen.jsx';
+import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import MirrorScreen from './components/MirrorScreen.jsx';
+import PassportScreen from './components/PassportScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
 import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
@@ -17,6 +19,8 @@ const SCREENS = {
   practice: 'practice',
   routine: 'routine',
   result: 'result',
+  passport: 'passport',
+  leaderboard: 'leaderboard',
 };
 
 export default function App() {
@@ -134,6 +138,25 @@ export default function App() {
         <ResultScreen
           result={latestResult}
           habit={habit}
+          onRestart={restartRoutine}
+          onPassport={() => setScreen(SCREENS.passport)}
+          onLeaderboard={() => setScreen(SCREENS.leaderboard)}
+        />
+      )}
+
+      {screen === SCREENS.passport && (
+        <PassportScreen
+          habit={habit}
+          onBack={() => setScreen(SCREENS.result)}
+          onLeaderboard={() => setScreen(SCREENS.leaderboard)}
+          onRestart={restartRoutine}
+        />
+      )}
+
+      {screen === SCREENS.leaderboard && (
+        <LeaderboardScreen
+          habit={habit}
+          onBack={() => setScreen(SCREENS.result)}
           onRestart={restartRoutine}
         />
       )}
