@@ -12,7 +12,7 @@ export default function PassportScreen({ habit, onBack, onLeaderboard, onRestart
         <header className="passport-header">
           <p>Face Reset Passport</p>
           <h1>{passport.faceCompletion}% unwound</h1>
-          <span>{passport.streak || 0} day streak · Guest mode</span>
+          <span>{passport.streak || 0} day streak · {passport.totalSessions || 0} local resets</span>
         </header>
 
         <section className="passport-week" aria-label="Weekly check-ins">
@@ -48,8 +48,8 @@ export default function PassportScreen({ habit, onBack, onLeaderboard, onRestart
         </section>
 
         <section className="passport-save-card">
-          <p>Save your passport across devices</p>
-          <span>Current mode: {identity.authMode}. Login can later sync this passport through a platform adapter.</span>
+          <p>Saved on this device</p>
+          <span>Current mode: {identity.authMode}. A platform login can later sync this passport across devices.</span>
           <button type="button">Sign in later</button>
         </section>
 

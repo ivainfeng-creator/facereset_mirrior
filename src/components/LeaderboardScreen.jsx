@@ -13,8 +13,8 @@ export default function LeaderboardScreen({ habit, onBack, onRestart }) {
 
         <header className="leaderboard-header">
           <p>Today’s playful rank</p>
-          <h1>Top {Math.max(4, 24 - userRow.rank * 4)}%</h1>
-          <span>Prototype leaderboard · local scores for now</span>
+          <h1>Top {userRow.percentile || Math.max(4, 24 - userRow.rank * 4)}%</h1>
+          <span>Local leaderboard · {passport.totalSessions || 0} saved resets on this device</span>
         </header>
 
         <section className="leaderboard-user-card">
