@@ -96,6 +96,125 @@ export function consumeTimedEvents(progressState, key, ratePerSecond, deltaSecon
   return eventCount;
 }
 
+export const INTERACTION_ACTIONS = {
+  mouthOpen: 'mouth_open',
+  noseSniff: 'nose_sniff',
+  cheekPuff: 'cheek_puff',
+  dualPress: 'dual_press',
+};
+
+export function createSceneInteractionContract({
+  sceneId,
+  interaction = {},
+  tracking = {},
+  features = null,
+  fingertips = {},
+}) {
+  const actionType = getActionType(sceneId);
+  const controls = getControlsForAction(actionType, interaction);
+  const primaryValue = getPrimaryValue(actionType, controls);
+  const isActive = getPrimaryActive(actionType, interaction, primaryValue);
+  const phase = interaction.phase || (isActive ? 'active' : 'idle');
+  const requiresHands = actionType === INTERACTION_ACTIONS.dualPress;
+  const leftHandReady = Boolean(fingertips?.left);
+  const rightHandReady = Boolean(fingertips?.right);
+  const handReady = requiresHands ? leftHandReady && rightHandReady : true;
+
+  return {
+    version: 1,
+    sceneId,
+    actionType,
+    tracking: {
+      faceReady: Boolean(tracking.hasLandmarks || features),
+      handReady,
+      requiresHands,
+      detectorMode: tracking.detectorMode || 'unknown',
+      handMode: tracking.handMode || 'unknown',
+      isDemoMode: Boolean(tracking.isDemoMode),
+      quality: Boolean(tracking.hasLandmarks || features) ? 1 : 0,
+    },
+    controls,
+    primary: {
+      value: primaryValue,
+      active: isActive,
+      phase,
+      holdSeconds: Number(interaction.holdSeconds || 0),
+      justActivated: Boolean(interaction.justActivated),
+      justReleased: Boolean(interaction.justReleased),
+      stable: phase === 'holding' || Boolean(interaction.isOnTrack),
+    },
+    game: {
+      score: Math.round(interaction.score || 0),
+      combo: interaction.combo || 0,
+      completion: clamp(interaction.completion || 0, 0, 1),
+      eventCount: getEventCountForAction(actionType, interaction),
+    },
+    feedback: {
+      text: interaction.feedback || '',
+      level: getFeedbackLevel({ interaction, isActive, phase }),
+    },
+  };
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function getActionType(sceneId) {
+  if (sceneId === 'flowerCollector') return INTERACTION_ACTIONS.noseSniff;
+  if (sceneId === 'bubbleGumBunny') return INTERACTION_ACTIONS.cheekPuff;
+  if (sceneId === 'templeGarden' || sceneId === 'lemonSqueeze') return INTERACTION_ACTIONS.dualPress;
+  return INTERACTION_ACTIONS.mouthOpen;
+}
+
+function getControlsForAction(actionType, interaction) {
+  const base = {
+    mouthOpen: clamp(interaction.mouthOpen || 0, 0, 1),
+    noseWrinkle: clamp(interaction.sniff || 0, 0, 1),
+    cheekPuff: clamp(interaction.puff || 0, 0, 1),
+    leftPress: clamp(interaction.leftPress || 0, 0, 1),
+    rightPress: clamp(interaction.rightPress || 0, 0, 1),
+    sync: clamp(interaction.sync || 0, 0, 1),
+  };
+
+  if (actionType === INTERACTION_ACTIONS.dualPress) {
+    return {
+      ...base,
+      sync: base.sync || 1 - Math.min(1, Math.abs(base.leftPress - base.rightPress)),
+    };
+  }
+
+  return base;
+}
+
+function getPrimaryValue(actionType, controls) {
+  if (actionType === INTERACTION_ACTIONS.noseSniff) return controls.noseWrinkle;
+  if (actionType === INTERACTION_ACTIONS.cheekPuff) return controls.cheekPuff;
+  if (actionType === INTERACTION_ACTIONS.dualPress) {
+    return clamp((controls.leftPress + controls.rightPress) / 2, 0, 1);
+  }
+  return controls.mouthOpen;
+}
+
+function getPrimaryActive(actionType, interaction, primaryValue) {
+  if (actionType === INTERACTION_ACTIONS.noseSniff) return Boolean(interaction.isSniffing);
+  if (actionType === INTERACTION_ACTIONS.cheekPuff) return Boolean(interaction.isPuffing);
+  if (actionType === INTERACTION_ACTIONS.dualPress) {
+    return Boolean(interaction.isPressing || interaction.isSqueezing || primaryValue > 0.55);
+  }
+  return Boolean(interaction.isOpen);
+}
+
+function getEventCountForAction(actionType, interaction) {
+  if (actionType === INTERACTION_ACTIONS.noseSniff) return interaction.flowerCount || 0;
+  if (actionType === INTERACTION_ACTIONS.mouthOpen) return interaction.fishCount || 0;
+  if (actionType === INTERACTION_ACTIONS.cheekPuff) return interaction.bubbleStage || 0;
+  return interaction.combo || 0;
+}
+
+function getFeedbackLevel({ interaction, isActive, phase }) {
+  if (phase === 'tracking-lost') return 'warning';
+  if (interaction.isOnTrack || phase === 'holding') return 'success';
+  if (isActive || phase === 'detecting' || phase === 'active') return 'active';
+  return 'idle';
 }

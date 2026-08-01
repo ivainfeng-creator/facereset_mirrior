@@ -2,6 +2,7 @@ import { getSceneById, SCENE_IDS } from '../data/scenes.js';
 
 const STORAGE_KEY = 'face-reset-mirror-habit';
 const DEVICE_KEY = 'face-reset-mirror-device-id';
+const GUIDE_KEY = 'face-reset-mirror-seen-guides-v1';
 
 const faceAreas = [
   { key: 'underEye', label: 'Under-eye', target: 2 },
@@ -168,6 +169,31 @@ export function getSceneAreaSummary(sceneId) {
     area: scene.area,
     stamp: scene.stamp,
   };
+}
+
+export function loadSeenGuides() {
+  try {
+    return JSON.parse(localStorage.getItem(GUIDE_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+export function hasSeenGuide(sceneId) {
+  return Boolean(loadSeenGuides()[sceneId]);
+}
+
+export function markGuideSeen(sceneId) {
+  try {
+    const next = {
+      ...loadSeenGuides(),
+      [sceneId]: true,
+    };
+    localStorage.setItem(GUIDE_KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return {};
+  }
 }
 
 export { faceAreas };

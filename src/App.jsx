@@ -9,7 +9,7 @@ import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { SCENE_IDS } from './data/scenes.js';
-import { loadHabit, saveResult } from './utils/storage.js';
+import { hasSeenGuide, loadHabitProgress, markGuideSeen, saveSessionResult } from './utils/progressAdapter.js';
 
 const SCREENS = {
   landing: 'landing',
@@ -32,7 +32,7 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
   const [latestResult, setLatestResult] = useState(null);
   const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
-  const habit = useMemo(() => loadHabit(), [latestResult]);
+  const habit = useMemo(() => loadHabitProgress(), [latestResult]);
 
   const startPermission = () => setScreen(SCREENS.permission);
 
@@ -59,13 +59,25 @@ export default function App() {
 
   const selectTheme = (sceneId) => {
     setSelectedScene(sceneId);
+    if (hasSeenGuide(sceneId)) {
+      setScreen(SCREENS.routine);
+      return;
+    }
     setScreen(SCREENS.practice);
   };
 
-  const beginRoutine = () => setScreen(SCREENS.routine);
+  const openGuide = (sceneId) => {
+    setSelectedScene(sceneId);
+    setScreen(SCREENS.practice);
+  };
+
+  const beginRoutine = () => {
+    markGuideSeen(selectedScene);
+    setScreen(SCREENS.routine);
+  };
 
   const finishRoutine = (result) => {
-    const saved = saveResult(result);
+    const { saved } = saveSessionResult(result);
     setLatestResult({
       ...saved,
       snapshots: result.snapshots || [],
@@ -112,6 +124,7 @@ export default function App() {
         <ThemeScreen
           selectedScene={selectedScene}
           onSelect={selectTheme}
+          onGuide={openGuide}
           onBack={() => setScreen(SCREENS.mirror)}
         />
       )}
@@ -132,7 +145,7 @@ export default function App() {
           isDemoMode={isDemoMode}
           selectedScene={selectedScene}
           onComplete={finishRoutine}
-          onExit={() => setScreen(SCREENS.practice)}
+          onExit={() => setScreen(SCREENS.theme)}
         />
       )}
 

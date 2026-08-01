@@ -1,7 +1,8 @@
-import { buildPassport } from '../utils/storage.js';
+import { getPlayerIdentity, loadPassportProgress } from '../utils/progressAdapter.js';
 
 export default function PassportScreen({ habit, onBack, onLeaderboard, onRestart }) {
-  const passport = buildPassport(habit);
+  const passport = loadPassportProgress(habit);
+  const identity = getPlayerIdentity(habit);
 
   return (
     <section className="screen passport-screen">
@@ -48,7 +49,7 @@ export default function PassportScreen({ habit, onBack, onLeaderboard, onRestart
 
         <section className="passport-save-card">
           <p>Save your passport across devices</p>
-          <span>Login can be added later with VIVERSE. For now, guest progress stays on this device.</span>
+          <span>Current mode: {identity.authMode}. Login can later sync this passport through a platform adapter.</span>
           <button type="button">Sign in later</button>
         </section>
 

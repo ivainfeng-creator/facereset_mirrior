@@ -1,8 +1,9 @@
-import { buildLeaderboard, buildPassport } from '../utils/storage.js';
+import { loadLeaderboardRows, loadPassportProgress, submitLeaderboardScore } from '../utils/progressAdapter.js';
 
 export default function LeaderboardScreen({ habit, onBack, onRestart }) {
-  const rows = buildLeaderboard(habit);
-  const passport = buildPassport(habit);
+  const rows = loadLeaderboardRows(habit);
+  const passport = loadPassportProgress(habit);
+  const submission = submitLeaderboardScore({ score: habit?.latestScore }, habit);
   const userRow = rows.find((row) => row.isUser) || rows[0];
 
   return (
@@ -45,8 +46,8 @@ export default function LeaderboardScreen({ habit, onBack, onRestart }) {
         </section>
 
         <section className="leaderboard-sdk-card">
-          <p>VIVERSE-ready adapter slot</p>
-          <span>Later this submits score to VIVERSE Leaderboard. Guest users can still keep local streaks.</span>
+          <p>Adapter slot · {submission.provider}</p>
+          <span>Scores use the local adapter now. The same call can later submit to VIVERSE Leaderboard.</span>
         </section>
 
         <footer className="passport-actions">

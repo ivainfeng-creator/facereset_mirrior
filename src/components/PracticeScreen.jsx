@@ -15,7 +15,7 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
 
   return (
     <section className="screen practice-screen">
-      <main className="practice-card" aria-label="Gesture practice">
+      <main className="practice-card" aria-label="How to play">
         <button className="scan-close-button practice-close-button" onClick={onBack} aria-label="Back to alignment" />
 
         <div className="practice-preview" aria-label="Front camera preview">
@@ -24,22 +24,47 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
           ) : (
             <video ref={previewVideoRef} className="practice-preview-video" autoPlay playsInline muted />
           )}
+          <span className="practice-camera-pill" aria-hidden="true">
+            <span />
+            Camera
+          </span>
+          <div className="practice-preview-hint">
+            <span aria-hidden="true" />
+            Keep your face centered
+          </div>
         </div>
 
         <div className="practice-guide">
-          <p className="practice-kicker">Gesture control</p>
+          <p className="practice-kicker">Camera check · How to play</p>
           <h1>{guide.title}</h1>
           <p>{guide.description}</p>
-          <PracticeMascotGuide sceneId={scene.id} />
+        </div>
+
+        <div className="practice-steps">
+          <div className="practice-steps-heading">
+            <span aria-hidden="true" />
+            <strong>How to do it</strong>
+          </div>
           <ul>
-            {guide.tips.map((tip) => (
-              <li key={tip}>{tip}</li>
+            {guide.tips.map((tip, index) => (
+              <li key={tip} className={`practice-tip practice-tip-${index + 1}`}>
+                <span className="practice-tip-icon" aria-hidden="true" />
+                <span>{tip}</span>
+              </li>
             ))}
           </ul>
         </div>
 
+        <aside className="practice-effect-panel" aria-label="Scene reaction preview">
+          <PracticeMascotGuide sceneId={scene.id} />
+          <div className="practice-effect-copy">
+            <strong>{guide.effectTitle}</strong>
+            <p>{guide.effectDescription}</p>
+          </div>
+        </aside>
+
         <button className="practice-got-it" onClick={onBegin}>
-          Got it
+          Start
         </button>
       </main>
     </section>
@@ -129,55 +154,69 @@ function PracticeMascotGuide({ sceneId }) {
 function getPracticeGuide(sceneId) {
   if (sceneId === SCENE_IDS.whaleDream) {
     return {
-      title: 'Practice Whale Mouth',
+      title: 'How to Play Whale Mouth',
       description: 'Open your mouth gently and hold it steady so little fish can swim into the whale.',
-      tips: ['Keep your face centered.', 'Open wide without rushing.', 'Hold for one calm second.'],
+      tips: ['Keep your face centered.', 'Open your mouth gently and hold it steady.', 'Let the ocean scene react to your breath.'],
+      effectTitle: 'Guide the fish',
+      effectDescription: 'Open gently. Hold steady. Watch the ocean respond.',
     };
   }
 
   if (sceneId === SCENE_IDS.whaleDream2) {
     return {
-      title: 'Practice Whale Dream 2',
+      title: 'How to Play Whale Dream 2',
       description: 'Open your mouth gently and hold it steady so the pufferfish dream can wake up.',
-      tips: ['Keep your face centered.', 'Open wide without rushing.', 'Let the ocean scene react to your breath.'],
+      tips: ['Keep your face centered.', 'Open your mouth gently and hold it steady.', 'Let the ocean scene react to your breath.'],
+      effectTitle: 'Wake the dream',
+      effectDescription: 'Open gently. Hold steady. Watch the ocean come alive.',
     };
   }
 
   if (sceneId === SCENE_IDS.templeGarden) {
     return {
-      title: 'Practice Cloud Garden',
+      title: 'How to Play Cloud Garden',
       description: 'Place both index fingers on your temples, then press and release slowly.',
       tips: ['Use both hands at the same time.', 'Keep both fingertips visible.', 'Gentle balanced pressure grows the garden.'],
+      effectTitle: 'Let it rain',
+      effectDescription: 'Press evenly and let the garden breathe.',
     };
   }
 
   if (sceneId === SCENE_IDS.flowerCollector) {
     return {
-      title: 'Practice Flower Collector',
+      title: 'How to Play Flower Collector',
       description: 'Wrinkle your nose like you are smelling a flower, then relax and repeat.',
       tips: ['Keep your face centered.', 'Scrunch your nose gently.', 'Each good inhale gathers more blossoms.'],
+      effectTitle: 'Gather blossoms',
+      effectDescription: 'Wrinkle gently and pull flowers toward you.',
     };
   }
 
   if (sceneId === SCENE_IDS.bubbleGumBunny) {
     return {
-      title: 'Practice Bubble Gum Bunny',
+      title: 'How to Play Bubble Gum Bunny',
       description: 'Puff your cheeks, relax softly, then puff again to grow the bubble.',
       tips: ['Keep your lips closed.', 'Hold each puff for about two seconds.', 'Steady rhythm grows the biggest bubble.'],
+      effectTitle: 'Grow the bubble',
+      effectDescription: 'Puff softly and keep the bubble floating.',
     };
   }
 
   if (sceneId === SCENE_IDS.lemonSqueeze) {
     return {
-      title: 'Practice Lemon Squeeze',
+      title: 'How to Play Lemon Squeeze',
       description: 'Place both index fingers beside your nose bridge, press inward gently, then release.',
       tips: ['Keep both fingertips visible.', 'Press both sides together.', 'Slow squeeze and release makes more soda.'],
+      effectTitle: 'Make lemon soda',
+      effectDescription: 'Squeeze evenly and fill the glass with bubbles.',
     };
   }
 
   return {
-    title: 'Practice Whale Mouth',
+    title: 'How to Play Whale Mouth',
     description: 'Open your mouth gently and hold it steady so little fish can swim into the whale.',
-    tips: ['Keep your face centered.', 'Open wide without rushing.', 'Hold for one calm second.'],
+    tips: ['Keep your face centered.', 'Open your mouth gently and hold it steady.', 'Let the ocean scene react to your breath.'],
+    effectTitle: 'Guide the fish',
+    effectDescription: 'Open gently. Hold steady. Watch the ocean respond.',
   };
 }
