@@ -5,6 +5,7 @@ import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import MirrorScreen from './components/MirrorScreen.jsx';
 import PassportScreen from './components/PassportScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
+import ProgressDebugPanel from './components/ProgressDebugPanel.jsx';
 import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
@@ -24,6 +25,7 @@ const SCREENS = {
 };
 
 const isDemoPreview = new URLSearchParams(window.location.search).get('demo') === '1';
+const isProgressDebug = new URLSearchParams(window.location.search).get('debug') === '1';
 
 export default function App() {
   const [screen, setScreen] = useState(isDemoPreview ? SCREENS.theme : SCREENS.landing);
@@ -31,8 +33,9 @@ export default function App() {
   const [cameraError, setCameraError] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
   const [latestResult, setLatestResult] = useState(null);
+  const [progressRevision, setProgressRevision] = useState(0);
   const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
-  const habit = useMemo(() => loadHabitProgress(), [latestResult]);
+  const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
 
   const startPermission = () => setScreen(SCREENS.permission);
 
@@ -82,6 +85,7 @@ export default function App() {
       ...saved,
       snapshots: result.snapshots || [],
     });
+    setProgressRevision((value) => value + 1);
     setScreen(SCREENS.result);
   };
 
@@ -174,6 +178,10 @@ export default function App() {
           onBack={() => setScreen(SCREENS.result)}
           onRestart={restartRoutine}
         />
+      )}
+
+      {isProgressDebug && (
+        <ProgressDebugPanel onProgressChange={() => setProgressRevision((value) => value + 1)} />
       )}
     </main>
   );

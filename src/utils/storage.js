@@ -152,6 +152,61 @@ export function saveResult(result) {
   return saved;
 }
 
+export function clearHabitProgress({ keepDeviceId = true } = {}) {
+  try {
+    const deviceId = keepDeviceId ? getDeviceId() : '';
+    localStorage.removeItem(STORAGE_KEY);
+    if (!keepDeviceId) {
+      localStorage.removeItem(DEVICE_KEY);
+    }
+    return {
+      ...defaultHabit,
+      deviceId: keepDeviceId ? deviceId : getDeviceId(),
+    };
+  } catch {
+    return loadHabit();
+  }
+}
+
+export function clearTodayProgress() {
+  const current = loadHabit();
+  const date = todayKey();
+  const history = (current.history || []).filter((entry) => entry.date !== date);
+  const nextHabit = rebuildHabitFromHistory(current, history);
+  persistHabit(nextHabit);
+  return nextHabit;
+}
+
+export function seedDemoProgress({ days = 7 } = {}) {
+  const current = loadHabit();
+  const history = Array.from({ length: days }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (days - 1 - index));
+    const dateKey = toLocalDateKey(date);
+    const sceneId = Object.values(SCENE_IDS)[index % Object.values(SCENE_IDS).length];
+    const scene = getSceneById(sceneId);
+    const score = Math.min(99, 70 + index * 3 + (index % 3) * 4);
+    return {
+      id: `seed-${dateKey}-${sceneId}`,
+      sceneId,
+      sceneTitle: scene.title,
+      areaKey: scene.areaKey,
+      area: scene.area,
+      stamp: scene.stamp,
+      date: dateKey,
+      completedAt: `${dateKey}T12:00:00.000Z`,
+      score,
+      streak: index + 1,
+      radar: {},
+      metrics: { [sceneId]: score },
+    };
+  });
+  const existingHistory = (current.history || []).filter((entry) => !history.some((seed) => seed.date === entry.date));
+  const nextHabit = rebuildHabitFromHistory(current, [...history.reverse(), ...existingHistory]);
+  persistHabit(nextHabit);
+  return nextHabit;
+}
+
 export function buildPassport(habit = loadHabit()) {
   const history = habit.history || [];
   const weekDays = getLastSevenDays();
@@ -216,6 +271,29 @@ export function buildLeaderboard(habit = loadHabit()) {
   }));
 }
 
+export function buildProgressDebugSnapshot(habit = loadHabit()) {
+  const passport = buildPassport(habit);
+  const leaderboard = buildLeaderboard(habit);
+  return {
+    provider: 'local',
+    storageVersion: STORAGE_VERSION,
+    today: todayKey(),
+    deviceId: habit.deviceId || getDeviceId(),
+    authMode: habit.authMode || 'guest',
+    isCheckedInToday: passport.latestDate === todayKey(),
+    streak: passport.streak || 0,
+    bestScore: passport.bestScore || 0,
+    latestScore: passport.latestScore || 0,
+    latestDate: passport.latestDate,
+    totalSessions: passport.totalSessions || 0,
+    completedDates: habit.completedDates || [],
+    areaProgress: passport.areaProgress,
+    sceneStats: Object.values(habit.sceneStats || {}),
+    history: (habit.history || []).slice(0, 12),
+    leaderboard,
+  };
+}
+
 export function getSceneAreaSummary(sceneId) {
   const scene = getSceneById(sceneId);
   return {
@@ -250,6 +328,51 @@ export function markGuideSeen(sceneId) {
 }
 
 export { faceAreas };
+
+function persistHabit(habit) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(habit));
+  } catch {
+    // localStorage may be unavailable in private or embedded browsers.
+  }
+}
+
+function rebuildHabitFromHistory(current, history) {
+  const normalizedHistory = [...history]
+    .filter((entry) => entry?.date)
+    .map((entry) => ({
+      ...entry,
+      score: clampScore(entry.score),
+      sceneTitle: entry.sceneTitle || getSceneById(entry.sceneId)?.title,
+    }))
+    .sort((a, b) => new Date(b.completedAt || `${b.date}T23:59:59`) - new Date(a.completedAt || `${a.date}T23:59:59`));
+  const completedDates = uniqueStrings(normalizedHistory.map((entry) => entry.date)).sort();
+  const areaDates = normalizeAreaDates({}, normalizedHistory);
+  const areaCounts = {
+    ...Object.fromEntries(faceAreas.map((area) => [area.key, areaDates[area.key]?.length || 0])),
+  };
+  const dailyResults = buildDailyResultsFromHistory(normalizedHistory);
+  const sceneStats = buildSceneStatsFromHistory(normalizedHistory);
+  const bestScore = Math.max(0, ...normalizedHistory.map((entry) => entry.score || 0));
+
+  return {
+    ...defaultHabit,
+    authMode: current.authMode || 'guest',
+    deviceId: current.deviceId || getDeviceId(),
+    updatedAt: new Date().toISOString(),
+    streak: calculateCurrentStreak(completedDates),
+    bestScore,
+    latestScore: normalizedHistory[0]?.score ?? null,
+    latestDate: completedDates[completedDates.length - 1] || null,
+    totalSessions: normalizedHistory.length,
+    completedDates,
+    dailyResults,
+    sceneStats,
+    areaDates,
+    areaCounts,
+    history: normalizedHistory.slice(0, 80),
+  };
+}
 
 function migrateHabit(habit) {
   const history = (habit.history || []).map((entry) => ({
@@ -362,6 +485,20 @@ function clampScore(score) {
 
 function uniqueStrings(values) {
   return [...new Set(values.filter(Boolean).map(String))];
+}
+
+function calculateCurrentStreak(dates) {
+  const sorted = uniqueStrings(dates).sort();
+  if (!sorted.length) return 0;
+  let streak = 1;
+  for (let index = sorted.length - 1; index > 0; index -= 1) {
+    if (dateDiffDays(sorted[index - 1], sorted[index]) === 1) {
+      streak += 1;
+    } else {
+      break;
+    }
+  }
+  return streak;
 }
 
 function getLastSevenDays() {

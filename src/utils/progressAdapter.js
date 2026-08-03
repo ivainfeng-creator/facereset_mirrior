@@ -1,11 +1,5 @@
-import {
-  buildLeaderboard,
-  buildPassport,
-  hasSeenGuide,
-  loadHabit,
-  markGuideSeen,
-  saveResult,
-} from './storage.js';
+import { localProgressAdapter } from './localProgressAdapter.js';
+import { viverseProgressAdapter } from './viverseProgressAdapter.js';
 
 export const PROGRESS_PROVIDER = {
   local: 'local',
@@ -13,13 +7,19 @@ export const PROGRESS_PROVIDER = {
 };
 
 export const activeProgressProvider = PROGRESS_PROVIDER.local;
+export const progressAdapters = {
+  [PROGRESS_PROVIDER.local]: localProgressAdapter,
+  [PROGRESS_PROVIDER.viverse]: viverseProgressAdapter,
+};
+
+export const activeAdapter = progressAdapters[activeProgressProvider] || localProgressAdapter;
 
 export function loadHabitProgress() {
-  return loadHabit();
+  return activeAdapter.loadHabit();
 }
 
 export function saveSessionResult(result) {
-  const saved = saveResult(result);
+  const saved = activeAdapter.saveSessionResult(result);
   return {
     provider: activeProgressProvider,
     saved,
@@ -27,29 +27,41 @@ export function saveSessionResult(result) {
 }
 
 export function loadPassportProgress(habit = loadHabitProgress()) {
-  return buildPassport(habit);
+  return activeAdapter.loadPassport(habit);
 }
 
 export function loadLeaderboardRows(habit = loadHabitProgress()) {
-  return buildLeaderboard(habit);
+  return activeAdapter.loadLeaderboard(habit);
 }
 
 export function submitLeaderboardScore(result, habit = loadHabitProgress()) {
-  return {
-    provider: activeProgressProvider,
-    submitted: false,
-    reason: 'local-prototype',
-    leaderboard: loadLeaderboardRows(habit),
-    score: result?.score || habit.latestScore || 0,
-  };
+  return activeAdapter.submitLeaderboardScore(result, habit);
 }
 
 export function getPlayerIdentity(habit = loadHabitProgress()) {
-  return {
-    authMode: habit.authMode || 'guest',
-    deviceId: habit.deviceId || '',
-    provider: activeProgressProvider,
-  };
+  return activeAdapter.getIdentity(habit);
 }
 
-export { hasSeenGuide, markGuideSeen };
+export function hasSeenGuide(sceneId) {
+  return activeAdapter.hasSeenGuide?.(sceneId) ?? localProgressAdapter.hasSeenGuide(sceneId);
+}
+
+export function markGuideSeen(sceneId) {
+  return activeAdapter.markGuideSeen?.(sceneId) ?? localProgressAdapter.markGuideSeen(sceneId);
+}
+
+export function loadProgressDebugSnapshot() {
+  return activeAdapter.debug?.loadSnapshot?.() ?? localProgressAdapter.debug.loadSnapshot();
+}
+
+export function clearAllProgress() {
+  return activeAdapter.debug?.clearAll?.() ?? localProgressAdapter.debug.clearAll();
+}
+
+export function clearTodayProgressDebug() {
+  return activeAdapter.debug?.clearToday?.() ?? localProgressAdapter.debug.clearToday();
+}
+
+export function seedProgressDebug(days = 7) {
+  return activeAdapter.debug?.seed?.({ days }) ?? localProgressAdapter.debug.seed({ days });
+}
