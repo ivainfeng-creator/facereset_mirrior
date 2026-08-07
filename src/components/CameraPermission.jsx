@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function CameraPermission({
   cameraError,
+  autoStart = false,
   onCameraReady,
   onCameraError,
   onBack,
 }) {
   const [cameraPhase, setCameraPhase] = useState('idle');
+  const hasAutoStarted = useRef(false);
   const isPrompting = cameraPhase === 'prompting';
 
   const enableCamera = async () => {
@@ -30,44 +32,40 @@ export default function CameraPermission({
     }
   };
 
-  if (cameraPhase === 'preparing') {
+  useEffect(() => {
+    if (!autoStart || hasAutoStarted.current) {
+      return;
+    }
+
+    hasAutoStarted.current = true;
+    enableCamera();
+  }, [autoStart]);
+
+  if (autoStart || cameraPhase === 'prompting' || cameraPhase === 'preparing') {
     return (
       <section className="screen preparing-landing">
         <main className="preparing-card" aria-live="polite" aria-label="Preparing camera">
           <span className="preparing-spinner" aria-hidden="true" />
-          <p>Preparing...</p>
+          <p>{cameraPhase === 'prompting' ? 'Allow camera access...' : 'Preparing...'}</p>
         </main>
       </section>
     );
   }
 
   return (
-    <section className="screen intro-landing">
-      <button className="intro-back-button" onClick={onBack} aria-label="Back to welcome" />
+    <section className="screen camera-permission-fallback">
+      <button className="intro-back-button" onClick={onBack} aria-label="Back to today plan" />
 
-      <main className="intro-copy" aria-label="How Face Reset works">
-        <div className="intro-heading">
-          <h1>How it works?</h1>
-          <p>Complete today's reset in three simple steps.</p>
+      <main className="camera-permission-card" aria-label="Camera permission">
+        <div className="camera-permission-copy">
+          <h1>Camera access needed</h1>
+          <p>{cameraError || 'Please allow camera access to continue Face Reset.'}</p>
         </div>
 
-        <ol className="intro-steps">
-          <li>📷 Align your face</li>
-          <li>👇 Follow the guide</li>
-          <li>😊 Relax and finish</li>
-        </ol>
+        <button className="camera-retry-button" onClick={enableCamera} disabled={isPrompting}>
+          {isPrompting ? 'Waiting for permission' : 'Try again'}
+        </button>
       </main>
-
-      {cameraError && (
-        <div className="intro-error">
-          <p>{cameraError}</p>
-        </div>
-      )}
-
-      <button className="journey-button" onClick={enableCamera} disabled={isPrompting}>
-        <span>{isPrompting ? 'Waiting for permission' : 'Next'}</span>
-        <span className="journey-arrow" aria-hidden="true" />
-      </button>
     </section>
   );
 }

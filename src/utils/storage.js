@@ -4,6 +4,7 @@ const STORAGE_KEY = 'face-reset-mirror-habit';
 const DEVICE_KEY = 'face-reset-mirror-device-id';
 const GUIDE_KEY = 'face-reset-mirror-seen-guides-v1';
 const STORAGE_VERSION = 2;
+const MAX_STORED_SCORE = 1000;
 
 const faceAreas = [
   { key: 'underEye', label: 'Under-eye', target: 2 },
@@ -185,7 +186,7 @@ export function seedDemoProgress({ days = 7 } = {}) {
     const dateKey = toLocalDateKey(date);
     const sceneId = Object.values(SCENE_IDS)[index % Object.values(SCENE_IDS).length];
     const scene = getSceneById(sceneId);
-    const score = Math.min(99, 70 + index * 3 + (index % 3) * 4);
+    const score = Math.min(990, 700 + index * 30 + (index % 3) * 40);
     return {
       id: `seed-${dateKey}-${sceneId}`,
       sceneId,
@@ -255,12 +256,12 @@ export function buildLeaderboard(habit = loadHabit()) {
   const totalSessions = habit.totalSessions || history.length || 0;
   const rows = [
     { name: 'You', score, detail: `${streak || 0} day streak · ${sceneLabel}`, isUser: true },
-    { name: 'Soft Orbit', score: 96, detail: 'Whale Mouth' },
-    { name: 'Puffer Club', score: 91, detail: 'Whale Dream 2' },
-    { name: 'Face Garden', score: 88, detail: 'Cloud Garden' },
-    { name: 'Bubble Hero', score: 84, detail: 'Bubble Gum Bunny' },
-    { name: 'Bloom Crew', score: 79, detail: 'Flower Collector' },
-    { name: 'Soda Sprout', score: 74, detail: 'Lemon Squeeze' },
+    { name: 'Soft Orbit', score: 960, detail: 'Whale Mouth' },
+    { name: 'Puffer Club', score: 910, detail: 'Whale Dream 2' },
+    { name: 'Face Garden', score: 880, detail: 'Cloud Garden' },
+    { name: 'Bubble Hero', score: 840, detail: 'Bubble Gum Bunny' },
+    { name: 'Bloom Crew', score: 790, detail: 'Flower Collector' },
+    { name: 'Soda Sprout', score: 740, detail: 'Lemon Squeeze' },
   ].sort((a, b) => b.score - a.score);
 
   return rows.map((row, index) => ({
@@ -480,7 +481,7 @@ function buildSceneStatsFromHistory(history) {
 function clampScore(score) {
   const numeric = Number(score);
   if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.min(100, Math.round(numeric)));
+  return Math.max(0, Math.min(MAX_STORED_SCORE, Math.round(numeric)));
 }
 
 function uniqueStrings(values) {

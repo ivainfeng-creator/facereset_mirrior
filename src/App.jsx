@@ -35,13 +35,15 @@ export default function App() {
   const [latestResult, setLatestResult] = useState(null);
   const [progressRevision, setProgressRevision] = useState(0);
   const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
+  const [autoStartCamera, setAutoStartCamera] = useState(false);
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
 
-  const startPermission = () => setScreen(SCREENS.permission);
+  const startTodayPlan = () => setScreen(SCREENS.theme);
 
   const handleCameraReady = (stream) => {
     setCameraStream(stream);
     setCameraError('');
+    setAutoStartCamera(false);
     setIsDemoMode(false);
     setScreen(SCREENS.mirror);
   };
@@ -56,17 +58,28 @@ export default function App() {
   const handleCameraError = (message) => {
     setCameraError(message);
     setCameraStream(null);
+    setAutoStartCamera(false);
   };
 
-  const beginThemeSelect = () => setScreen(SCREENS.theme);
-
-  const selectTheme = (sceneId) => {
-    setSelectedScene(sceneId);
-    if (hasSeenGuide(sceneId)) {
+  const beginSelectedScene = () => {
+    if (hasSeenGuide(selectedScene)) {
       setScreen(SCREENS.routine);
       return;
     }
+
     setScreen(SCREENS.practice);
+  };
+
+  const selectTheme = (sceneId) => {
+    setSelectedScene(sceneId);
+
+    if (cameraStream || isDemoMode) {
+      setScreen(SCREENS.mirror);
+      return;
+    }
+
+    setAutoStartCamera(true);
+    setScreen(SCREENS.permission);
   };
 
   const openGuide = (sceneId) => {
@@ -103,15 +116,19 @@ export default function App() {
       <div className="ambient ambient-two" />
 
       {screen === SCREENS.landing && (
-        <LandingScreen onStart={startPermission} habit={habit} />
+        <LandingScreen onStart={startTodayPlan} habit={habit} />
       )}
 
       {screen === SCREENS.permission && (
         <CameraPermission
           cameraError={cameraError}
+          autoStart={autoStartCamera}
           onCameraReady={handleCameraReady}
           onCameraError={handleCameraError}
-          onBack={resetToLanding}
+          onBack={() => {
+            setAutoStartCamera(false);
+            setScreen(SCREENS.theme);
+          }}
         />
       )}
 
@@ -119,8 +136,8 @@ export default function App() {
         <MirrorScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
-          onBegin={beginThemeSelect}
-          onBack={startPermission}
+          onBegin={beginSelectedScene}
+          onBack={() => setScreen(SCREENS.theme)}
         />
       )}
 
@@ -129,7 +146,8 @@ export default function App() {
           selectedScene={selectedScene}
           onSelect={selectTheme}
           onGuide={openGuide}
-          onBack={() => setScreen(SCREENS.mirror)}
+          onBack={resetToLanding}
+          habit={habit}
         />
       )}
 
@@ -158,6 +176,7 @@ export default function App() {
           result={latestResult}
           habit={habit}
           onRestart={restartRoutine}
+          onTodayPlan={() => setScreen(SCREENS.theme)}
           onPassport={() => setScreen(SCREENS.passport)}
           onLeaderboard={() => setScreen(SCREENS.leaderboard)}
         />

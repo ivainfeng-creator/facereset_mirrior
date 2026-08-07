@@ -1,13 +1,41 @@
-import { useState } from 'react';
-import ResultCard from './ResultCard.jsx';
+import { useMemo, useState } from 'react';
+import { getSceneById } from '../data/scenes.js';
 
-export default function ResultScreen({ result, habit, onRestart, onPassport, onLeaderboard }) {
+const MAX_RESULT_SCORE = 1000;
+
+const SEEDED_LEADERS = [
+  { name: 'Mika T.', score: 970 },
+  { name: 'Jonas R.', score: 950 },
+  { name: 'Aiko S.', score: 930 },
+  { name: 'Devon L.', score: 900 },
+  { name: 'Priya N.', score: 860 },
+  { name: 'Sora K.', score: 840 },
+  { name: 'Bea M.', score: 820 },
+  { name: 'Tomas V.', score: 790 },
+  { name: 'Lena H.', score: 770 },
+  { name: 'Ravi P.', score: 740 },
+];
+
+export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onLeaderboard }) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
-  const score = result?.score ?? 88;
-  const topPercent = Math.max(3, Math.min(18, Math.round(22 - score * 0.14)));
-  const checkedArea = result?.area || 'Face';
-  const checkedStamp = result?.stamp || 'Reset';
+  const [leaderboardName, setLeaderboardName] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
+  const [isNameModalDismissed, setIsNameModalDismissed] = useState(false);
+  const score = result?.score ?? 880;
+  const scene = getSceneById(result?.sceneId);
+  const sceneTitle = result?.sceneTitle || scene.title;
+  const focusLabel = result?.area || scene.area || 'Face Reset';
+  const topPercent = getTopPercent(score);
+  const holdSeconds = Math.max(1, Math.round(result?.holdSeconds || result?.durationSeconds || 52));
+  const todayProgress = getTodayPlanProgress(habit, result);
+  const leaderboard = useMemo(
+    () => buildLeaderboardRows(score, leaderboardName, sceneTitle),
+    [leaderboardName, sceneTitle, score],
+  );
+  const userRow = leaderboard.find((row) => row.isUser);
+  const isTopTen = (userRow?.rank || 99) <= 10;
+  const showNameModal = isTopTen && !leaderboardName && !isNameModalDismissed;
 
   const downloadVideo = async () => {
     setIsExporting(true);
@@ -54,58 +82,209 @@ export default function ResultScreen({ result, habit, onRestart, onPassport, onL
     }
   };
 
+  const submitLeaderboardName = (event) => {
+    event.preventDefault();
+    const trimmedName = nameDraft.trim();
+    if (!trimmedName) return;
+    setLeaderboardName(trimmedName.slice(0, 18));
+    setIsNameModalDismissed(true);
+  };
+
   return (
-    <section className="screen result-screen reset-result-screen">
-      <header className="result-complete-header">
-        <h1>
-          <span aria-hidden="true">✨</span>
-          Nice work
-        </h1>
-        <p>Your expression looks softer and more relaxed.</p>
-      </header>
+    <section className="screen result-screen reset-result-screen result-dashboard-screen">
+      <main className="result-dashboard-shell" aria-label="Face Reset result">
+        <header className="result-dashboard-header">
+          <div>
+            <p>TODAY'S FOCUS / {focusLabel.toUpperCase()}</p>
+            <div className="result-title-row">
+              <h1>{sceneTitle}</h1>
+              <span className="result-header-progress" aria-label={`${todayProgress.completed} of ${todayProgress.total} completed`}>
+                <i style={{ width: `${Math.max(8, (todayProgress.completed / todayProgress.total) * 100)}%` }} />
+              </span>
+              <strong>{todayProgress.completed} / {todayProgress.total}</strong>
+            </div>
+          </div>
 
-      <ResultCard result={result} habit={habit} />
+          <div className="result-toolbar" aria-label="Result tools">
+            <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download">
+              <DownloadIcon />
+            </button>
+            <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share">
+              <ShareIcon />
+            </button>
+          </div>
+        </header>
 
-      <div className="result-score-summary">
-        <div className="result-score-line">
-          <span>Score</span>
-          <strong>{score}</strong>
+        <div className="result-dashboard-grid">
+          <section className="result-left-column">
+            <div className="result-stat-card">
+              <div className="result-main-score">
+                <strong>{score}</strong>
+                <span>/1000</span>
+              </div>
+              <div className="result-stat-block">
+                <span>RANKING</span>
+                <strong>TOP {topPercent}%</strong>
+              </div>
+              <div className="result-stat-block">
+                <span>HOLD TIME</span>
+                <strong>{holdSeconds} SEC</strong>
+              </div>
+            </div>
+
+            <ResultRadarPanel result={result} />
+          </section>
+
+          <aside className="result-right-column">
+            <ResultLeaderboard rows={leaderboard} sceneTitle={sceneTitle} />
+
+            <section className="result-plan-strip" aria-label="Today's plan">
+              <div className="result-plan-strip-header">
+                <span>TODAY'S PLAN</span>
+                <strong>{Math.max(0, todayProgress.total - todayProgress.completed)} LEFT / NEXT: {sceneTitle.toUpperCase()}</strong>
+              </div>
+              <div className="result-plan-meter">
+                <i style={{ width: `${Math.max(8, (todayProgress.completed / todayProgress.total) * 100)}%` }} />
+              </div>
+              <ol>
+                {todayProgress.items.map((item, index) => (
+                  <li className={index < todayProgress.completed ? 'is-done' : ''} key={item}>
+                    <strong>{index + 1}</strong>
+                    {item}
+                  </li>
+                ))}
+              </ol>
+            </section>
+
+            <div className="result-dashboard-actions">
+              <button type="button" onClick={onTodayPlan || onLeaderboard}>Today's plan</button>
+              <button type="button" onClick={onRestart}>Try again</button>
+            </div>
+          </aside>
         </div>
-        <p>
-          <span aria-hidden="true">🏆</span>
-          Top {topPercent}%
-        </p>
-        <small>Among all Face Reset sessions today.</small>
-      </div>
 
-      <section className="result-passport-update" aria-label="Passport update">
-        <div>
-          <span>Today checked in</span>
-          <strong>{checkedStamp} relaxed</strong>
-          <small>{checkedArea} · {habit?.streak || result?.streak || 1} day streak</small>
-        </div>
-        <div className="result-passport-links">
-          <button type="button" onClick={onPassport}>Passport</button>
-          <button type="button" onClick={onLeaderboard}>Rank</button>
-        </div>
-      </section>
+        {exportMessage && <p className="export-message result-dashboard-message">{exportMessage}</p>}
+      </main>
 
-      <div className="result-actions result-icon-actions">
-        <button className="result-icon-button" onClick={onRestart} disabled={isExporting} type="button">
-          <RestartIcon />
-          <span>Try again</span>
-        </button>
-        <button className="result-icon-button" onClick={downloadVideo} disabled={isExporting} type="button">
-          <DownloadIcon />
-          <span>Download</span>
-        </button>
-        <button className="result-icon-button" onClick={shareVideo} disabled={isExporting} type="button">
-          <ShareIcon />
-          <span>Share</span>
-        </button>
-      </div>
-      {exportMessage && <p className="export-message">{exportMessage}</p>}
+      {showNameModal && (
+        <LeaderboardNameModal
+          nameDraft={nameDraft}
+          onChange={setNameDraft}
+          onClose={() => setIsNameModalDismissed(true)}
+          onSubmit={submitLeaderboardName}
+        />
+      )}
     </section>
+  );
+}
+
+function ResultRadarPanel({ result }) {
+  const afterMetrics = normalizeDownloadRadar(result?.radar).slice(0, 5);
+  const beforeMetrics = afterMetrics.map((metric, index) => ({
+    ...metric,
+    value: Math.max(24, (metric.value || 0) - 13 - index),
+  }));
+  const afterPoints = getRadarPointString(afterMetrics);
+  const beforePoints = getRadarPointString(beforeMetrics);
+
+  return (
+    <section className="result-radar-card" aria-label="Before and after radar">
+      <div className="result-radar-topline">
+        <span>BEFORE / AFTER</span>
+        <div>
+          <b className="before-key">BEFORE</b>
+          <b className="after-key">AFTER</b>
+        </div>
+      </div>
+      <div className="result-radar-stage">
+        <svg viewBox="0 0 420 420" role="img" aria-label="Result radar chart">
+          {[0.33, 0.66, 1].map((level) => (
+            <circle className="result-radar-ring" cx="210" cy="210" r={150 * level} key={level} />
+          ))}
+          {afterMetrics.map((metric, index) => {
+            const point = getRadarAxisPoint(index, afterMetrics.length, 174);
+            return (
+              <line
+                className="result-radar-axis-line"
+                x1="210"
+                y1="210"
+                x2={point.x}
+                y2={point.y}
+                key={metric.label}
+              />
+            );
+          })}
+          <polygon className="result-radar-before" points={beforePoints} />
+          <polygon className="result-radar-after-fill" points={afterPoints} />
+          <polygon className="result-radar-after-line" points={afterPoints} />
+          {afterMetrics.map((metric, index) => {
+            const valuePoint = getRadarValuePoint(metric.value, index, afterMetrics.length);
+            const labelPoint = getRadarAxisPoint(index, afterMetrics.length, 188);
+            return (
+              <g key={`${metric.label}-label`}>
+                <circle className="result-radar-node" cx={valuePoint.x} cy={valuePoint.y} r="8" />
+                <text className="result-radar-label" x={labelPoint.x} y={labelPoint.y}>
+                  {metric.label.toUpperCase()}
+                </text>
+                <text className="result-radar-delta" x={labelPoint.x} y={labelPoint.y + 20}>
+                  +{Math.max(7, Math.round((metric.value - beforeMetrics[index].value) * 0.85))}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        <div className="result-radar-mascot" aria-hidden="true">
+          <span className="mascot-eye left" />
+          <span className="mascot-eye right" />
+          <span className="mascot-mouth" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ResultLeaderboard({ rows, sceneTitle }) {
+  return (
+    <section className="result-leaderboard-card" aria-label="Today's leaderboard">
+      <header>
+        <span>TODAY'S LEADERBOARD</span>
+        <strong>{sceneTitle}</strong>
+      </header>
+      <ol>
+        {rows.slice(0, 10).map((row) => (
+          <li className={row.isUser ? 'is-user' : ''} key={`${row.rank}-${row.name}`}>
+            <span>{row.rank}</span>
+            <i>{row.name.charAt(0).toUpperCase()}</i>
+            <strong>{row.name}</strong>
+            <b>{row.score}</b>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function LeaderboardNameModal({ nameDraft, onChange, onClose, onSubmit }) {
+  return (
+    <div className="leaderboard-name-backdrop" role="presentation">
+      <form className="leaderboard-name-modal" onSubmit={onSubmit} aria-label="Join leaderboard">
+        <button type="button" className="leaderboard-name-close" onClick={onClose} aria-label="Close">×</button>
+        <h2>YOU'RE IN TOP 10!</h2>
+        <p>Enter a display name to appear on leaderboard.</p>
+        <input
+          autoFocus
+          type="text"
+          value={nameDraft}
+          maxLength={18}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Enter your name"
+          aria-label="Display name"
+        />
+        <button type="submit" disabled={!nameDraft.trim()}>
+          Join the Leaderboard
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -138,6 +317,65 @@ function ShareIcon() {
       <path d="m8.2 13.2 7.6 4.6" />
     </svg>
   );
+}
+
+function buildLeaderboardRows(score, name, sceneTitle) {
+  const rows = [
+    ...SEEDED_LEADERS,
+    {
+      name: name || 'You',
+      score,
+      detail: sceneTitle,
+      isUser: true,
+    },
+  ].sort((a, b) => b.score - a.score);
+
+  return rows.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+}
+
+function getTodayPlanProgress(habit, result) {
+  const today = new Date().toISOString().slice(0, 10);
+  const completedSceneIds = new Set(
+    (habit?.history || [])
+      .filter((entry) => entry.date === today)
+      .map((entry) => entry.sceneId)
+      .filter(Boolean),
+  );
+  if (result?.sceneId) completedSceneIds.add(result.sceneId);
+
+  const items = ['Whale Mouth', 'Cloud Garden', 'Flower Collector'];
+  const completed = Math.min(items.length, Math.max(1, completedSceneIds.size || 1));
+
+  return {
+    completed,
+    total: items.length,
+    items,
+  };
+}
+
+function getRadarPointString(metrics) {
+  return metrics
+    .map((metric, index) => {
+      const point = getRadarValuePoint(metric.value, index, metrics.length);
+      return `${point.x},${point.y}`;
+    })
+    .join(' ');
+}
+
+function getRadarValuePoint(value, index, total) {
+  const safeValue = Math.max(0, Math.min(100, value || 0));
+  return getRadarAxisPoint(index, total, 150 * (safeValue / 100));
+}
+
+function getRadarAxisPoint(index, total, radius) {
+  const angle = -Math.PI / 2 + (index / total) * Math.PI * 2;
+  return {
+    x: 210 + Math.cos(angle) * radius,
+    y: 210 + Math.sin(angle) * radius,
+  };
 }
 
 async function createResultImage({ result, habit }) {
@@ -276,7 +514,7 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
   context.font = '900 42px Inter, sans-serif';
   context.fillText(`Score ${score}`, 76, 1040);
   context.font = '800 26px Inter, sans-serif';
-  context.fillText(`Top ${Math.max(3, Math.min(18, Math.round(22 - score * 0.14)))}%`, 76, 1080);
+  context.fillText(`Top ${getTopPercent(score)}%`, 76, 1080);
 
   context.fillStyle = '#515b59';
   context.font = '500 24px Inter, sans-serif';
@@ -288,6 +526,17 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
     748,
     34,
   );
+}
+
+function getTopPercent(score) {
+  const normalizedScore = getScorePercent(score);
+  return Math.max(3, Math.min(18, Math.round(22 - normalizedScore * 0.14)));
+}
+
+function getScorePercent(score) {
+  const numeric = Number(score);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.min(100, (numeric / MAX_RESULT_SCORE) * 100));
 }
 
 function roundRect(context, x, y, width, height, radius) {

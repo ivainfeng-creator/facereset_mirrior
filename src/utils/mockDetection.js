@@ -1,6 +1,9 @@
 import { routineStages } from '../data/routine.js';
 import { SCENE_IDS } from '../data/scenes.js';
 
+const MAX_SCENE_SCORE = 1000;
+const RADAR_SCORE_MAX = 100;
+
 export function getAlignmentStatus(elapsedMs) {
   if (elapsedMs < 900) return { label: 'Center your face', quality: 36 };
   if (elapsedMs < 1800) return { label: 'Move closer', quality: 58 };
@@ -27,10 +30,11 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
 }
 
 export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.templeGarden) {
-  const sceneScore = stageScores[sceneId] ?? stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 82;
+  const sceneScore = stageScores[sceneId] ?? stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 820;
   const score = Math.round(sceneScore);
-  const softVariance = Math.round(Math.sin(score * 0.17) * 5);
-  const radar = getSceneRadar(sceneId, score, softVariance);
+  const radarScore = normalizeScoreForRadar(score);
+  const softVariance = Math.round(Math.sin(radarScore * 0.17) * 5);
+  const radar = getSceneRadar(sceneId, radarScore, softVariance);
 
   return {
     score,
@@ -97,6 +101,12 @@ function getSceneRadar(sceneId, score, softVariance) {
     { label: '好玩程度', value: clamp(82 + Math.round(Math.cos(score * 0.11) * 7), 50, 99) },
     { label: '慢慢放鬆', value: clamp(88 - Math.abs(84 - score), 45, 98) },
   ];
+}
+
+function normalizeScoreForRadar(score) {
+  const numeric = Number(score);
+  if (!Number.isFinite(numeric)) return 0;
+  return clamp((numeric / MAX_SCENE_SCORE) * RADAR_SCORE_MAX, 0, RADAR_SCORE_MAX);
 }
 
 function getSceneComment(sceneId) {

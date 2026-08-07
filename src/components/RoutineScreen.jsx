@@ -21,6 +21,7 @@ import { MirrorVideo } from './MirrorScreen.jsx';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
+const MAX_SCENE_SCORE = 1000;
 
 export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, stream, isDemoMode, onComplete, onExit }) {
   const videoRef = useRef(null);
@@ -1736,7 +1737,7 @@ function scoreTemplePress({ features, fingertips, targets, timestamp, progressSt
   const rain = clamp((left.value + right.value) / 2, 0, 1);
   const gardenPulse = (progressState.gardenCycle % 4) / 4;
   const growth = clamp(scoring.growthBase + gardenPulse * scoring.growthByCycle + progressState.flow * scoring.growthByFlow, 0, 1);
-  progressState.score = Math.min(100, progressState.score);
+  progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
     score: Math.round(progressState.score),
@@ -1830,7 +1831,7 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
     progressState.sipCycle = Math.max(0, progressState.sipCycle - elapsedSeconds * 1.5);
   }
 
-  progressState.score = Math.min(100, progressState.score);
+  progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
     score: Math.round(progressState.score),
@@ -1914,7 +1915,7 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
     progressState.combo = Math.min(12, progressState.combo + 1);
     progressState.score += scoring.releaseScore + (signal.holdSeconds >= scoring.longHoldSeconds ? scoring.longHoldBonusScore : 0);
   }
-  progressState.score = Math.min(100, progressState.score);
+  progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
     score: Math.round(progressState.score),
@@ -1972,7 +1973,7 @@ function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tun
     progressState.combo = Math.min(12, progressState.combo + 1);
     progressState.score += progressState.combo >= 3 ? scoring.comboReleaseScore : scoring.releaseScore;
   }
-  progressState.score = Math.min(100, progressState.score);
+  progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
     score: Math.round(progressState.score),
@@ -2027,7 +2028,7 @@ function scoreMouthOpening({ features, timestamp, progressState, stageProgress, 
     progressState.combo = Math.min(12, progressState.combo + 1);
     progressState.score += signal.holdSeconds >= scoring.longHoldSeconds ? scoring.longHoldScore : scoring.releaseScore;
   }
-  progressState.score = Math.min(100, progressState.score);
+  progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
     score: Math.round(progressState.score),
