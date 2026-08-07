@@ -11,4 +11,4 @@ export const routineStages = [
   },
 ];
 
-export const STAGE_SECONDS = 60;
+export const STAGE_SECONDS = 30;
