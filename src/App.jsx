@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CameraPermission from './components/CameraPermission.jsx';
 import LandingScreen from './components/LandingScreen.jsx';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
@@ -10,6 +10,7 @@ import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { SCENE_IDS } from './data/scenes.js';
+import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { hasSeenGuide, loadHabitProgress, markGuideSeen, saveSessionResult } from './utils/progressAdapter.js';
 
 const SCREENS = {
@@ -26,19 +27,65 @@ const SCREENS = {
 
 const isDemoPreview = new URLSearchParams(window.location.search).get('demo') === '1';
 const isProgressDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+const isResultPreview = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).get('result') === '1';
+const WELCOME_TRANSITION_MS = 1020;
+
+const RESULT_PREVIEW = {
+  type: 'daily-plan',
+  completed: 3,
+  total: 3,
+  isComplete: true,
+  score: 2800,
+  maxScore: 3000,
+  holdSeconds: 52,
+  sceneTitle: 'FULL RESET COMPLETE',
+  area: 'ALL 3 SESSIONS',
+  sceneResults: [
+    { sceneId: SCENE_IDS.whaleDream, sceneTitle: 'Whale Mouth', score: 930, completed: true },
+    { sceneId: SCENE_IDS.templeGarden, sceneTitle: 'Cloud Garden', score: 930, completed: true },
+    { sceneId: SCENE_IDS.flowerCollector, sceneTitle: 'Flower Collector', score: 940, completed: true },
+  ],
+  radar: [
+    { label: 'movement', value: 84 },
+    { label: 'hold', value: 78 },
+    { label: 'control', value: 86 },
+    { label: 'smoothness', value: 81 },
+    { label: 'relaxation', value: 76 },
+  ],
+};
 
 export default function App() {
-  const [screen, setScreen] = useState(isDemoPreview ? SCREENS.theme : SCREENS.landing);
+  const [screen, setScreen] = useState(
+    isResultPreview ? SCREENS.result : (isDemoPreview ? SCREENS.theme : SCREENS.landing),
+  );
   const [cameraStream, setCameraStream] = useState(null);
   const [cameraError, setCameraError] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
-  const [latestResult, setLatestResult] = useState(null);
+  const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
   const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
   const [autoStartCamera, setAutoStartCamera] = useState(false);
+  const [screenTransition, setScreenTransition] = useState(null);
+  const transitionTimerRef = useRef(null);
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
 
-  const startTodayPlan = () => setScreen(SCREENS.theme);
+  useEffect(() => () => window.clearTimeout(transitionTimerRef.current), []);
+
+  const startTodayPlan = () => {
+    if (screenTransition) return;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setScreen(SCREENS.theme);
+      return;
+    }
+
+    setScreenTransition('welcome-to-plan');
+    transitionTimerRef.current = window.setTimeout(() => {
+      setScreen(SCREENS.theme);
+      setScreenTransition(null);
+    }, WELCOME_TRANSITION_MS);
+  };
 
   const handleCameraReady = (stream) => {
     setCameraStream(stream);
@@ -93,12 +140,31 @@ export default function App() {
   };
 
   const finishRoutine = (result) => {
-    const { saved } = saveSessionResult(result);
-    setLatestResult({
-      ...saved,
-      snapshots: result.snapshots || [],
-    });
+    saveSessionResult(result);
+    const updatedHabit = loadHabitProgress();
+    const dailyPlan = buildDailyPlanSummary(updatedHabit);
+
+    if (dailyPlan.isComplete) {
+      setLatestResult({
+        ...dailyPlan,
+        snapshots: result.snapshots || [],
+      });
+    } else {
+      setLatestResult(null);
+    }
     setProgressRevision((value) => value + 1);
+    setScreen(SCREENS.theme);
+  };
+
+  const openDailyResult = () => {
+    const dailyPlan = buildDailyPlanSummary(loadHabitProgress());
+
+    if (!dailyPlan.isComplete) return;
+
+    setLatestResult((current) => ({
+      ...dailyPlan,
+      snapshots: current?.snapshots || [],
+    }));
     setScreen(SCREENS.result);
   };
 
@@ -116,7 +182,11 @@ export default function App() {
       <div className="ambient ambient-two" />
 
       {screen === SCREENS.landing && (
-        <LandingScreen onStart={startTodayPlan} habit={habit} />
+        <LandingScreen
+          onStart={startTodayPlan}
+          habit={habit}
+          isExiting={screenTransition === 'welcome-to-plan'}
+        />
       )}
 
       {screen === SCREENS.permission && (
@@ -141,13 +211,15 @@ export default function App() {
         />
       )}
 
-      {screen === SCREENS.theme && (
+      {(screen === SCREENS.theme || screenTransition === 'welcome-to-plan') && (
         <ThemeScreen
           selectedScene={selectedScene}
           onSelect={selectTheme}
           onGuide={openGuide}
           onBack={resetToLanding}
+          onContinue={openDailyResult}
           habit={habit}
+          isEntering={screenTransition === 'welcome-to-plan'}
         />
       )}
 

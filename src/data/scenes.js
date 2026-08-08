@@ -7,6 +7,12 @@ export const SCENE_IDS = {
   lemonSqueeze: 'lemonSqueeze',
 };
 
+export const TODAY_SCENE_IDS = [
+  SCENE_IDS.whaleDream,
+  SCENE_IDS.templeGarden,
+  SCENE_IDS.flowerCollector,
+];
+
 export const interactionScenes = [
   {
     id: SCENE_IDS.whaleDream,

@@ -956,21 +956,23 @@ function WhaleDreamScene({ interaction }) {
     () =>
       Array.from({ length: 42 }, (_, index) => {
         const fromLeft = index % 2 === 0;
-        const sideOffset = 20 + ((index * 31) % 154);
-        const startX = fromLeft ? sideOffset : 375 - sideOffset;
-        const startY = 228 + ((index * 43) % 278);
-        const mouthX = 82 + ((index * 17) % 82);
-        const mouthY = 500 + ((index * 19) % 86);
+        const sideOffset = 8 + ((index * 31) % 64);
+        const startX = fromLeft ? -28 - sideOffset : 392 + sideOffset;
+        const startY = 248 + ((index * 43) % 222);
+        const mouthX = 118 + ((index * 13) % 26);
+        const mouthY = 420 + ((index * 17) % 32);
 
         return {
           id: index,
-          delay: (index % 14) * 0.105,
-          duration: 1.02 + (index % 8) * 0.12,
+          delay: (index % 14) * 0.115,
+          duration: 1.0 + (index % 8) * 0.1,
           size: 0.58 + (index % 6) * 0.1,
           x: startX,
           y: startY,
           driftX: mouthX - startX,
           driftY: mouthY - startY,
+          cruiseX: fromLeft ? 128 + ((index * 23) % 86) : -128 - ((index * 23) % 86),
+          cruiseY: -20 + (index % 7) * 7,
           side: fromLeft ? 'from-left' : 'from-right',
           special: index % 17 === 0,
         };
@@ -988,13 +990,15 @@ function WhaleDreamScene({ interaction }) {
     [],
   );
 
-  const upperMouth = 355 - mouthOpen * 34;
-  const lowerMouth = 404 + mouthOpen * 46;
+  const upperMouth = 387 - mouthOpen * 54;
+  const lowerMouth = 395 + mouthOpen * 96;
+  const leftMouth = 92 - mouthOpen * 5;
+  const rightMouth = 248 + mouthOpen * 15;
   const mouthPath = [
-    `M 92 ${upperMouth}`,
-    `C 122 ${296 - mouthOpen * 28} 195 ${286 - mouthOpen * 24} 250 ${327 - mouthOpen * 8}`,
-    `C 238 ${386 + mouthOpen * 48} 165 ${448 + mouthOpen * 38} 92 ${lowerMouth}`,
-    `C 64 ${393 + mouthOpen * 22} 64 ${365 - mouthOpen * 8} 92 ${upperMouth}`,
+    `M ${leftMouth} ${upperMouth}`,
+    `C ${124 + mouthOpen * 2} ${354 - mouthOpen * 38} ${196 + mouthOpen * 4} ${342 - mouthOpen * 28} ${rightMouth} ${367 - mouthOpen * 15}`,
+    `C ${231 + mouthOpen * 10} ${393 + mouthOpen * 72} ${158 - mouthOpen * 3} ${422 + mouthOpen * 82} ${leftMouth} ${lowerMouth}`,
+    `C ${75 - mouthOpen * 10} ${395 + mouthOpen * 18} ${75 - mouthOpen * 12} ${383 - mouthOpen * 14} ${leftMouth} ${upperMouth}`,
     'Z',
   ].join(' ');
 
@@ -1046,7 +1050,7 @@ function WhaleDreamScene({ interaction }) {
         />
         <path className="whale-belly" d="M 103 368 C 135 328 200 320 248 350 C 231 427 174 470 102 424 C 78 409 76 384 103 368 Z" />
         <path className="whale-mouth-glow" d={mouthPath} />
-        <path className="whale-mouth-line" d={`M 89 ${upperMouth + 7} C 128 318 196 304 256 336`} />
+        <path className="whale-mouth-line" d={`M ${leftMouth + 2} ${upperMouth + 7} C 127 ${354 - mouthOpen * 36} 197 ${343 - mouthOpen * 27} ${rightMouth} ${365 - mouthOpen * 14}`} />
         <path className="whale-eye" d="M 262 323 C 268 344 291 344 297 323" />
         <circle className="whale-cheek" cx="300" cy="369" r="18" />
         <path className="whale-tail" d="M 314 432 C 360 407 354 354 371 342 C 389 383 378 439 337 462 C 366 470 377 501 364 531 C 336 512 313 486 314 432 Z" />
@@ -1081,6 +1085,8 @@ function WhaleDreamScene({ interaction }) {
               '--fish-y': `${item.y}px`,
               '--drift-x': `${item.driftX}px`,
               '--drift-y': `${item.driftY}px`,
+              '--cruise-x': `${item.cruiseX}px`,
+              '--cruise-y': `${item.cruiseY}px`,
               '--fish-scale': item.size,
               '--fish-delay': `${item.delay - fishWave * 0.055}s`,
               '--fish-duration': `${item.duration}s`,

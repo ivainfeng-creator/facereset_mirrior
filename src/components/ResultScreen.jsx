@@ -1,19 +1,19 @@
 import { useMemo, useState } from 'react';
-import { getSceneById } from '../data/scenes.js';
+import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
 
-const MAX_RESULT_SCORE = 1000;
+const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 
 const SEEDED_LEADERS = [
-  { name: 'Mika T.', score: 970 },
-  { name: 'Jonas R.', score: 950 },
-  { name: 'Aiko S.', score: 930 },
-  { name: 'Devon L.', score: 900 },
-  { name: 'Priya N.', score: 860 },
-  { name: 'Sora K.', score: 840 },
-  { name: 'Bea M.', score: 820 },
-  { name: 'Tomas V.', score: 790 },
-  { name: 'Lena H.', score: 770 },
-  { name: 'Ravi P.', score: 740 },
+  { name: 'Mika T.', score: 2910 },
+  { name: 'Jonas R.', score: 2850 },
+  { name: 'Aiko S.', score: 2790 },
+  { name: 'Devon L.', score: 2700 },
+  { name: 'Priya N.', score: 2580 },
+  { name: 'Sora K.', score: 2520 },
+  { name: 'Bea M.', score: 2460 },
+  { name: 'Tomas V.', score: 2370 },
+  { name: 'Lena H.', score: 2310 },
+  { name: 'Ravi P.', score: 2220 },
 ];
 
 export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onLeaderboard }) {
@@ -22,13 +22,21 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
   const [leaderboardName, setLeaderboardName] = useState('');
   const [nameDraft, setNameDraft] = useState('');
   const [isNameModalDismissed, setIsNameModalDismissed] = useState(false);
-  const score = result?.score ?? 880;
-  const scene = getSceneById(result?.sceneId);
-  const sceneTitle = result?.sceneTitle || scene.title;
-  const focusLabel = result?.area || scene.area || 'Face Reset';
+  const dailyPlan = useMemo(() => {
+    const storedPlan = buildDailyPlanSummary(habit);
+    if (result?.type !== 'daily-plan') return storedPlan;
+    return {
+      ...storedPlan,
+      ...result,
+      sceneResults: result.sceneResults?.length ? result.sceneResults : storedPlan.sceneResults,
+      radar: result.radar?.length ? result.radar : storedPlan.radar,
+    };
+  }, [habit, result]);
+  const score = dailyPlan.score;
+  const sceneTitle = dailyPlan.sceneTitle;
+  const focusLabel = dailyPlan.area;
   const topPercent = getTopPercent(score);
-  const holdSeconds = Math.max(1, Math.round(result?.holdSeconds || result?.durationSeconds || 52));
-  const todayProgress = getTodayPlanProgress(habit, result);
+  const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const leaderboard = useMemo(
     () => buildLeaderboardRows(score, leaderboardName, sceneTitle),
     [leaderboardName, sceneTitle, score],
@@ -41,11 +49,11 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
     setIsExporting(true);
     setExportMessage('Creating your animated reset video...');
     try {
-      const video = await createResultVideo({ result, habit });
+      const video = await createResultVideo({ result: dailyPlan, habit });
       downloadBlob(video.blob, `face-reset-vibe.${video.extension}`);
       setExportMessage(`Downloaded ${video.extension.toUpperCase()} video.`);
     } catch {
-      const image = await createResultImage({ result, habit });
+      const image = await createResultImage({ result: dailyPlan, habit });
       downloadBlob(image.blob, 'face-reset-vibe.png');
       setExportMessage('Video export was not supported here, so a PNG was downloaded.');
     } finally {
@@ -57,7 +65,7 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
     setIsExporting(true);
     setExportMessage('Preparing video for Photos or Instagram...');
     try {
-      const video = await createResultVideo({ result, habit });
+      const video = await createResultVideo({ result: dailyPlan, habit });
       const file = new File([video.blob], `face-reset-vibe.${video.extension}`, { type: video.mimeType });
 
       if (navigator.canShare?.({ files: [file] }) && navigator.share) {
@@ -92,74 +100,106 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 
   return (
     <section className="screen result-screen reset-result-screen result-dashboard-screen">
-      <main className="result-dashboard-shell" aria-label="Face Reset result">
-        <header className="result-dashboard-header">
-          <div>
-            <p>TODAY'S FOCUS / {focusLabel.toUpperCase()}</p>
-            <div className="result-title-row">
-              <h1>{sceneTitle}</h1>
-              <span className="result-header-progress" aria-label={`${todayProgress.completed} of ${todayProgress.total} completed`}>
-                <i style={{ width: `${Math.max(8, (todayProgress.completed / todayProgress.total) * 100)}%` }} />
-              </span>
-              <strong>{todayProgress.completed} / {todayProgress.total}</strong>
-            </div>
-          </div>
-
-          <div className="result-toolbar" aria-label="Result tools">
-            <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download">
-              <DownloadIcon />
-            </button>
-            <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share">
-              <ShareIcon />
-            </button>
-          </div>
+      <main className="result-challenge-shell" aria-label="Face Reset challenge result">
+        <header className="result-challenge-heading">
+          <h1>Face Reset Challenge</h1>
+          <ol className="result-day-strip" aria-label="Seven day challenge progress">
+            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+              <li className={day === 1 ? 'is-current is-complete' : ''} key={day}>
+                {day === 1 ? 'DAY 1' : day}
+                {day === 1 && <span aria-hidden="true">✓</span>}
+              </li>
+            ))}
+          </ol>
         </header>
 
-        <div className="result-dashboard-grid">
-          <section className="result-left-column">
-            <div className="result-stat-card">
-              <div className="result-main-score">
-                <strong>{score}</strong>
-                <span>/1000</span>
+        <div className="result-challenge-grid">
+          <section className="result-summary-card">
+            <div className="result-summary-top">
+              <div>
+                <p className="result-eyebrow">TODAY'S SCORE</p>
+                <div className="result-score-display">
+                  <strong>{toDisplayScore(score)}</strong>
+                  <span>/ 300</span>
+                </div>
               </div>
-              <div className="result-stat-block">
-                <span>RANKING</span>
-                <strong>TOP {topPercent}%</strong>
-              </div>
-              <div className="result-stat-block">
-                <span>HOLD TIME</span>
-                <strong>{holdSeconds} SEC</strong>
+              <div className="result-toolbar" aria-label="Result tools">
+                <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download">
+                  <DownloadIcon />
+                </button>
+                <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share">
+                  <ShareIcon />
+                </button>
               </div>
             </div>
 
-            <ResultRadarPanel result={result} />
+            <div className="result-achievement-row">
+              <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
+              <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
+            </div>
+            <div className="result-delta-row">
+              <span><i><UpIcon /></i><strong>+{Math.max(1, toDisplayScore(score) - 268)} pts</strong> from yesterday</span>
+              <b><PersonalBestIcon />NEW PERSONAL BEST</b>
+            </div>
+
+            <div className="result-summary-divider" />
+            <ResultRadarPanel result={dailyPlan} />
+
+            <div className="result-balance-callout">
+              <img src="/assets/design-v3/result-mascot.png" alt="" />
+              <p>
+                <strong>You looks more relaxed and balanced!</strong>
+                <span>Keep going for even better results.</span>
+              </p>
+            </div>
           </section>
 
-          <aside className="result-right-column">
-            <ResultLeaderboard rows={leaderboard} sceneTitle={sceneTitle} />
+          <aside className="result-challenge-right">
+            <section className="result-focus-card" aria-label="Today's completed sessions">
+              <header className="result-focus-header">
+                <div>
+                  <p className="result-eyebrow">TODAY'S FOCUS</p>
+                  <h2>Facial Warm-up</h2>
+                </div>
+                <div className="result-focus-progress">
+                  <span><i style={{ width: `${(dailyPlan.completed / dailyPlan.total) * 100}%` }} /></span>
+                  <b>{dailyPlan.completed} / {dailyPlan.total}</b>
+                </div>
+              </header>
 
-            <section className="result-plan-strip" aria-label="Today's plan">
-              <div className="result-plan-strip-header">
-                <span>TODAY'S PLAN</span>
-                <strong>{Math.max(0, todayProgress.total - todayProgress.completed)} LEFT / NEXT: {sceneTitle.toUpperCase()}</strong>
-              </div>
-              <div className="result-plan-meter">
-                <i style={{ width: `${Math.max(8, (todayProgress.completed / todayProgress.total) * 100)}%` }} />
-              </div>
-              <ol>
-                {todayProgress.items.map((item, index) => (
-                  <li className={index < todayProgress.completed ? 'is-done' : ''} key={item}>
-                    <strong>{index + 1}</strong>
-                    {item}
+              <ol className="result-session-list">
+                {dailyPlan.sceneResults.map((item, index) => (
+                  <li key={item.sceneId}>
+                    <div className="result-session-art">
+                      <img src={`/assets/design-v3/challenge-step${index + 1}.png`} alt="" />
+                    </div>
+                    <div className="result-session-copy">
+                      <strong>{item.sceneTitle}</strong>
+                      <span>30 sec · {['Warm up', 'Activate', 'Unwind'][index]}</span>
+                    </div>
+                    <div className="result-done-stamp" aria-label={`Done, score ${toSceneDisplayScore(item.score)}`}>
+                      DONE | {toSceneDisplayScore(item.score)}
+                    </div>
+                    <button type="button" onClick={onRestart} aria-label={`Play ${item.sceneTitle} again`}>
+                      <RestartIcon />
+                    </button>
                   </li>
                 ))}
               </ol>
+
+              <div className="result-day-complete">
+                <div>
+                  <strong>Day 1 Complete</strong>
+                  <span>Come back tomorrow for Day 2</span>
+                </div>
+                <div className="result-calendar" aria-hidden="true">
+                  <small>DAY</small>
+                  <b>2</b>
+                </div>
+              </div>
             </section>
 
-            <div className="result-dashboard-actions">
-              <button type="button" onClick={onTodayPlan || onLeaderboard}>Today's plan</button>
-              <button type="button" onClick={onRestart}>Try again</button>
-            </div>
+            <ResultLeaderboard rows={leaderboard} />
           </aside>
         </div>
 
@@ -180,75 +220,115 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 
 function ResultRadarPanel({ result }) {
   const afterMetrics = normalizeDownloadRadar(result?.radar).slice(0, 5);
+  const metricDeltas = [13, 11, 18, 16, 14];
   const beforeMetrics = afterMetrics.map((metric, index) => ({
     ...metric,
-    value: Math.max(24, (metric.value || 0) - 13 - index),
+    value: Math.max(24, (metric.value || 0) - metricDeltas[index]),
   }));
-  const afterPoints = getRadarPointString(afterMetrics);
-  const beforePoints = getRadarPointString(beforeMetrics);
+  const axes = [-90, -18, 54, 126, 198];
+  const radius = 89;
+  const pointFor = (value, index, extraRadius = 0) => {
+    const angle = axes[index] * Math.PI / 180;
+    const distance = extraRadius || (Math.max(0, Math.min(100, value)) / 100) * radius;
+    return {
+      x: 100 + Math.cos(angle) * distance,
+      y: 100 + Math.sin(angle) * distance,
+    };
+  };
+  const afterPoints = afterMetrics.map((metric, index) => {
+    const point = pointFor(metric.value, index);
+    return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+  }).join(' ');
+  const beforePoints = beforeMetrics.map((metric, index) => {
+    const point = pointFor(metric.value, index);
+    return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+  }).join(' ');
+  const clipPoints = afterMetrics.map((metric, index) => {
+    const point = pointFor(Math.min(metric.value, beforeMetrics[index].value * 0.94), index);
+    return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+  }).join(' ');
 
   return (
-    <section className="result-radar-card" aria-label="Before and after radar">
+    <section className="result-radar-card" aria-label="Your face balance">
       <div className="result-radar-topline">
-        <span>BEFORE / AFTER</span>
+        <span>YOUR FACE BALANCE <i aria-hidden="true">i</i></span>
         <div>
-          <b className="before-key">BEFORE</b>
-          <b className="after-key">AFTER</b>
+          <b className="before-key">Before</b>
+          <b className="after-key">After</b>
         </div>
       </div>
       <div className="result-radar-stage">
-        <svg viewBox="0 0 420 420" role="img" aria-label="Result radar chart">
-          {[0.33, 0.66, 1].map((level) => (
-            <circle className="result-radar-ring" cx="210" cy="210" r={150 * level} key={level} />
-          ))}
+        <svg viewBox="0 0 200 200" role="img" aria-label="Result radar chart">
+          <defs>
+            <clipPath id="result-radar-photo-clip">
+              <polygon points={clipPoints} />
+            </clipPath>
+          </defs>
+          <circle className="result-radar-ring" cx="100" cy="100" r={radius} />
           {afterMetrics.map((metric, index) => {
-            const point = getRadarAxisPoint(index, afterMetrics.length, 174);
+            const point = pointFor(100, index, radius);
             return (
               <line
                 className="result-radar-axis-line"
-                x1="210"
-                y1="210"
+                x1="100"
+                y1="100"
                 x2={point.x}
                 y2={point.y}
                 key={metric.label}
               />
             );
           })}
+          <image
+            className="result-radar-photo"
+            href="/assets/design-v3/result-mascot.png"
+            x="11"
+            y="11"
+            width="178"
+            height="178"
+            preserveAspectRatio="xMidYMid meet"
+            clipPath="url(#result-radar-photo-clip)"
+          />
           <polygon className="result-radar-before" points={beforePoints} />
-          <polygon className="result-radar-after-fill" points={afterPoints} />
-          <polygon className="result-radar-after-line" points={afterPoints} />
+          <polygon className="result-radar-after" points={afterPoints} />
           {afterMetrics.map((metric, index) => {
-            const valuePoint = getRadarValuePoint(metric.value, index, afterMetrics.length);
-            const labelPoint = getRadarAxisPoint(index, afterMetrics.length, 188);
+            const valuePoint = pointFor(metric.value, index);
             return (
-              <g key={`${metric.label}-label`}>
-                <circle className="result-radar-node" cx={valuePoint.x} cy={valuePoint.y} r="8" />
-                <text className="result-radar-label" x={labelPoint.x} y={labelPoint.y}>
-                  {metric.label.toUpperCase()}
-                </text>
-                <text className="result-radar-delta" x={labelPoint.x} y={labelPoint.y + 20}>
-                  +{Math.max(7, Math.round((metric.value - beforeMetrics[index].value) * 0.85))}
-                </text>
-              </g>
+              <circle
+                className="result-radar-node"
+                cx={valuePoint.x}
+                cy={valuePoint.y}
+                r="3.8"
+                key={`${metric.label}-node`}
+              />
             );
           })}
         </svg>
-        <div className="result-radar-mascot" aria-hidden="true">
-          <span className="mascot-eye left" />
-          <span className="mascot-eye right" />
-          <span className="mascot-mouth" />
-        </div>
+        {afterMetrics.map((metric, index) => {
+          const angle = axes[index] * Math.PI / 180;
+          const labelRadius = Math.min(radius + 26, (metric.value / 100) * radius + 30);
+          const x = 50 + (Math.cos(angle) * labelRadius) / 2;
+          const y = 50 + (Math.sin(angle) * labelRadius) / 2;
+          return (
+            <div
+              className="result-radar-axis-label"
+              key={`${metric.label}-label`}
+              style={{ left: `${x}%`, top: `${y}%` }}
+            >
+              <span>{metric.label.toUpperCase()}</span>
+              <strong>+{metricDeltas[index]}</strong>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function ResultLeaderboard({ rows, sceneTitle }) {
+function ResultLeaderboard({ rows }) {
   return (
     <section className="result-leaderboard-card" aria-label="Today's leaderboard">
       <header>
         <span>TODAY'S LEADERBOARD</span>
-        <strong>{sceneTitle}</strong>
       </header>
       <ol>
         {rows.slice(0, 10).map((row) => (
@@ -256,12 +336,20 @@ function ResultLeaderboard({ rows, sceneTitle }) {
             <span>{row.rank}</span>
             <i>{row.name.charAt(0).toUpperCase()}</i>
             <strong>{row.name}</strong>
-            <b>{row.score}</b>
+            <b>{toDisplayScore(row.score)}</b>
           </li>
         ))}
       </ol>
     </section>
   );
+}
+
+function toDisplayScore(score) {
+  return Math.max(0, Math.min(300, Math.round((Number(score) || 0) / 10)));
+}
+
+function toSceneDisplayScore(score) {
+  return Math.max(0, Math.min(100, Math.round((Number(score) || 0) / 10)));
 }
 
 function LeaderboardNameModal({ nameDraft, onChange, onClose, onSubmit }) {
@@ -319,6 +407,31 @@ function ShareIcon() {
   );
 }
 
+function TrophyIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 960 960">
+      <path d="M280 880v-80h160V676q-49-11-87.5-41.5T296 556q-75-9-125.5-65.5T120 360v-40q0-33 23.5-56.5T200 240h80v-80h400v80h80q33 0 56.5 23.5T840 320v40q0 74-50.5 130.5T664 556q-18 48-56.5 78.5T520 676v124h160v80H280Zm0-408V320h-80v40q0 38 22 68.5t58 43.5Zm400 0q36-13 58-43.5t22-68.5v-40h-80v152Z" />
+    </svg>
+  );
+}
+
+function UpIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M12 19V6" />
+      <path d="m6 11.5 6-6 6 6" />
+    </svg>
+  );
+}
+
+function PersonalBestIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 960 960">
+      <path d="m354 713 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143Zm126 167q-83 0-156-31.5T197 763q-54-54-85.5-127T80 480q0-83 31.5-156T197 197q54-54 127-85.5T480 80q83 0 156 31.5T763 197q54 54 85.5 127T880 480q0 83-31.5 156T763 763q-54 54-127 85.5T480 880Z" />
+    </svg>
+  );
+}
+
 function buildLeaderboardRows(score, name, sceneTitle) {
   const rows = [
     ...SEEDED_LEADERS,
@@ -334,26 +447,6 @@ function buildLeaderboardRows(score, name, sceneTitle) {
     ...row,
     rank: index + 1,
   }));
-}
-
-function getTodayPlanProgress(habit, result) {
-  const today = new Date().toISOString().slice(0, 10);
-  const completedSceneIds = new Set(
-    (habit?.history || [])
-      .filter((entry) => entry.date === today)
-      .map((entry) => entry.sceneId)
-      .filter(Boolean),
-  );
-  if (result?.sceneId) completedSceneIds.add(result.sceneId);
-
-  const items = ['Whale Mouth', 'Cloud Garden', 'Flower Collector'];
-  const completed = Math.min(items.length, Math.max(1, completedSceneIds.size || 1));
-
-  return {
-    completed,
-    total: items.length,
-    items,
-  };
 }
 
 function getRadarPointString(metrics) {
@@ -489,9 +582,9 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
   context.fillStyle = '#0f1111';
   context.textAlign = 'center';
   context.font = '900 58px Inter, sans-serif';
-  context.fillText('Nice work', width / 2, 108);
+  context.fillText('Full reset complete', width / 2, 108);
   context.font = '600 28px Inter, sans-serif';
-  context.fillText('Your expression looks softer and more relaxed.', width / 2, 154);
+  context.fillText('Three sessions, one softer face.', width / 2, 154);
 
   drawRadar(context, radar, width / 2, 560, 330, progress);
 
@@ -520,7 +613,7 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
   context.font = '500 24px Inter, sans-serif';
   wrapText(
     context,
-    result?.comment || '今天的眼下雨刷完成！慢慢刷、輕輕滑，臉上的雲有被擦亮一點。',
+    result?.comment || 'Today’s three Face Reset sessions are complete.',
     76,
     1124,
     748,
@@ -530,7 +623,7 @@ function drawResultFrame(context, { habit, hero, progress, radar, result, score,
 
 function getTopPercent(score) {
   const normalizedScore = getScorePercent(score);
-  return Math.max(3, Math.min(18, Math.round(22 - normalizedScore * 0.14)));
+  return Math.max(3, Math.min(18, Math.round(24 - normalizedScore * 0.2)));
 }
 
 function getScorePercent(score) {
