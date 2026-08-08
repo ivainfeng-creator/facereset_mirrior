@@ -17,11 +17,12 @@ import {
   createSceneInteractionContract,
   updateInteractionSignal,
 } from '../utils/interactionSignal.js';
+import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
-const MAX_SCENE_SCORE = 1000;
+const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
 
 export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, stream, isDemoMode, onComplete, onExit }) {
   const videoRef = useRef(null);
@@ -212,7 +213,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       video: videoRef.current,
       isDemoMode,
       progress: globalProgress,
-      score: interaction.score,
+      score: toFinalSceneScore(interaction.score),
     });
 
     if (snapshot) {
@@ -228,12 +229,13 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     }));
   }, [interaction.score, selectedScene]);
 
-  const displayScore = Math.max(stageScores[selectedScene] || 0, interaction.score);
+  const rawDisplayScore = Math.max(stageScores[selectedScene] || 0, interaction.score);
+  const displayScore = toFinalSceneScore(rawDisplayScore);
   const finishRoutine = () => {
     onComplete(buildResult(
       {
         ...stageScores,
-        [selectedScene]: displayScore,
+        [selectedScene]: rawDisplayScore,
       },
       snapshotFramesRef.current,
       selectedScene,

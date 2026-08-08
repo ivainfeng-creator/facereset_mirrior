@@ -1,16 +1,14 @@
 import { getSceneById, TODAY_SCENE_IDS } from '../data/scenes.js';
+import { SCENE_SCORE_MAX, clampSceneScore } from './scoring.js';
+import { getEffectiveLocalDateKey, toLocalDateKey } from './effectiveDate.js';
+import { getCurrentProgramDay } from './programDay.js';
 
-export const SCENE_MAX_SCORE = 1000;
+export const SCENE_MAX_SCORE = SCENE_SCORE_MAX;
 export const DAILY_TOTAL_MAX_SCORE = TODAY_SCENE_IDS.length * SCENE_MAX_SCORE;
 
-export function getLocalDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
+export const getLocalDateKey = toLocalDateKey;
 
-export function buildDailyPlanSummary(habit, { date = getLocalDateKey() } = {}) {
+export function buildDailyPlanSummary(habit, { date = getEffectiveLocalDateKey() } = {}) {
   const bestByScene = new Map();
 
   (habit?.history || []).forEach((entry) => {
@@ -35,10 +33,16 @@ export function buildDailyPlanSummary(habit, { date = getLocalDateKey() } = {}) 
   });
   const completed = sceneResults.filter((entry) => entry.completed).length;
   const score = sceneResults.reduce((total, entry) => total + entry.score, 0);
+  const programDay = getCurrentProgramDay({
+    programDayByDate: habit?.programDayByDate,
+    history: habit?.history,
+    date,
+  });
 
   return {
     type: 'daily-plan',
     date,
+    programDay,
     completed,
     total: TODAY_SCENE_IDS.length,
     isComplete: completed === TODAY_SCENE_IDS.length,
@@ -54,6 +58,27 @@ export function buildDailyPlanSummary(habit, { date = getLocalDateKey() } = {}) 
     sceneResults,
     radar: buildDailyRadar(sceneResults),
   };
+}
+
+export function getCompletedProgramDays(habit) {
+  const scenesByDate = new Map();
+
+  (habit?.history || []).forEach((entry) => {
+    if (!entry?.date || !TODAY_SCENE_IDS.includes(entry.sceneId)) return;
+    const completedScenes = scenesByDate.get(entry.date) || new Set();
+    completedScenes.add(entry.sceneId);
+    scenesByDate.set(entry.date, completedScenes);
+  });
+
+  return new Set(
+    [...scenesByDate.entries()]
+      .filter(([, completedScenes]) => completedScenes.size === TODAY_SCENE_IDS.length)
+      .map(([date]) => getCurrentProgramDay({
+        programDayByDate: habit?.programDayByDate,
+        history: habit?.history,
+        date,
+      })),
+  );
 }
 
 function buildDailyRadar(sceneResults) {
@@ -72,7 +97,5 @@ function buildDailyRadar(sceneResults) {
 }
 
 function clampScore(score) {
-  const numeric = Number(score);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.min(SCENE_MAX_SCORE, Math.round(numeric)));
+  return clampSceneScore(score);
 }

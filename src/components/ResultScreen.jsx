@@ -1,27 +1,25 @@
-import { useMemo, useState } from 'react';
-import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
+import { useEffect, useMemo, useState } from 'react';
+import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE, getCompletedProgramDays } from '../utils/dailyPlan.js';
+import {
+  fetchProgramDayLeaderboard,
+  getSupabaseDisplayName,
+  saveSupabaseDisplayName,
+} from '../utils/supabaseProgressAdapter.js';
+import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 
-const SEEDED_LEADERS = [
-  { name: 'Mika T.', score: 2910 },
-  { name: 'Jonas R.', score: 2850 },
-  { name: 'Aiko S.', score: 2790 },
-  { name: 'Devon L.', score: 2700 },
-  { name: 'Priya N.', score: 2580 },
-  { name: 'Sora K.', score: 2520 },
-  { name: 'Bea M.', score: 2460 },
-  { name: 'Tomas V.', score: 2370 },
-  { name: 'Lena H.', score: 2310 },
-  { name: 'Ravi P.', score: 2220 },
-];
-
-export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onLeaderboard }) {
+export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
-  const [leaderboardName, setLeaderboardName] = useState('');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(true);
+  const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
+  const [isNameEntryOpen, setIsNameEntryOpen] = useState(false);
+  const [isNameChecking, setIsNameChecking] = useState(false);
+  const [isNameSaving, setIsNameSaving] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
-  const [isNameModalDismissed, setIsNameModalDismissed] = useState(false);
+  const [nameError, setNameError] = useState('');
   const dailyPlan = useMemo(() => {
     const storedPlan = buildDailyPlanSummary(habit);
     if (result?.type !== 'daily-plan') return storedPlan;
@@ -37,13 +35,89 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
   const focusLabel = dailyPlan.area;
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
-  const leaderboard = useMemo(
-    () => buildLeaderboardRows(score, leaderboardName, sceneTitle),
-    [leaderboardName, sceneTitle, score],
-  );
-  const userRow = leaderboard.find((row) => row.isUser);
-  const isTopTen = (userRow?.rank || 99) <= 10;
-  const showNameModal = isTopTen && !leaderboardName && !isNameModalDismissed;
+  const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
+  const completedProgramDays = getCompletedProgramDays(habit);
+
+  useEffect(() => {
+    let isCurrent = true;
+    const loadLeaderboard = async () => {
+      const rows = await fetchProgramDayLeaderboard(programDay);
+      if (!isCurrent) return;
+      setLeaderboard(rows.map((row) => ({
+        rank: Number(row.rank),
+        name: row.display_name || 'Anonymous',
+        score: Math.max(0, Number(row.total_score) || 0),
+      })));
+      setIsLeaderboardLoading(false);
+    };
+
+    setIsLeaderboardLoading(true);
+    void loadLeaderboard();
+    return () => {
+      isCurrent = false;
+    };
+  }, [programDay, habit?.updatedAt, leaderboardRefreshKey]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    if (!shouldPromptForDisplayName || !dailyPlan.isComplete) {
+      setIsNameEntryOpen(false);
+      return () => { isCurrent = false; };
+    }
+
+    const resolveName = async () => {
+      setIsNameChecking(true);
+      const localName = getDisplayName(habit);
+      if (localName) {
+        if (isCurrent) {
+          setNameDraft(localName);
+          setIsNameEntryOpen(false);
+          setIsNameChecking(false);
+        }
+        return;
+      }
+
+      const cloudName = await getSupabaseDisplayName();
+      if (!isCurrent) return;
+      if (cloudName) {
+        saveDisplayName(cloudName);
+        onProgressChanged?.();
+        setNameDraft(cloudName);
+        setIsNameEntryOpen(false);
+      } else {
+        setIsNameEntryOpen(true);
+      }
+      setIsNameChecking(false);
+    };
+
+    void resolveName();
+    return () => { isCurrent = false; };
+  }, [dailyPlan.isComplete, habit?.displayName, onProgressChanged, shouldPromptForDisplayName]);
+
+  const saveName = async (event) => {
+    event.preventDefault();
+    const displayName = normalizeDisplayName(nameDraft);
+    if (!displayName) {
+      setNameError('Enter a display name to join the leaderboard.');
+      return;
+    }
+
+    setNameError('');
+    saveDisplayName(displayName);
+    onProgressChanged?.();
+    setIsNameSaving(true);
+    const saved = await saveSupabaseDisplayName(displayName);
+    setIsNameSaving(false);
+
+    if (!saved.ok) {
+      setNameError('Saved on this device. Check your connection and try again to sync it to the leaderboard.');
+      return;
+    }
+
+    setNameDraft(saved.displayName);
+    setIsNameEntryOpen(false);
+    setLeaderboardRefreshKey((value) => value + 1);
+  };
 
   const downloadVideo = async () => {
     setIsExporting(true);
@@ -90,14 +164,6 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
     }
   };
 
-  const submitLeaderboardName = (event) => {
-    event.preventDefault();
-    const trimmedName = nameDraft.trim();
-    if (!trimmedName) return;
-    setLeaderboardName(trimmedName.slice(0, 18));
-    setIsNameModalDismissed(true);
-  };
-
   return (
     <section className="screen result-screen reset-result-screen result-dashboard-screen">
       <main className="result-challenge-shell" aria-label="Face Reset challenge result">
@@ -105,9 +171,9 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
           <h1>Face Reset Challenge</h1>
           <ol className="result-day-strip" aria-label="Seven day challenge progress">
             {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-              <li className={day === 1 ? 'is-current is-complete' : ''} key={day}>
-                {day === 1 ? 'DAY 1' : day}
-                {day === 1 && <span aria-hidden="true">✓</span>}
+              <li className={`${day === programDay ? 'is-current ' : ''}${completedProgramDays.has(day) ? 'is-complete' : ''}`} key={day}>
+                {day === programDay ? `DAY ${day}` : day}
+                {completedProgramDays.has(day) && <span aria-hidden="true">✓</span>}
               </li>
             ))}
           </ol>
@@ -117,9 +183,9 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
           <section className="result-summary-card">
             <div className="result-summary-top">
               <div>
-                <p className="result-eyebrow">TODAY'S SCORE</p>
+              <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
                 <div className="result-score-display">
-                  <strong>{toDisplayScore(score)}</strong>
+                  <strong>{score}</strong>
                   <span>/ 300</span>
                 </div>
               </div>
@@ -138,7 +204,7 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
               <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
             </div>
             <div className="result-delta-row">
-              <span><i><UpIcon /></i><strong>+{Math.max(1, toDisplayScore(score) - 268)} pts</strong> from yesterday</span>
+              <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
               <b><PersonalBestIcon />NEW PERSONAL BEST</b>
             </div>
 
@@ -177,8 +243,8 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
                       <strong>{item.sceneTitle}</strong>
                       <span>30 sec · {['Warm up', 'Activate', 'Unwind'][index]}</span>
                     </div>
-                    <div className="result-done-stamp" aria-label={`Done, score ${toSceneDisplayScore(item.score)}`}>
-                      DONE | {toSceneDisplayScore(item.score)}
+                    <div className="result-done-stamp" aria-label={`Done, score ${item.score}`}>
+                      DONE | {item.score}
                     </div>
                     <button type="button" onClick={onRestart} aria-label={`Play ${item.sceneTitle} again`}>
                       <RestartIcon />
@@ -189,31 +255,60 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 
               <div className="result-day-complete">
                 <div>
-                  <strong>Day 1 Complete</strong>
-                  <span>Come back tomorrow for Day 2</span>
+                  <strong>Day {programDay} Complete</strong>
+                  <span>Come back on your next active day for Day {programDay + 1}</span>
                 </div>
                 <div className="result-calendar" aria-hidden="true">
                   <small>DAY</small>
-                  <b>2</b>
+                  <b>{programDay + 1}</b>
                 </div>
               </div>
             </section>
 
-            <ResultLeaderboard rows={leaderboard} />
+            <ResultLeaderboard
+              rows={leaderboard}
+              programDay={programDay}
+              isLoading={isLeaderboardLoading}
+            />
           </aside>
         </div>
 
         {exportMessage && <p className="export-message result-dashboard-message">{exportMessage}</p>}
-      </main>
 
-      {showNameModal && (
-        <LeaderboardNameModal
-          nameDraft={nameDraft}
-          onChange={setNameDraft}
-          onClose={() => setIsNameModalDismissed(true)}
-          onSubmit={submitLeaderboardName}
-        />
-      )}
+        {isNameEntryOpen && !isNameChecking && (
+          <div className="result-name-entry-backdrop" role="presentation">
+            <form className="result-name-entry-modal" onSubmit={saveName}>
+              <button
+                className="result-name-entry-close"
+                type="button"
+                aria-label="Close name entry"
+                onClick={() => setIsNameEntryOpen(false)}
+              >
+                ×
+              </button>
+              <h2>You&apos;re on the leaderboard!</h2>
+              <p>Enter a display name to appear on Day {programDay}&apos;s leaderboard.</p>
+              <label htmlFor="leaderboard-display-name">Display name</label>
+              <input
+                id="leaderboard-display-name"
+                value={nameDraft}
+                maxLength={24}
+                placeholder="Enter your name"
+                onChange={(event) => {
+                  setNameDraft(event.target.value);
+                  setNameError('');
+                }}
+                autoComplete="nickname"
+                autoFocus
+              />
+              {nameError && <small className="result-name-entry-error">{nameError}</small>}
+              <button className="result-name-entry-submit" type="submit" disabled={isNameSaving}>
+                {isNameSaving ? 'Saving...' : 'Join the Leaderboard'}
+              </button>
+            </form>
+          </div>
+        )}
+      </main>
     </section>
   );
 }
@@ -324,55 +419,27 @@ function ResultRadarPanel({ result }) {
   );
 }
 
-function ResultLeaderboard({ rows }) {
+function ResultLeaderboard({ rows, programDay, isLoading }) {
   return (
-    <section className="result-leaderboard-card" aria-label="Today's leaderboard">
+    <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
       <header>
-        <span>TODAY'S LEADERBOARD</span>
+        <span>DAY {programDay} LEADERBOARD</span>
       </header>
       <ol>
         {rows.slice(0, 10).map((row) => (
-          <li className={row.isUser ? 'is-user' : ''} key={`${row.rank}-${row.name}`}>
+          <li key={`${row.rank}-${row.name}`}>
             <span>{row.rank}</span>
             <i>{row.name.charAt(0).toUpperCase()}</i>
             <strong>{row.name}</strong>
-            <b>{toDisplayScore(row.score)}</b>
+            <b>{row.score}</b>
           </li>
         ))}
+        {!isLoading && !rows.length && (
+          <li className="result-leaderboard-empty">Complete all 3 sessions to be the first on Day {programDay}.</li>
+        )}
+        {isLoading && <li className="result-leaderboard-empty">Loading leaderboard...</li>}
       </ol>
     </section>
-  );
-}
-
-function toDisplayScore(score) {
-  return Math.max(0, Math.min(300, Math.round((Number(score) || 0) / 10)));
-}
-
-function toSceneDisplayScore(score) {
-  return Math.max(0, Math.min(100, Math.round((Number(score) || 0) / 10)));
-}
-
-function LeaderboardNameModal({ nameDraft, onChange, onClose, onSubmit }) {
-  return (
-    <div className="leaderboard-name-backdrop" role="presentation">
-      <form className="leaderboard-name-modal" onSubmit={onSubmit} aria-label="Join leaderboard">
-        <button type="button" className="leaderboard-name-close" onClick={onClose} aria-label="Close">×</button>
-        <h2>YOU'RE IN TOP 10!</h2>
-        <p>Enter a display name to appear on leaderboard.</p>
-        <input
-          autoFocus
-          type="text"
-          value={nameDraft}
-          maxLength={18}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder="Enter your name"
-          aria-label="Display name"
-        />
-        <button type="submit" disabled={!nameDraft.trim()}>
-          Join the Leaderboard
-        </button>
-      </form>
-    </div>
   );
 }
 
@@ -430,23 +497,6 @@ function PersonalBestIcon() {
       <path d="m354 713 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143Zm126 167q-83 0-156-31.5T197 763q-54-54-85.5-127T80 480q0-83 31.5-156T197 197q54-54 127-85.5T480 80q83 0 156 31.5T763 197q54 54 85.5 127T880 480q0 83-31.5 156T763 763q-54 54-127 85.5T480 880Z" />
     </svg>
   );
-}
-
-function buildLeaderboardRows(score, name, sceneTitle) {
-  const rows = [
-    ...SEEDED_LEADERS,
-    {
-      name: name || 'You',
-      score,
-      detail: sceneTitle,
-      isUser: true,
-    },
-  ].sort((a, b) => b.score - a.score);
-
-  return rows.map((row, index) => ({
-    ...row,
-    rank: index + 1,
-  }));
 }
 
 function getRadarPointString(metrics) {

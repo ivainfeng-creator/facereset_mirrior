@@ -1,10 +1,19 @@
-import { getSceneById, SCENE_IDS } from '../data/scenes.js';
+import { getSceneById, SCENE_IDS, TODAY_SCENE_IDS } from '../data/scenes.js';
+import { clampSceneScore, migrateLegacyRawSceneScore } from './scoring.js';
+import { getEffectiveLocalDateKey, toLocalDateKey as formatLocalDateKey } from './effectiveDate.js';
+import {
+  assignProgramDayForActivity,
+  getProgramDayForDate,
+  isValidProgramDay,
+  normalizeProgramDayHistory,
+} from './programDay.js';
 
 const STORAGE_KEY = 'face-reset-mirror-habit';
 const DEVICE_KEY = 'face-reset-mirror-device-id';
 const GUIDE_KEY = 'face-reset-mirror-seen-guides-v1';
-const STORAGE_VERSION = 2;
-const MAX_STORED_SCORE = 1000;
+const SYNC_QUEUE_KEY = 'face-reset-mirror-supabase-sync-v1';
+const STORAGE_VERSION = 5;
+const MAX_STORED_SCORE = 100;
 
 const faceAreas = [
   { key: 'underEye', label: 'Under-eye', target: 2 },
@@ -18,6 +27,7 @@ const defaultHabit = {
   version: STORAGE_VERSION,
   authMode: 'guest',
   deviceId: '',
+  displayName: '',
   streak: 0,
   bestScore: null,
   latestScore: null,
@@ -27,18 +37,14 @@ const defaultHabit = {
   dailyResults: {},
   sceneStats: {},
   areaDates: {},
+  programDayByDate: {},
   history: [],
   areaCounts: {},
 };
 
-const toLocalDateKey = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+export const toLocalDateKey = formatLocalDateKey;
 
-const todayKey = () => toLocalDateKey();
+const todayKey = () => getEffectiveLocalDateKey();
 
 const dateDiffDays = (fromDate, toDate) => {
   const from = new Date(`${fromDate}T00:00:00`);
@@ -62,19 +68,51 @@ export function loadHabit() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     const parsed = stored ? JSON.parse(stored) : {};
-    return migrateHabit({
+    const storedVersion = Number(parsed.version || 0);
+    const needsScoreMigration = storedVersion < 4;
+    const needsProgramDayMigration = storedVersion < STORAGE_VERSION;
+    const habit = migrateHabit({
       ...defaultHabit,
       ...parsed,
       deviceId: parsed.deviceId || getDeviceId(),
       history: parsed.history || [],
       areaCounts: parsed.areaCounts || {},
-    });
+    }, { needsScoreMigration, needsProgramDayMigration });
+    if (needsScoreMigration || needsProgramDayMigration) {
+      persistHabit(habit);
+      migrateQueuedSessions({
+        needsScoreMigration,
+        needsProgramDayMigration,
+        programDayByDate: habit.programDayByDate,
+      });
+    }
+    return habit;
   } catch {
     return {
       ...defaultHabit,
       deviceId: getDeviceId(),
     };
   }
+}
+
+export function normalizeDisplayName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+}
+
+export function getDisplayName(habit = loadHabit()) {
+  return normalizeDisplayName(habit?.displayName);
+}
+
+export function saveDisplayName(value) {
+  const current = loadHabit();
+  const displayName = normalizeDisplayName(value);
+  const next = {
+    ...current,
+    displayName,
+    updatedAt: new Date().toISOString(),
+  };
+  persistHabit(next);
+  return next;
 }
 
 export function saveResult(result) {
@@ -99,17 +137,23 @@ export function saveResult(result) {
   }
 
   completedDates.add(date);
+  const { programDay, programDayByDate } = assignProgramDayForActivity({
+    programDayByDate: current.programDayByDate,
+    history: current.history,
+    date,
+  });
 
   const { snapshots, ...shareSafeResult } = result;
   const saved = {
     ...shareSafeResult,
-    id: `${date}-${Date.now()}`,
+    id: createSessionId(),
     sceneId,
     sceneTitle: scene.title,
     areaKey: scene.areaKey,
     area: scene.area,
     stamp: scene.stamp,
     date,
+    programDay,
     completedAt: new Date().toISOString(),
     score,
     streak,
@@ -127,7 +171,7 @@ export function saveResult(result) {
     ...(current.sceneStats || {}),
     [sceneId]: buildSceneStats(current.sceneStats?.[sceneId], saved),
   };
-  const history = [saved, ...(current.history || [])].slice(0, 80);
+  const history = [saved, ...(current.history || [])].slice(0, 250);
   const bestScore = Math.max(current.bestScore || 0, score);
 
   const nextHabit = {
@@ -146,11 +190,149 @@ export function saveResult(result) {
     sceneStats,
     areaDates,
     areaCounts,
+    programDayByDate,
     history,
   };
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextHabit));
+  persistHabit(nextHabit);
+  enqueueSessionForSync(saved);
   return saved;
+}
+
+export function getSessionSyncQueue() {
+  try {
+    const entries = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+    return Array.isArray(entries) ? entries.filter((entry) => entry?.id) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function removeSessionFromSyncQueue(sessionId) {
+  const nextQueue = getSessionSyncQueue().filter((entry) => entry.id !== sessionId);
+  persistSessionSyncQueue(nextQueue);
+  return nextQueue;
+}
+
+export function enqueueSessionForSync(session) {
+  if (!session?.id) return getSessionSyncQueue();
+  const queue = getSessionSyncQueue();
+  if (queue.some((entry) => entry.id === session.id)) return queue;
+  const nextQueue = [...queue, session].slice(-250);
+  persistSessionSyncQueue(nextQueue);
+  return nextQueue;
+}
+
+export function buildDailyProgressPayload(habit = loadHabit(), date = todayKey()) {
+  const bestByScene = new Map();
+  (habit.history || []).forEach((entry) => {
+    if (entry?.date !== date || !entry?.sceneId) return;
+    const previous = bestByScene.get(entry.sceneId);
+    if (!previous || clampScore(entry.score) > clampScore(previous.score)) {
+      bestByScene.set(entry.sceneId, entry);
+    }
+  });
+
+  const sceneScores = Object.fromEntries(
+    [...bestByScene.entries()].map(([sceneId, entry]) => [sceneId, clampScore(entry.score)]),
+  );
+  const completedSessions = TODAY_SCENE_IDS.filter((sceneId) => sceneScores[sceneId] > 0).length;
+  const totalScore = TODAY_SCENE_IDS.reduce((total, sceneId) => total + (sceneScores[sceneId] || 0), 0);
+  const programDay = getStoredProgramDayForDate(habit, date);
+
+  return {
+    progress_date: date,
+    program_day: programDay,
+    total_score: totalScore,
+    completed_sessions: completedSessions,
+    is_complete: completedSessions === TODAY_SCENE_IDS.length,
+    scene_scores: sceneScores,
+    streak_days: Math.max(0, Number(habit.streak) || 0),
+  };
+}
+
+export function toCloudSessionResult(session) {
+  if (!session?.id || !session?.sceneId || !session?.date || !isValidProgramDay(session.programDay)) return null;
+  return {
+    id: session.id,
+    progress_date: session.date,
+    program_day: Number(session.programDay),
+    scene_id: session.sceneId,
+    score: clampScore(session.score),
+    duration_seconds: toNullableInteger(session.durationSeconds ?? session.holdSeconds),
+    interaction_summary: {
+      completedAt: session.completedAt || null,
+      completion: toNullableNumber(session.completion),
+      holdSeconds: toNullableNumber(session.holdSeconds),
+      feedback: session.feedback || null,
+      metrics: session.metrics || {},
+      radar: session.radar || [],
+    },
+  };
+}
+
+export function mergeHabitWithCloud({ habit = loadHabit(), progressRows = [], sessionRows = [] } = {}) {
+  const entriesById = new Map();
+  (habit.history || []).forEach((entry) => {
+    if (entry?.id) entriesById.set(entry.id, entry);
+  });
+
+  (sessionRows || []).forEach((row) => {
+    const entry = cloudSessionToHistoryEntry(row);
+    if (!entry) return;
+    const current = entriesById.get(entry.id);
+    entriesById.set(entry.id, chooseMoreCompleteEntry(current, entry));
+  });
+
+  const bestScoreByDateScene = new Map();
+  [...entriesById.values()].forEach((entry) => {
+    if (!entry?.date || !entry?.sceneId) return;
+    const key = `${entry.date}:${entry.sceneId}`;
+    bestScoreByDateScene.set(key, Math.max(bestScoreByDateScene.get(key) || 0, clampScore(entry.score)));
+  });
+
+  (progressRows || []).forEach((row) => {
+    const date = row?.progress_date;
+    const sceneScores = row?.scene_scores && typeof row.scene_scores === 'object' ? row.scene_scores : {};
+    Object.entries(sceneScores).forEach(([sceneId, rawScore]) => {
+      const score = clampScore(rawScore);
+      const key = `${date}:${sceneId}`;
+      if (!date || !score || (bestScoreByDateScene.get(key) || 0) >= score) return;
+      const scene = getSceneById(sceneId);
+      entriesById.set(`cloud-summary-${date}-${sceneId}`, {
+        id: `cloud-summary-${date}-${sceneId}`,
+        isCloudSummary: true,
+        sceneId,
+        sceneTitle: scene.title,
+        areaKey: scene.areaKey,
+        area: scene.area,
+        stamp: scene.stamp,
+        date,
+        programDay: row.program_day,
+        completedAt: row.updated_at || `${date}T12:00:00.000Z`,
+        score,
+        metrics: { [sceneId]: score },
+      });
+      bestScoreByDateScene.set(key, score);
+    });
+  });
+
+  const merged = rebuildHabitFromHistory(habit, [...entriesById.values()]);
+  const cloudCompletedDates = (progressRows || [])
+    .filter((row) => Number(row?.completed_sessions) > 0 && row?.progress_date)
+    .map((row) => row.progress_date);
+  const completedDates = uniqueStrings([...(merged.completedDates || []), ...cloudCompletedDates]).sort();
+
+  const nextHabit = {
+    ...merged,
+    authMode: habit.authMode || 'guest',
+    deviceId: habit.deviceId || getDeviceId(),
+    completedDates,
+    streak: calculateCurrentStreak(completedDates),
+    totalSessions: merged.history.filter((entry) => !entry.isCloudSummary).length,
+  };
+  persistHabit(nextHabit);
+  return nextHabit;
 }
 
 export function clearHabitProgress({ keepDeviceId = true } = {}) {
@@ -186,7 +368,7 @@ export function seedDemoProgress({ days = 7 } = {}) {
     const dateKey = toLocalDateKey(date);
     const sceneId = Object.values(SCENE_IDS)[index % Object.values(SCENE_IDS).length];
     const scene = getSceneById(sceneId);
-    const score = Math.min(990, 700 + index * 30 + (index % 3) * 40);
+    const score = Math.min(99, 70 + index * 3 + (index % 3) * 4);
     return {
       id: `seed-${dateKey}-${sceneId}`,
       sceneId,
@@ -256,12 +438,12 @@ export function buildLeaderboard(habit = loadHabit()) {
   const totalSessions = habit.totalSessions || history.length || 0;
   const rows = [
     { name: 'You', score, detail: `${streak || 0} day streak · ${sceneLabel}`, isUser: true },
-    { name: 'Soft Orbit', score: 960, detail: 'Whale Mouth' },
-    { name: 'Puffer Club', score: 910, detail: 'Whale Dream 2' },
-    { name: 'Face Garden', score: 880, detail: 'Cloud Garden' },
-    { name: 'Bubble Hero', score: 840, detail: 'Bubble Gum Bunny' },
-    { name: 'Bloom Crew', score: 790, detail: 'Flower Collector' },
-    { name: 'Soda Sprout', score: 740, detail: 'Lemon Squeeze' },
+    { name: 'Soft Orbit', score: 96, detail: 'Whale Mouth' },
+    { name: 'Puffer Club', score: 91, detail: 'Whale Dream 2' },
+    { name: 'Face Garden', score: 88, detail: 'Cloud Garden' },
+    { name: 'Bubble Hero', score: 84, detail: 'Bubble Gum Bunny' },
+    { name: 'Bloom Crew', score: 79, detail: 'Flower Collector' },
+    { name: 'Soda Sprout', score: 74, detail: 'Lemon Squeeze' },
   ].sort((a, b) => b.score - a.score);
 
   return rows.map((row, index) => ({
@@ -330,6 +512,20 @@ export function markGuideSeen(sceneId) {
 
 export { faceAreas };
 
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const randomHex = () => Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0');
+  return `${randomHex()}-${randomHex().slice(0, 4)}-4${randomHex().slice(0, 3)}-8${randomHex().slice(0, 3)}-${randomHex()}${randomHex().slice(0, 4)}`;
+}
+
+function persistSessionSyncQueue(entries) {
+  try {
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(entries));
+  } catch {
+    // Offline syncing is optional. Gameplay progress remains in the habit record.
+  }
+}
+
 function persistHabit(habit) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(habit));
@@ -339,7 +535,7 @@ function persistHabit(habit) {
 }
 
 function rebuildHabitFromHistory(current, history) {
-  const normalizedHistory = [...history]
+  const scoredHistory = [...history]
     .filter((entry) => entry?.date)
     .map((entry) => ({
       ...entry,
@@ -347,6 +543,10 @@ function rebuildHabitFromHistory(current, history) {
       sceneTitle: entry.sceneTitle || getSceneById(entry.sceneId)?.title,
     }))
     .sort((a, b) => new Date(b.completedAt || `${b.date}T23:59:59`) - new Date(a.completedAt || `${a.date}T23:59:59`));
+  const { history: normalizedHistory, programDayByDate } = normalizeProgramDayHistory({
+    history: scoredHistory,
+    programDayByDate: current.programDayByDate,
+  });
   const completedDates = uniqueStrings(normalizedHistory.map((entry) => entry.date)).sort();
   const areaDates = normalizeAreaDates({}, normalizedHistory);
   const areaCounts = {
@@ -360,6 +560,7 @@ function rebuildHabitFromHistory(current, history) {
     ...defaultHabit,
     authMode: current.authMode || 'guest',
     deviceId: current.deviceId || getDeviceId(),
+    displayName: normalizeDisplayName(current.displayName),
     updatedAt: new Date().toISOString(),
     streak: calculateCurrentStreak(completedDates),
     bestScore,
@@ -371,30 +572,66 @@ function rebuildHabitFromHistory(current, history) {
     sceneStats,
     areaDates,
     areaCounts,
-    history: normalizedHistory.slice(0, 80),
+    programDayByDate,
+    history: normalizedHistory.slice(0, 250),
   };
 }
 
-function migrateHabit(habit) {
-  const history = (habit.history || []).map((entry) => ({
+function cloudSessionToHistoryEntry(row) {
+  if (!row?.id || !row?.progress_date || !row?.scene_id) return null;
+  const scene = getSceneById(row.scene_id);
+  const summary = row.interaction_summary && typeof row.interaction_summary === 'object'
+    ? row.interaction_summary
+    : {};
+  return {
+    id: row.id,
+    sceneId: row.scene_id,
+    sceneTitle: scene.title,
+    areaKey: scene.areaKey,
+    area: scene.area,
+    stamp: scene.stamp,
+    date: row.progress_date,
+    programDay: row.program_day,
+    completedAt: summary.completedAt || row.created_at || `${row.progress_date}T12:00:00.000Z`,
+    score: clampScore(row.score),
+    durationSeconds: row.duration_seconds ?? null,
+    holdSeconds: summary.holdSeconds ?? null,
+    completion: summary.completion ?? null,
+    feedback: summary.feedback || null,
+    metrics: summary.metrics || { [row.scene_id]: clampScore(row.score) },
+    radar: summary.radar || [],
+  };
+}
+
+function chooseMoreCompleteEntry(localEntry, cloudEntry) {
+  if (!localEntry) return cloudEntry;
+  if (!cloudEntry) return localEntry;
+  if (clampScore(cloudEntry.score) > clampScore(localEntry.score)) return { ...localEntry, ...cloudEntry };
+  if (clampScore(cloudEntry.score) < clampScore(localEntry.score)) return { ...cloudEntry, ...localEntry };
+  const localTime = Date.parse(localEntry.completedAt || '') || 0;
+  const cloudTime = Date.parse(cloudEntry.completedAt || '') || 0;
+  return cloudTime > localTime ? { ...localEntry, ...cloudEntry } : { ...cloudEntry, ...localEntry };
+}
+
+function migrateHabit(habit, { needsScoreMigration = false, needsProgramDayMigration = false } = {}) {
+  const scoredHistory = (habit.history || []).map((entry) => ({
     ...entry,
-    score: clampScore(entry.score),
+    score: needsScoreMigration ? migrateLegacyRawSceneScore(entry.score) : clampScore(entry.score),
     sceneTitle: entry.sceneTitle || getSceneById(entry.sceneId)?.title,
   }));
+  const { history, programDayByDate } = normalizeProgramDayHistory({
+    history: scoredHistory,
+    programDayByDate: habit.programDayByDate,
+    legacyProgramDay: needsProgramDayMigration ? 1 : 1,
+  });
   const completedDates = uniqueStrings([...(habit.completedDates || []), ...history.map((entry) => entry.date).filter(Boolean)]).sort();
   const areaDates = normalizeAreaDates(habit.areaDates, history);
   const areaCounts = {
     ...Object.fromEntries(faceAreas.map((area) => [area.key, areaDates[area.key]?.length || habit.areaCounts?.[area.key] || 0])),
   };
-  const dailyResults = {
-    ...buildDailyResultsFromHistory(history),
-    ...(habit.dailyResults || {}),
-  };
-  const sceneStats = {
-    ...buildSceneStatsFromHistory(history),
-    ...(habit.sceneStats || {}),
-  };
-  const bestScore = Math.max(habit.bestScore || 0, habit.latestScore || 0, ...history.map((entry) => entry.score || 0));
+  const dailyResults = buildDailyResultsFromHistory(history);
+  const sceneStats = buildSceneStatsFromHistory(history);
+  const bestScore = Math.max(0, ...history.map((entry) => entry.score || 0));
 
   return {
     ...defaultHabit,
@@ -402,7 +639,7 @@ function migrateHabit(habit) {
     version: STORAGE_VERSION,
     deviceId: habit.deviceId || getDeviceId(),
     bestScore,
-    latestScore: habit.latestScore ?? history[0]?.score ?? null,
+    latestScore: history[0]?.score ?? null,
     latestDate: habit.latestDate || completedDates[completedDates.length - 1] || null,
     totalSessions: habit.totalSessions || history.length,
     completedDates,
@@ -410,6 +647,7 @@ function migrateHabit(habit) {
     sceneStats,
     areaDates,
     areaCounts,
+    programDayByDate,
     history,
   };
 }
@@ -479,9 +717,51 @@ function buildSceneStatsFromHistory(history) {
 }
 
 function clampScore(score) {
-  const numeric = Number(score);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.min(MAX_STORED_SCORE, Math.round(numeric)));
+  return Math.min(MAX_STORED_SCORE, clampSceneScore(score));
+}
+
+function migrateQueuedSessions({
+  needsScoreMigration = false,
+  needsProgramDayMigration = false,
+  programDayByDate = {},
+} = {}) {
+  const queue = getSessionSyncQueue();
+  if (!queue.length) return;
+  persistSessionSyncQueue(queue.map((entry) => ({
+    ...entry,
+    score: needsScoreMigration ? migrateLegacyRawSceneScore(entry.score) : clampScore(entry.score),
+    metrics: Object.fromEntries(Object.entries(entry.metrics || {}).map(([key, score]) => [
+      key,
+      needsScoreMigration ? migrateLegacyRawSceneScore(score) : clampScore(score),
+    ])),
+    programDay: needsProgramDayMigration
+      ? assignProgramDayForActivity({ programDayByDate, date: entry.date }).programDay
+      : entry.programDay,
+  })));
+}
+
+function getStoredProgramDayForDate(habit, date) {
+  const mappedDay = getProgramDayForDate({
+    programDayByDate: habit?.programDayByDate,
+    date,
+    fallback: null,
+  });
+  if (isValidProgramDay(mappedDay)) return Number(mappedDay);
+
+  const historyEntry = (habit?.history || []).find((entry) => (
+    entry?.date === date && isValidProgramDay(entry.programDay)
+  ));
+  return historyEntry ? Number(historyEntry.programDay) : null;
+}
+
+function toNullableNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
+}
+
+function toNullableInteger(value) {
+  const numeric = toNullableNumber(value);
+  return numeric === null ? null : Math.round(numeric);
 }
 
 function uniqueStrings(values) {
@@ -504,8 +784,10 @@ function calculateCurrentStreak(dates) {
 
 function getLastSevenDays() {
   const formatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
+  const [year, month, day] = getEffectiveLocalDateKey().split('-').map(Number);
+  const effectiveDate = new Date(year, month - 1, day);
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
+    const date = new Date(effectiveDate);
     date.setDate(date.getDate() - (6 - index));
     const key = toLocalDateKey(date);
     return {

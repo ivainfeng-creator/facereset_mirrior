@@ -11,7 +11,13 @@ import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { SCENE_IDS } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
-import { hasSeenGuide, loadHabitProgress, markGuideSeen, saveSessionResult } from './utils/progressAdapter.js';
+import {
+  hasSeenGuide,
+  initializeProgressSync,
+  loadHabitProgress,
+  markGuideSeen,
+  saveSessionResult,
+} from './utils/progressAdapter.js';
 
 const SCREENS = {
   landing: 'landing',
@@ -36,15 +42,16 @@ const RESULT_PREVIEW = {
   completed: 3,
   total: 3,
   isComplete: true,
-  score: 2800,
-  maxScore: 3000,
+  score: 280,
+  maxScore: 300,
   holdSeconds: 52,
   sceneTitle: 'FULL RESET COMPLETE',
   area: 'ALL 3 SESSIONS',
+  programDay: 1,
   sceneResults: [
-    { sceneId: SCENE_IDS.whaleDream, sceneTitle: 'Whale Mouth', score: 930, completed: true },
-    { sceneId: SCENE_IDS.templeGarden, sceneTitle: 'Cloud Garden', score: 930, completed: true },
-    { sceneId: SCENE_IDS.flowerCollector, sceneTitle: 'Flower Collector', score: 940, completed: true },
+    { sceneId: SCENE_IDS.whaleDream, sceneTitle: 'Whale Mouth', score: 93, completed: true },
+    { sceneId: SCENE_IDS.templeGarden, sceneTitle: 'Cloud Garden', score: 93, completed: true },
+    { sceneId: SCENE_IDS.flowerCollector, sceneTitle: 'Flower Collector', score: 94, completed: true },
   ],
   radar: [
     { label: 'movement', value: 84 },
@@ -71,6 +78,18 @@ export default function App() {
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
 
   useEffect(() => () => window.clearTimeout(transitionTimerRef.current), []);
+
+  useEffect(() => {
+    let isMounted = true;
+    void initializeProgressSync({
+      onMerged: () => {
+        if (isMounted) setProgressRevision((value) => value + 1);
+      },
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const startTodayPlan = () => {
     if (screenTransition) return;
@@ -140,7 +159,9 @@ export default function App() {
   };
 
   const finishRoutine = (result) => {
-    saveSessionResult(result);
+    saveSessionResult(result, {
+      onMerged: () => setProgressRevision((value) => value + 1),
+    });
     const updatedHabit = loadHabitProgress();
     const dailyPlan = buildDailyPlanSummary(updatedHabit);
 
@@ -251,6 +272,8 @@ export default function App() {
           onTodayPlan={() => setScreen(SCREENS.theme)}
           onPassport={() => setScreen(SCREENS.passport)}
           onLeaderboard={() => setScreen(SCREENS.leaderboard)}
+          onProgressChanged={() => setProgressRevision((revision) => revision + 1)}
+          shouldPromptForDisplayName={!isResultPreview}
         />
       )}
 

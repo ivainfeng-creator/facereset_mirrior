@@ -1,5 +1,5 @@
 import { TODAY_SCENE_IDS, getSceneById } from '../data/scenes.js';
-import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
+import { buildDailyPlanSummary, getCompletedProgramDays } from '../utils/dailyPlan.js';
 
 const PLAN_PHASES = ['Warm up', 'Activate', 'Unwind'];
 const PLAN_ART = [
@@ -25,7 +25,8 @@ export default function ThemeScreen({
   );
   const completedCount = dailyPlan.completed;
   const activeIndex = todayScenes.findIndex((scene) => !completedScenes.has(scene.id));
-  const currentDay = Math.min(7, Math.max(1, habit?.streak || 1));
+  const currentDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
+  const completedProgramDays = getCompletedProgramDays(habit);
   const isAllDone = completedCount >= todayScenes.length;
 
   return (
@@ -35,18 +36,18 @@ export default function ThemeScreen({
           <h1>Face Reset Challenge</h1>
         </header>
 
-        <div className="challenge-v3-days" aria-label={`Today is day ${currentDay}`}>
+        <div className="challenge-v3-days" aria-label={`Program day ${currentDay}`}>
           {Array.from({ length: 7 }, (_, index) => {
             const day = index + 1;
             const isCurrent = day === currentDay;
-            const isPast = day < currentDay;
+            const isComplete = completedProgramDays.has(day);
             return (
               <span
                 key={day}
-                className={`challenge-v3-day ${isCurrent ? 'is-current' : ''} ${isPast ? 'is-past' : ''}`}
+                className={`challenge-v3-day ${isCurrent ? 'is-current' : ''} ${isComplete ? 'is-past' : ''}`}
               >
                 {isCurrent ? `DAY ${day}` : day}
-                {isPast && <i aria-hidden="true">✓</i>}
+                {isComplete && <i aria-hidden="true">✓</i>}
               </span>
             );
           })}

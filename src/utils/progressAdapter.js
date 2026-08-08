@@ -1,5 +1,6 @@
 import { localProgressAdapter } from './localProgressAdapter.js';
 import { viverseProgressAdapter } from './viverseProgressAdapter.js';
+import { initializeSupabaseProgress, queueSupabaseSession } from './supabaseProgressAdapter.js';
 
 export const PROGRESS_PROVIDER = {
   local: 'local',
@@ -18,12 +19,18 @@ export function loadHabitProgress() {
   return activeAdapter.loadHabit();
 }
 
-export function saveSessionResult(result) {
+export function saveSessionResult(result, { onMerged } = {}) {
   const saved = activeAdapter.saveSessionResult(result);
+  // Deliberately do not await cloud work: gameplay uses localStorage immediately.
+  void queueSupabaseSession(saved, { onMerged });
   return {
     provider: activeProgressProvider,
     saved,
   };
+}
+
+export function initializeProgressSync({ onMerged } = {}) {
+  return initializeSupabaseProgress({ onMerged });
 }
 
 export function loadPassportProgress(habit = loadHabitProgress()) {

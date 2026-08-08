@@ -1,7 +1,7 @@
 import { routineStages } from '../data/routine.js';
 import { SCENE_IDS } from '../data/scenes.js';
+import { clampSceneScore, toFinalSceneScore } from './scoring.js';
 
-const MAX_SCENE_SCORE = 1000;
 const RADAR_SCORE_MAX = 100;
 
 export function getAlignmentStatus(elapsedMs) {
@@ -30,8 +30,8 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
 }
 
 export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.templeGarden) {
-  const sceneScore = stageScores[sceneId] ?? stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 820;
-  const score = Math.round(sceneScore);
+  const rawSceneScore = stageScores[sceneId] ?? stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 820;
+  const score = toFinalSceneScore(rawSceneScore);
   const radarScore = normalizeScoreForRadar(score);
   const softVariance = Math.round(Math.sin(radarScore * 0.17) * 5);
   const radar = getSceneRadar(sceneId, radarScore, softVariance);
@@ -104,9 +104,7 @@ function getSceneRadar(sceneId, score, softVariance) {
 }
 
 function normalizeScoreForRadar(score) {
-  const numeric = Number(score);
-  if (!Number.isFinite(numeric)) return 0;
-  return clamp((numeric / MAX_SCENE_SCORE) * RADAR_SCORE_MAX, 0, RADAR_SCORE_MAX);
+  return clampSceneScore(Math.min(score, RADAR_SCORE_MAX));
 }
 
 function getSceneComment(sceneId) {
