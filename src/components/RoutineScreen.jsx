@@ -1237,6 +1237,10 @@ function easeInFlowerFlight(t) {
   return t * t * t;
 }
 
+// Where the tipped bottle's mouth lands on screen (see .tipped-bottle in
+// styles.css — keep these in sync with that rotation/position).
+const BOTTLE_MOUTH = { x: 108, y: 688 };
+
 function FlowerCollectorScene({ interaction }) {
   const sniff = clamp(interaction.sniff || 0, 0, 1);
   const gathered = clamp(interaction.completion || 0, 0, 1);
@@ -1244,12 +1248,14 @@ function FlowerCollectorScene({ interaction }) {
   const primaryFlowers = useMemo(
     () =>
       Array.from({ length: 6 }, (_, index) => {
-        // Most petals rest low, near the bottle; only the first two hover
-        // slightly higher, as if just lifted off the spill.
+        // Every petal starts inside the spilled pile at the bottle mouth;
+        // only the first two rest a little higher, as if just lifted off it.
         const isHovering = index < 2;
         const start = {
-          x: 172 + ((index * 43) % 158),
-          y: isHovering ? 592 + index * 24 : 690 + ((index - 2) * 27) % 92,
+          x: BOTTLE_MOUTH.x + (((index * 29) % 60) - 20),
+          y: isHovering
+            ? BOTTLE_MOUTH.y - 46 - index * 18
+            : BOTTLE_MOUTH.y - 6 + ((index - 2) * 9) % 26,
         };
         const ringT = 0.05 + (index / 6) * 0.68;
         const end = getFlowerFrameRingPoint(ringT, 16);
@@ -1289,13 +1295,38 @@ function FlowerCollectorScene({ interaction }) {
     [],
   );
 
+  // A dense, layered pile of petals right outside the bottle mouth: back
+  // (large, soft) petals form the base of the mound, front (small, crisp)
+  // petals sit on top of the crest.
+  const petalMound = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, index) => {
+        const layer = index % 3;
+        const spread = 16 + layer * 15;
+        return {
+          id: index,
+          x: BOTTLE_MOUTH.x - ((index * 13) % spread) - layer * 3,
+          y: BOTTLE_MOUTH.y - ((index * 11) % (9 + layer * 7)),
+          size:
+            layer === 0
+              ? 1.05 + (index % 3) * 0.08
+              : layer === 1
+                ? 0.8 + (index % 3) * 0.07
+                : 0.58 + (index % 3) * 0.06,
+          hue: index % 4,
+          layer,
+        };
+      }),
+    [],
+  );
+
   const groundPetals = useMemo(
     () =>
       Array.from({ length: 16 }, (_, index) => {
         const bias = Math.pow(index / 15, 0.45);
         return {
           id: index,
-          x: 6 + bias * 88,
+          x: 4 + bias * 40,
           y: 3 + ((index % 5) * 3.2),
           size: 0.5 + bias * 0.5 + (index % 3) * 0.05,
           opacity: 0.22 + bias * 0.46,
@@ -1375,6 +1406,22 @@ function FlowerCollectorScene({ interaction }) {
         <span className="bottle-bloom one" />
         <span className="bottle-bloom two" />
         <span className="bottle-bloom three" />
+      </div>
+
+      <div className="petal-mound">
+        {[...petalMound]
+          .sort((a, b) => a.layer - b.layer)
+          .map((petal) => (
+            <span
+              key={petal.id}
+              className={`mound-petal layer-${petal.layer} hue-${petal.hue}`}
+              style={{
+                '--mound-x': `${petal.x}px`,
+                '--mound-y': `${petal.y}px`,
+                '--mound-size': petal.size,
+              }}
+            />
+          ))}
       </div>
 
       <div className="flower-frame-layer">
