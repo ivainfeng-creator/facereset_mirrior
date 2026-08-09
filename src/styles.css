@@ -2890,7 +2890,7 @@ h1 {
 
 .whale-svg {
   position: absolute;
-  right: -58px;
+  right: -92px;
   bottom: 0;
   z-index: 2;
   width: 120%;
@@ -2910,22 +2910,32 @@ h1 {
 
 .whale-belly {
   fill: rgba(197, 203, 255, 0.2);
+  stroke: transparent;
+}
+
+.whale-belly.is-mouth-open {
   stroke: rgba(255, 229, 198, 0.42);
   stroke-width: 2;
 }
 
 .whale-mouth-glow {
   fill: url("#mouthGlow");
-  opacity: calc(0.42 + var(--mouth-open) * 0.48);
-  filter: drop-shadow(0 0 24px rgba(255, 218, 156, 0.54));
+  opacity: calc(var(--mouth-open) * 0.72 + var(--suction) * 0.28);
+  filter: drop-shadow(0 0 calc(12px + var(--suction) * 24px) rgba(255, 218, 156, 0.62));
   transition: d 120ms linear, opacity 120ms linear;
 }
 
 .whale-mouth-line {
   fill: none;
-  stroke: rgba(255, 227, 182, 0.86);
+  stroke: rgba(39, 42, 89, 0.9);
   stroke-linecap: round;
-  stroke-width: 4;
+  stroke-width: calc(4px - var(--mouth-open) * 0.7px);
+  opacity: calc(0.82 - var(--mouth-open) * 0.18);
+}
+
+.whale-mouth-anchor {
+  fill: transparent;
+  pointer-events: none;
 }
 
 .whale-eye {
@@ -2942,16 +2952,6 @@ h1 {
 .whale-tail {
   fill: #4267c7;
   opacity: 0.94;
-}
-
-.whale-spray {
-  fill: none;
-  stroke: rgba(224, 254, 255, 0.62);
-  stroke-dasharray: 5 12;
-  stroke-linecap: round;
-  stroke-width: 3;
-  opacity: calc(0.12 + var(--mouth-open) * 0.78);
-  animation: whaleSpray 1.8s ease-in-out infinite;
 }
 
 .fish-layer {
@@ -3043,7 +3043,7 @@ h1 {
 }
 
 .whale-dream-scene.is-open .dream-fish {
-  animation: fishPoolSwim var(--fish-duration) cubic-bezier(0.18, 0.72, 0.2, 1) infinite;
+  animation: fishPoolSwim calc(var(--fish-duration) * (1.28 - var(--suction) * 0.38)) cubic-bezier(0.22, 0.7, 0.18, 1) infinite;
   animation-delay: var(--fish-delay);
 }
 
@@ -3052,6 +3052,27 @@ h1 {
   box-shadow:
     0 0 14px rgba(255, 237, 114, 0.94),
     0 0 28px rgba(126, 239, 255, 0.54);
+}
+
+.dream-fish.variant-round {
+  width: calc(16px * var(--fish-scale));
+  height: calc(13px * var(--fish-scale));
+  border-radius: 58% 45% 45% 58%;
+  background: linear-gradient(135deg, #ffeab6, #ffb7d7 56%, #c9c2ff);
+}
+
+.dream-fish.variant-dart {
+  width: calc(23px * var(--fish-scale));
+  height: calc(9px * var(--fish-scale));
+  border-radius: 64% 42% 42% 64%;
+  background: linear-gradient(135deg, #d9fbff, #8edcf8 54%, #8d9dff);
+}
+
+.dream-fish.variant-sail {
+  width: calc(20px * var(--fish-scale));
+  height: calc(12px * var(--fish-scale));
+  border-radius: 66% 38% 52% 60%;
+  background: linear-gradient(135deg, #fff0b5, #a9efd5 50%, #b29dff);
 }
 
 .dream-fish.from-right {
@@ -3101,8 +3122,8 @@ h1 {
   position: absolute;
   top: var(--particle-y);
   left: var(--particle-x);
-  width: 5px;
-  height: 5px;
+  width: var(--particle-size);
+  height: var(--particle-size);
   border-radius: 50%;
   background: rgba(221, 252, 255, 0.94);
   box-shadow: 0 0 10px rgba(156, 238, 255, 0.78);
@@ -3110,7 +3131,7 @@ h1 {
 }
 
 .whale-dream-scene.is-open .whale-suction-particles span {
-  animation: whaleSuctionParticle 780ms ease-in infinite;
+  animation: whaleSuctionParticle var(--particle-duration) cubic-bezier(0.18, 0.72, 0.22, 1) infinite;
   animation-delay: var(--particle-delay);
 }
 
@@ -4940,37 +4961,58 @@ h1 {
       scale(calc(var(--fish-scale) * 0.72));
   }
 
-  14% {
-    opacity: 0.95;
+  16% {
+    opacity: calc(0.42 + var(--suction) * 0.58);
     transform:
-      translate(calc(var(--cruise-x) * 0.18), calc(var(--cruise-y) * 0.24))
-      rotate(7deg)
+      translate(
+        calc(var(--drift-x) * 0.11 + var(--curve-x) * 0.28),
+        calc(var(--drift-y) * 0.08 + var(--curve-y) * 0.3)
+      )
+      rotate(4deg)
       scale(var(--fish-scale));
   }
 
-  55% {
+  54% {
     opacity: 1;
     transform:
-      translate(calc(var(--drift-x) * 0.4), calc(var(--drift-y) * 0.4 - 14px))
-      rotate(14deg)
+      translate(
+        calc(var(--drift-x) * 0.4 + var(--curve-x)),
+        calc(var(--drift-y) * 0.4 + var(--curve-y))
+      )
+      rotate(8deg)
       scale(var(--fish-scale));
   }
 
-  84% {
+  74% {
     opacity: 1;
     filter: blur(0);
     transform:
-      translate(calc(var(--drift-x) * 0.87), calc(var(--drift-y) * 0.87))
+      translate(
+        calc(var(--drift-x) * 0.68 + var(--curve-x) * 0.62),
+        calc(var(--drift-y) * 0.68 + var(--curve-y) * 0.62)
+      )
       rotate(4deg)
-      scale(calc(var(--fish-scale) * 0.68));
+      scale(calc(var(--fish-scale) * 0.76));
+  }
+
+  90% {
+    opacity: 1;
+    filter: blur(0);
+    transform:
+      translate(
+        calc(var(--drift-x) * 0.99 + var(--curve-x) * 0.08),
+        calc(var(--drift-y) * 0.99 + var(--curve-y) * 0.08)
+      )
+      rotate(1deg)
+      scale(calc(var(--fish-scale) * 0.46));
   }
 
   100% {
     opacity: 0;
     filter: blur(2px);
     transform:
-      translate(calc(var(--drift-x) * 1.02), calc(var(--drift-y) * 1.02))
-      rotate(2deg)
+      translate(var(--drift-x), var(--drift-y))
+      rotate(0deg)
       scale(calc(var(--fish-scale) * 0.04));
   }
 }

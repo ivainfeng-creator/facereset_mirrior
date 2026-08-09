@@ -975,7 +975,14 @@ function WhaleDreamScene({ interaction }) {
   const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
   const fishCount = interaction.fishCount || 0;
   const fishWave = fishCount % 18;
-  const mouthCenter = { x: 194, y: 446 };
+  const sceneRef = useRef(null);
+  const mouthAnchorRef = useRef(null);
+  const [mouthCenter, setMouthCenter] = useState({ x: 214, y: 492 });
+  const suction = interaction.isOpen
+    ? clamp(mouthOpen * 0.42 + (interaction.flow || 0) * 0.58, 0, 1)
+    : 0;
+  // Keep the calm seam completely separate from the open-mouth cavity.
+  const mouthVisualOpen = interaction.isOpen ? mouthOpen : 0;
   const ambientFish = useMemo(
     () =>
       Array.from({ length: 34 }, (_, index) => {
@@ -998,29 +1005,40 @@ function WhaleDreamScene({ interaction }) {
   const fish = useMemo(
     () =>
       Array.from({ length: 42 }, (_, index) => {
-        const fromLeft = index % 2 === 0;
+        const fromLeft = index % 5 !== 4;
         const sideOffset = 24 + ((index * 31) % 96);
         const startX = fromLeft ? -36 - sideOffset : 392 + sideOffset;
-        const startY = 232 + ((index * 43) % 274);
-        const mouthX = mouthCenter.x + ((index * 13) % 16) - 8;
-        const mouthY = mouthCenter.y + ((index * 17) % 14) - 7;
+        const sourceBand = index % 3;
+        const startY = [172, 292, 426][sourceBand] + ((index * 29) % 74);
+        const mouthX = mouthCenter.x + ((index * 13) % 8) - 4;
+        const mouthY = mouthCenter.y + ((index * 17) % 6) - 3;
+        const curveDirection = fromLeft ? 1 : -1;
+        const curveY = sourceBand === 0
+          ? 76 + (index % 4) * 11
+          : sourceBand === 1
+            ? -24 + (index % 5) * 10
+            : -104 + (index % 4) * 12;
+        const pullStrength = 0.78 + (index % 5) * 0.07;
 
         return {
           id: index,
           delay: (index % 14) * 0.115,
-          duration: 0.92 + (index % 8) * 0.075,
-          size: 0.58 + (index % 6) * 0.1,
+          duration: (1.04 + (index % 8) * 0.08) / pullStrength,
+          size: 0.34 + (index % 7) * 0.15,
           x: startX,
           y: startY,
           driftX: mouthX - startX,
           driftY: mouthY - startY,
+          curveX: curveDirection * (18 + (index % 5) * 9),
+          curveY,
           cruiseX: fromLeft ? 128 + ((index * 23) % 86) : -128 - ((index * 23) % 86),
           cruiseY: -20 + (index % 7) * 7,
           side: fromLeft ? 'from-left' : 'from-right',
+          variant: ['round', 'dart', 'sail'][index % 3],
           special: index % 17 === 0,
         };
       }),
-    [],
+    [mouthCenter],
   );
   const stars = useMemo(
     () =>
@@ -1033,24 +1051,55 @@ function WhaleDreamScene({ interaction }) {
     [],
   );
 
-  const upperMouth = 387 - mouthOpen * 54;
-  const lowerMouth = 395 + mouthOpen * 96;
-  const leftMouth = 92 - mouthOpen * 5;
-  const rightMouth = 248 + mouthOpen * 15;
+  const upperMouth = 382 - mouthVisualOpen * 58;
+  const lowerMouth = 392 + mouthVisualOpen * 98;
+  const leftMouth = 104 - mouthVisualOpen * 12;
+  const rightMouth = 244 + mouthVisualOpen * 19;
   const mouthPath = [
     `M ${leftMouth} ${upperMouth}`,
-    `C ${124 + mouthOpen * 2} ${354 - mouthOpen * 38} ${196 + mouthOpen * 4} ${342 - mouthOpen * 28} ${rightMouth} ${367 - mouthOpen * 15}`,
-    `C ${231 + mouthOpen * 10} ${393 + mouthOpen * 72} ${158 - mouthOpen * 3} ${422 + mouthOpen * 82} ${leftMouth} ${lowerMouth}`,
-    `C ${75 - mouthOpen * 10} ${395 + mouthOpen * 18} ${75 - mouthOpen * 12} ${383 - mouthOpen * 14} ${leftMouth} ${upperMouth}`,
+    `C ${139 - mouthVisualOpen * 10} ${374 - mouthVisualOpen * 50} ${197 + mouthVisualOpen * 6} ${374 - mouthVisualOpen * 42} ${rightMouth} ${382 - mouthVisualOpen * 16}`,
+    `C ${233 + mouthVisualOpen * 9} ${394 + mouthVisualOpen * 76} ${157 - mouthVisualOpen * 4} ${403 + mouthVisualOpen * 84} ${leftMouth} ${lowerMouth}`,
+    `C ${88 - mouthVisualOpen * 9} ${397 + mouthVisualOpen * 20} ${88 - mouthVisualOpen * 10} ${380 - mouthVisualOpen * 18} ${leftMouth} ${upperMouth}`,
     'Z',
   ].join(' ');
+  const mouthAnchorX = (leftMouth + rightMouth) / 2;
+  const mouthAnchorY = (upperMouth + lowerMouth) / 2;
+  const mouthSeamPath = `M ${leftMouth + 10} ${388 - mouthVisualOpen * 18} C ${142 - mouthVisualOpen * 8} ${382 - mouthVisualOpen * 34} ${202 + mouthVisualOpen * 5} ${382 - mouthVisualOpen * 30} ${rightMouth - 9} ${386 - mouthVisualOpen * 16}`;
+
+  useEffect(() => {
+    const syncMouthCenter = () => {
+      const sceneBounds = sceneRef.current?.getBoundingClientRect();
+      const anchorBounds = mouthAnchorRef.current?.getBoundingClientRect();
+      if (!sceneBounds || !anchorBounds) return;
+
+      const nextCenter = {
+        x: Math.round(anchorBounds.left - sceneBounds.left + anchorBounds.width / 2),
+        y: Math.round(anchorBounds.top - sceneBounds.top + anchorBounds.height / 2),
+      };
+
+      setMouthCenter((current) => (
+        current.x === nextCenter.x && current.y === nextCenter.y ? current : nextCenter
+      ));
+    };
+
+    const frame = window.requestAnimationFrame(syncMouthCenter);
+    window.addEventListener('resize', syncMouthCenter);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', syncMouthCenter);
+    };
+  }, [mouthOpen]);
 
   return (
     <div
+      ref={sceneRef}
       className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''}`}
       style={{
-        '--mouth-open': mouthOpen,
+        '--mouth-open': mouthVisualOpen,
         '--flow': interaction.flow || 0,
+        '--suction': suction,
+        '--particle-size': `${3 + suction * 4}px`,
+        '--particle-duration': `${980 - suction * 320}ms`,
         '--fish-wave': fishWave,
         '--mouth-x': `${mouthCenter.x}px`,
         '--mouth-y': `${mouthCenter.y}px`,
@@ -1097,13 +1146,16 @@ function WhaleDreamScene({ interaction }) {
           className="whale-body"
           d="M 101 335 C 111 210 207 161 284 227 C 350 283 344 431 286 495 C 220 568 119 518 89 430 C 59 412 52 372 101 335 Z"
         />
-        <path className="whale-belly" d="M 103 368 C 135 328 200 320 248 350 C 231 427 174 470 102 424 C 78 409 76 384 103 368 Z" />
-        <path className="whale-mouth-glow" d={mouthPath} />
-        <path className="whale-mouth-line" d={`M ${leftMouth + 2} ${upperMouth + 7} C 127 ${354 - mouthOpen * 36} 197 ${343 - mouthOpen * 27} ${rightMouth} ${365 - mouthOpen * 14}`} />
+        <path
+          className={`whale-belly ${interaction.isOpen ? 'is-mouth-open' : ''}`}
+          d="M 103 368 C 135 328 200 320 248 350 C 231 427 174 470 102 424 C 78 409 76 384 103 368 Z"
+        />
+        {interaction.isOpen && <path className="whale-mouth-glow" d={mouthPath} />}
+        <path className="whale-mouth-line" d={mouthSeamPath} />
+        <circle ref={mouthAnchorRef} className="whale-mouth-anchor" cx={mouthAnchorX} cy={mouthAnchorY} r="4" />
         <path className="whale-eye" d="M 262 323 C 268 344 291 344 297 323" />
         <circle className="whale-cheek" cx="300" cy="369" r="18" />
         <path className="whale-tail" d="M 314 432 C 360 407 354 354 371 342 C 389 383 378 439 337 462 C 366 470 377 501 364 531 C 336 512 313 486 314 432 Z" />
-        <path className="whale-spray" d="M 167 217 C 152 180 142 158 125 132 M 182 215 C 184 174 200 153 219 130 M 192 223 C 228 190 250 170 272 148" />
       </svg>
 
       <div className="ambient-fish-layer">
@@ -1128,12 +1180,14 @@ function WhaleDreamScene({ interaction }) {
         {fish.map((item) => (
           <span
             key={item.id}
-            className={`dream-fish ${item.side} ${item.special ? 'is-special' : ''}`}
+            className={`dream-fish ${item.side} variant-${item.variant} ${item.special ? 'is-special' : ''}`}
             style={{
               '--fish-x': `${item.x}px`,
               '--fish-y': `${item.y}px`,
               '--drift-x': `${item.driftX}px`,
               '--drift-y': `${item.driftY}px`,
+              '--curve-x': `${item.curveX}px`,
+              '--curve-y': `${item.curveY}px`,
               '--cruise-x': `${item.cruiseX}px`,
               '--cruise-y': `${item.cruiseY}px`,
               '--fish-scale': item.size,
@@ -1144,7 +1198,7 @@ function WhaleDreamScene({ interaction }) {
         ))}
       </div>
       <div className="whale-suction-particles">
-        {Array.from({ length: 14 }, (_, index) => (
+        {Array.from({ length: 18 }, (_, index) => (
           <span
             key={index}
             style={{
