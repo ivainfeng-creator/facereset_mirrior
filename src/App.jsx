@@ -11,6 +11,7 @@ import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { SCENE_IDS } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
+import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
 import {
   hasSeenGuide,
   initializeProgressSync,
@@ -74,6 +75,7 @@ export default function App() {
   const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
   const [autoStartCamera, setAutoStartCamera] = useState(false);
   const [screenTransition, setScreenTransition] = useState(null);
+  const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
 
@@ -86,6 +88,18 @@ export default function App() {
         if (isMounted) setProgressRevision((value) => value + 1);
       },
     });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void initializeViverseAuth().then((snapshot) => {
+      if (isMounted) setViverseAuth(snapshot);
+    });
+
     return () => {
       isMounted = false;
     };

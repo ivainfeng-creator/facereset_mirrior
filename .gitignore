@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 facereset-viverse-build-*.zip
+face-reset-viverse-auth-test.zip
 
 # Local environment and secrets
 .env
