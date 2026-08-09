@@ -1244,15 +1244,18 @@ function FlowerCollectorScene({ interaction }) {
   const primaryFlowers = useMemo(
     () =>
       Array.from({ length: 6 }, (_, index) => {
+        // Most petals rest low, near the bottle; only the first two hover
+        // slightly higher, as if just lifted off the spill.
+        const isHovering = index < 2;
         const start = {
-          x: 176 + ((index * 41) % 148),
-          y: 566 + ((index * 53) % 66),
+          x: 172 + ((index * 43) % 158),
+          y: isHovering ? 592 + index * 24 : 690 + ((index - 2) * 27) % 92,
         };
         const ringT = 0.05 + (index / 6) * 0.68;
         const end = getFlowerFrameRingPoint(ringT, 16);
         const control = {
-          x: (start.x + end.x) / 2 + (index % 2 === 0 ? 52 : -40),
-          y: Math.min(start.y, end.y) - 128 - (index % 3) * 22,
+          x: start.x - (start.x - end.x) * 0.55 + (index % 2 === 0 ? 16 : -16),
+          y: Math.min(start.y, end.y) - 96 - (index % 3) * 18,
         };
         return {
           id: index,

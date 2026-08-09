@@ -3327,23 +3327,23 @@ h1 {
 
 .tipped-bottle {
   position: absolute;
-  right: 4%;
-  bottom: 2%;
+  right: -6px;
+  bottom: 122px;
   z-index: 4;
-  width: 128px;
-  height: 158px;
+  width: 112px;
+  height: 138px;
   border: 4px solid rgba(255, 255, 255, 0.7);
-  border-radius: 46px 46px 38px 38px;
+  border-radius: 42px 42px 34px 34px;
   background:
     radial-gradient(circle at 48% 72%, rgba(255, 202, 223, 0.82), transparent 22%),
     radial-gradient(circle at 54% 60%, rgba(255, 229, 137, 0.76), transparent 18%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(125, 206, 198, 0.18));
   box-shadow:
-    inset 16px 0 30px rgba(255, 255, 255, 0.42),
-    inset -14px -18px 34px rgba(73, 142, 144, 0.14),
-    0 22px 42px rgba(82, 118, 96, 0.22);
-  transform: rotate(52deg);
-  transform-origin: 70% 85%;
+    inset 14px 0 26px rgba(255, 255, 255, 0.42),
+    inset -12px -16px 30px rgba(73, 142, 144, 0.14),
+    0 18px 36px rgba(82, 118, 96, 0.22);
+  transform: rotate(44deg);
+  transform-origin: 58% 78%;
 }
 
 .bottle-neck {
@@ -3409,8 +3409,8 @@ h1 {
 }
 
 .bottle-bloom.three {
-  right: 48px;
-  bottom: 54px;
+  left: 16px;
+  bottom: 12px;
   width: 11px;
   height: 11px;
   transform: scale(0.68);
