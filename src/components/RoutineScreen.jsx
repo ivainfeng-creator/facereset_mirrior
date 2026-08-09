@@ -1207,59 +1207,114 @@ function WhaleDream2Scene({ interaction }) {
   );
 }
 
+const FLOWER_PREVIEW_FRAME = { x: 30, y: 30, width: 102, height: 136 };
+
+function getFlowerFrameRingPoint(t, margin = 16) {
+  const left = FLOWER_PREVIEW_FRAME.x - margin;
+  const right = FLOWER_PREVIEW_FRAME.x + FLOWER_PREVIEW_FRAME.width + margin;
+  const top = FLOWER_PREVIEW_FRAME.y - margin;
+  const bottom = FLOWER_PREVIEW_FRAME.y + FLOWER_PREVIEW_FRAME.height + margin;
+  const w = right - left;
+  const h = bottom - top;
+  const perimeter = 2 * (w + h);
+  const d = ((t % 1) + 1) % 1 * perimeter;
+
+  if (d < w) return { x: left + d, y: top };
+  if (d < w + h) return { x: right, y: top + (d - w) };
+  if (d < w + h + w) return { x: right - (d - w - h), y: bottom };
+  return { x: left, y: bottom - (d - w - h - w) };
+}
+
+function getFlowerBezierPoint(t, start, control, end) {
+  const mt = 1 - t;
+  return {
+    x: mt * mt * start.x + 2 * mt * t * control.x + t * t * end.x,
+    y: mt * mt * start.y + 2 * mt * t * control.y + t * t * end.y,
+  };
+}
+
+function easeInFlowerFlight(t) {
+  return t * t * t;
+}
+
 function FlowerCollectorScene({ interaction }) {
   const sniff = clamp(interaction.sniff || 0, 0, 1);
   const gathered = clamp(interaction.completion || 0, 0, 1);
-  const flowerCount = interaction.flowerCount || 0;
-  const flowerWave = flowerCount % 36;
-  const flowers = useMemo(
+
+  const primaryFlowers = useMemo(
     () =>
-      Array.from({ length: 180 }, (_, index) => ({
-        ...getFlowerDockPoint(index, 16 + Math.floor(index / 42) * 8),
-        id: index,
-        x: 24 + ((index * 43) % 330),
-        y: 146 + ((index * 67) % 494),
-        size: 0.68 + (index % 8) * 0.09,
-        delay: (index % 13) * 0.07,
-        hue: index % 5,
-        drift: 0.74 + (index % 8) * 0.05,
-        settle: 0.76 + (index % 6) * 0.04,
-      })),
+      Array.from({ length: 6 }, (_, index) => {
+        const start = {
+          x: 176 + ((index * 41) % 148),
+          y: 566 + ((index * 53) % 66),
+        };
+        const ringT = 0.05 + (index / 6) * 0.68;
+        const end = getFlowerFrameRingPoint(ringT, 16);
+        const control = {
+          x: (start.x + end.x) / 2 + (index % 2 === 0 ? 52 : -40),
+          y: Math.min(start.y, end.y) - 128 - (index % 3) * 22,
+        };
+        return {
+          id: index,
+          start,
+          control,
+          end,
+          hue: index % 4,
+          size: 0.88 + (index % 3) * 0.1,
+          arrivalFrom: index / 6,
+          arrivalTo: (index + 1) / 6,
+          idleDelay: (index % 4) * 0.55,
+        };
+      }),
     [],
   );
-  const fallingFlowers = useMemo(
+
+  const secondaryFrame = useMemo(
     () =>
-      Array.from({ length: 42 }, (_, index) => ({
-        id: index,
-        x: -8 + ((index * 37) % 112),
-        delay: (index % 12) * 0.18,
-        duration: 3.4 + (index % 7) * 0.3,
-        size: 0.62 + (index % 6) * 0.12,
-        hue: index % 5,
-      })),
+      Array.from({ length: 6 }, (_, index) => {
+        const point = getFlowerFrameRingPoint((index + 0.5) / 6, 13);
+        return {
+          id: index,
+          x: point.x,
+          y: point.y,
+          hue: (index + 2) % 4,
+          size: 0.52 + (index % 3) * 0.08,
+          revealAt: 0.14 + index * 0.12,
+          delay: (index % 4) * 0.5,
+        };
+      }),
     [],
   );
-  const groundFlowers = useMemo(
+
+  const groundPetals = useMemo(
     () =>
-      Array.from({ length: 78 }, (_, index) => ({
-        id: index,
-        x: -5 + ((index * 23) % 112),
-        y: 52 + ((index * 19) % 48),
-        size: 0.62 + (index % 8) * 0.1,
-        hue: index % 5,
-        delay: (index % 19) * 0.045,
-        driftX: -64 - (index % 8) * 9,
-        liftY: -360 - (index % 9) * 26,
-      })),
+      Array.from({ length: 16 }, (_, index) => {
+        const bias = Math.pow(index / 15, 0.45);
+        return {
+          id: index,
+          x: 6 + bias * 88,
+          y: 3 + ((index % 5) * 3.2),
+          size: 0.5 + bias * 0.5 + (index % 3) * 0.05,
+          opacity: 0.22 + bias * 0.46,
+          hue: index % 4,
+          variant: index % 2 === 0 ? 'a' : 'b',
+          delay: (index % 7) * 0.3,
+          duration: 4.4 + (index % 5) * 0.5,
+        };
+      }),
     [],
   );
-  const sparkles = useMemo(
+
+  const atmosphere = useMemo(
     () =>
-      Array.from({ length: 18 }, (_, index) => ({
+      Array.from({ length: 6 }, (_, index) => ({
         id: index,
-        x: 4 + ((index * 29) % 92),
-        y: 12 + ((index * 41) % 78),
-        delay: (index % 8) * 0.16,
+        x: 10 + ((index * 29) % 82),
+        y: 8 + ((index * 37) % 66),
+        size: 1.3 + (index % 3) * 0.4,
+        duration: 9 + (index % 4) * 2.2,
+        delay: (index % 5) * 1.05,
+        hue: index % 4,
       })),
     [],
   );
@@ -1270,17 +1325,48 @@ function FlowerCollectorScene({ interaction }) {
       style={{
         '--sniff': sniff,
         '--gathered': gathered,
-        '--flower-wave': flowerWave,
       }}
       aria-hidden="true"
     >
-      <div className="flower-sky-glow" />
       <div className="flower-copy">
         <h1>Flower Collector</h1>
         <p>Inhale and gather the blossoms</p>
       </div>
 
-      <div className="scent-bottle">
+      <div className="flower-atmosphere">
+        {atmosphere.map((item) => (
+          <span
+            key={item.id}
+            className={`atmosphere-petal hue-${item.hue}`}
+            style={{
+              '--atmo-x': `${item.x}%`,
+              '--atmo-y': `${item.y}%`,
+              '--atmo-size': item.size,
+              '--atmo-duration': `${item.duration}s`,
+              '--atmo-delay': `${item.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="flower-ground">
+        {groundPetals.map((petal) => (
+          <span
+            key={petal.id}
+            className={`ground-petal variant-${petal.variant} hue-${petal.hue}`}
+            style={{
+              '--ground-x': `${petal.x}%`,
+              '--ground-y': `${petal.y}%`,
+              '--ground-size': petal.size,
+              '--ground-opacity': petal.opacity,
+              '--ground-delay': `${petal.delay}s`,
+              '--ground-duration': `${petal.duration}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="tipped-bottle">
         <span className="bottle-neck" />
         <span className="bottle-face" />
         <span className="bottle-bloom one" />
@@ -1288,84 +1374,50 @@ function FlowerCollectorScene({ interaction }) {
         <span className="bottle-bloom three" />
       </div>
 
-      <div className="scent-streams">
-        <span className="stream one" />
-        <span className="stream two" />
-        <span className="stream three" />
-      </div>
+      <div className="flower-frame-layer">
+        {secondaryFrame.map((dot) => {
+          const reveal = clamp((gathered - dot.revealAt) / 0.22, 0, 1);
+          return (
+            <span
+              key={dot.id}
+              className={`frame-fill-petal hue-${dot.hue}`}
+              style={{
+                '--frame-x': `${dot.x}px`,
+                '--frame-y': `${dot.y}px`,
+                '--frame-size': dot.size,
+                '--frame-delay': `${dot.delay}s`,
+                opacity: reveal * 0.78,
+                transform: `translate(-50%, -50%) scale(${0.5 + reveal * 0.5})`,
+              }}
+            />
+          );
+        })}
 
-      <div className="flower-field">
-        {flowers.map((flower) => {
-          const collected = clamp((flowerCount - flower.id * 0.78) / 10, 0, 1);
-          const previewPull = sniff * (1 - collected) * 0.1;
-          const moveProgress = clamp(collected + previewPull, 0, 1);
-          const deltaX = (flower.dockX - flower.x) * moveProgress;
-          const deltaY = (flower.dockY - flower.y) * moveProgress;
+        {primaryFlowers.map((flower) => {
+          const arrivalSpan = flower.arrivalTo - flower.arrivalFrom;
+          const arrivalProgress = clamp((gathered - flower.arrivalFrom) / arrivalSpan, 0, 1);
+          const liveLean = arrivalProgress <= 0 ? sniff * 0.1 : 0;
+          const t = clamp(arrivalProgress + liveLean, 0, 1);
+          const eased = easeInFlowerFlight(t);
+          const point = getFlowerBezierPoint(eased, flower.start, flower.control, flower.end);
+          const scale = flower.size * (1 - eased * 0.3);
+          const opacity = 0.5 + eased * 0.42;
           return (
             <span
               key={flower.id}
-              className={`collector-flower hue-${flower.hue}`}
+              className={`primary-flower hue-${flower.hue} ${eased > 0.92 ? 'is-settled' : ''}`}
               style={{
-                '--flower-x': `${flower.x}px`,
-                '--flower-y': `${flower.y}px`,
                 '--flower-size': flower.size,
-                '--flower-delay': `${flower.delay}s`,
-                '--flower-drift': flower.drift,
-                '--collect-progress': collected,
-                opacity: 0.24 + sniff * 0.26 + collected * 0.5,
-                transform: `translate(${deltaX}px, ${deltaY}px) scale(${flower.size * (0.72 + sniff * 0.18 + collected * 0.42) * flower.settle})`,
+                '--flower-idle-delay': `${flower.idleDelay}s`,
+                left: `${point.x}px`,
+                top: `${point.y}px`,
+                opacity,
+                transform: `translate(-50%, -50%) scale(${scale})`,
               }}
             />
           );
         })}
       </div>
-
-      <div className="falling-flower-layer">
-        {fallingFlowers.map((flower) => (
-          <span
-            key={flower.id}
-            className={`falling-flower hue-${flower.hue}`}
-            style={{
-              '--fall-x': `${flower.x}%`,
-              '--fall-delay': `${flower.delay - flowerWave * 0.025}s`,
-              '--fall-duration': `${flower.duration}s`,
-              '--fall-size': flower.size,
-              opacity: 0.24 + sniff * 0.56,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="flower-ground">
-        {groundFlowers.map((flower) => (
-          <span
-            key={flower.id}
-            className={`ground-flower hue-${flower.hue}`}
-            style={{
-              '--ground-x': `${flower.x}%`,
-              '--ground-y': `${flower.y}%`,
-              '--ground-size': flower.size,
-              '--ground-delay': `${flower.delay - flowerWave * 0.015}s`,
-              '--ground-drift-x': `${flower.driftX}px`,
-              '--ground-lift-y': `${flower.liftY}px`,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="flower-sparkles">
-        {sparkles.map((sparkle) => (
-          <span
-            key={sparkle.id}
-            style={{
-              '--sparkle-x': `${sparkle.x}%`,
-              '--sparkle-y': `${sparkle.y}%`,
-              '--sparkle-delay': `${sparkle.delay}s`,
-            }}
-          />
-        ))}
-      </div>
-
     </div>
   );
 }
@@ -1481,41 +1533,6 @@ function BubbleGumBunnyScene({ interaction }) {
 
     </div>
   );
-}
-
-function getFlowerDockPoint(index, margin = 16) {
-  const preview = {
-    x: 30,
-    y: 30,
-    width: 102,
-    height: 148,
-    margin,
-  };
-  const side = index % 4;
-  const t = ((index * 37) % 100) / 100;
-
-  if (side === 0) {
-    return {
-      dockX: preview.x - preview.margin,
-      dockY: preview.y + preview.height * t,
-    };
-  }
-  if (side === 1) {
-    return {
-      dockX: preview.x + preview.width + preview.margin,
-      dockY: preview.y + preview.height * t,
-    };
-  }
-  if (side === 2) {
-    return {
-      dockX: preview.x + preview.width * t,
-      dockY: preview.y - preview.margin,
-    };
-  }
-  return {
-    dockX: preview.x + preview.width * t,
-    dockY: preview.y + preview.height + preview.margin,
-  };
 }
 
 function TrackingVideo({ videoRef, isDemoMode }) {
