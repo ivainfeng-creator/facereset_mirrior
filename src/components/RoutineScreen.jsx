@@ -707,55 +707,50 @@ function parseTuningValue(value, previousValue) {
 }
 
 function TempleGardenScene({ interaction }) {
-  const rain = clamp(interaction.rain || 0, 0, 1);
+  const leftRain = clamp(interaction.leftRain || 0, 0, 1);
+  const rightRain = clamp(interaction.rightRain || 0, 0, 1);
+  const rain = Math.max(leftRain, rightRain);
   const growth = clamp(interaction.growth || 0, 0, 1);
-  const gardenCycle = interaction.gardenCycle || 0;
-  const bloomProgress = clamp(0.08 + growth * 0.42 + Math.min(gardenCycle, 20) * 0.043, 0, 1);
-  const leftPress = clamp(interaction.leftPress || 0, 0, 1);
-  const rightPress = clamp(interaction.rightPress || 0, 0, 1);
+  const gardenSlots = [
+    { id: 'left-back', x: '10%', offset: 0.12, duration: 0.42, scale: 0.72, rise: 12, stemHeight: 108, stemTilt: -11, leafTilt: -7, flowerScale: 0.78, flowerVariant: 'daisy', depth: 2 },
+    { id: 'left-front', x: '29%', offset: 0.05, duration: 0.36, scale: 0.96, rise: 2, stemHeight: 140, stemTilt: 8, leafTilt: 7, flowerScale: 0.92, flowerVariant: 'round', depth: 5 },
+    { id: 'center', x: '50%', offset: 0.01, duration: 0.31, scale: 1.02, rise: 9, stemHeight: 156, stemTilt: -4, leafTilt: -4, flowerScale: 1, flowerVariant: 'layered', depth: 4 },
+    { id: 'right-front', x: '72%', offset: 0.21, duration: 0.5, scale: 0.93, rise: 1, stemHeight: 132, stemTilt: 11, leafTilt: 9, flowerScale: 0.88, flowerVariant: 'daisy', depth: 5 },
+    { id: 'right-back', x: '91%', offset: 0.4, duration: 0.58, scale: 0.7, rise: 16, stemHeight: 112, stemTilt: -9, leafTilt: -10, flowerScale: 0.74, flowerVariant: 'round', depth: 2 },
+  ].map((slot) => ({
+    ...slot,
+    growth: clamp((growth - slot.offset) / slot.duration, 0, 1),
+  }));
   const drops = useMemo(
     () =>
-      Array.from({ length: 58 }, (_, index) => {
-        const isLeft = index % 2 === 0;
-        const lane = Math.floor(index / 2);
+      Array.from({ length: 38 }, (_, index) => {
+        const isLeftSource = index % 2 === 0;
+        const laneOffset = (index % 7) - 3;
+        const cloudCenter = isLeftSource ? 108 : 276;
         return {
           id: index,
-          side: isLeft ? 'left' : 'right',
-          x: isLeft ? 58 + ((lane * 17) % 66) : 300 + ((lane * 19) % 48),
-          y: 304 + ((lane * 29) % 146),
-          delay: (index % 16) * 0.075,
-          length: 16 + (index % 6) * 5,
+          source: isLeftSource ? 'left' : 'right',
+          // These match the actual centers of the two 120px clouds in the 384px scene.
+          x: cloudCenter + laneOffset * 11,
+          y: 316 + ((index * 23) % 58),
+          drift: isLeftSource ? 38 + (index % 4) * 4 : -38 - (index % 4) * 4,
+          delay: (index % 13) * 0.09,
+          length: 15 + (index % 5) * 6,
+          sparkle: index % 7 === 0,
         };
       }),
     [],
   );
-  const flowers = useMemo(
-    () =>
-      Array.from({ length: 92 }, (_, index) => ({
-        id: index,
-        x: 20 + ((index * 29) % 338),
-        y: 406 + ((index * 23) % 162),
-        scale: 0.48 + (index % 8) * 0.07,
-        hue: index % 4,
-        delay: (index % 12) * 0.045,
-      })),
-    [],
-  );
-  const visibleBloomCount = Math.ceil(flowers.length * bloomProgress);
 
   return (
     <div
-      className={`temple-garden-scene ${interaction.isPressing ? 'is-pressing' : ''}`}
+      className={`temple-garden-scene ${rain > 0.06 ? 'is-pressing' : ''}`}
       style={{
-        '--left-press': leftPress,
-        '--right-press': rightPress,
-        '--left-rain': leftPress,
-        '--right-rain': rightPress,
         '--rain': rain,
+        '--left-rain': leftRain,
+        '--right-rain': rightRain,
         '--growth': growth,
         '--ripple': interaction.ripple || 0,
-        '--bloom-progress': bloomProgress,
-        '--garden-cycle': gardenCycle,
       }}
       aria-hidden="true"
     >
@@ -764,12 +759,12 @@ function TempleGardenScene({ interaction }) {
         <p>Press both temples and let the garden breathe</p>
       </div>
 
-      <div className="garden-cloud left">
+      <div className="garden-cloud garden-cloud-left">
         <span />
         <span />
         <span />
       </div>
-      <div className="garden-cloud right">
+      <div className="garden-cloud garden-cloud-right">
         <span />
         <span />
         <span />
@@ -779,10 +774,11 @@ function TempleGardenScene({ interaction }) {
         {drops.map((drop) => (
           <span
             key={drop.id}
-            className={drop.side}
+            className={`${drop.source} ${drop.sparkle ? 'is-nourishing' : ''}`}
             style={{
               '--drop-x': `${drop.x}px`,
               '--drop-y': `${drop.y}px`,
+              '--drop-drift': `${drop.drift}px`,
               '--drop-delay': `${drop.delay}s`,
               '--drop-length': `${drop.length}px`,
             }}
@@ -796,19 +792,63 @@ function TempleGardenScene({ interaction }) {
         <span className="pond-ripple three" />
       </div>
 
-      <div className="garden-bed">
-        {flowers.map((flower) => (
-          <span
-            key={flower.id}
-            className={`garden-flower hue-${flower.hue}`}
+      <div className="garden-growth-zone">
+        <span className="garden-impact one" />
+        <span className="garden-impact two" />
+        <span className="garden-impact three" />
+        <span className="garden-impact four" />
+        <span className="garden-nutrient one" />
+        <span className="garden-nutrient two" />
+        <span className="garden-nutrient three" />
+        <div className="garden-soil">
+          {gardenSlots.map((slot) => (
+            <span
+              key={`${slot.id}-seed`}
+              className="garden-seed"
+              style={{
+                '--slot-x': slot.x,
+                '--slot-growth': slot.growth,
+                '--slot-scale': slot.scale,
+                '--slot-rise': `${slot.rise}px`,
+              }}
+            />
+          ))}
+        </div>
+        {gardenSlots.map((slot) => (
+          <div
+            key={slot.id}
+            className={`garden-plant-slot ${slot.id}`}
             style={{
-              '--flower-x': `${flower.x}px`,
-              '--flower-y': `${flower.y}px`,
-              '--flower-scale': flower.scale,
-              '--flower-progress': clamp((visibleBloomCount - flower.id) / 5, 0, 1),
-              '--flower-delay': `${flower.delay}s`,
+              '--slot-x': slot.x,
+              '--slot-growth': slot.growth,
+              '--slot-scale': slot.scale,
+              '--slot-rise': `${slot.rise}px`,
+              '--stem-height': `${slot.stemHeight}px`,
+              '--stem-tilt': `${slot.stemTilt}deg`,
+              '--leaf-tilt': `${slot.leafTilt}deg`,
+              '--flower-scale': slot.flowerScale,
+              '--slot-depth': slot.depth,
             }}
-          />
+            aria-label={`Garden plant ${slot.id}`}
+          >
+            <span className="plant-axis">
+              <span className="plant-stem" />
+              <span className="plant-sprout" />
+              <span className="plant-leaf leaf-left one" />
+              <span className="plant-leaf leaf-right one" />
+              <span className="plant-leaf leaf-left two" />
+              <span className="plant-leaf leaf-right two" />
+              <span className="plant-bud" />
+              <span className={`plant-flower ${slot.flowerVariant}`}>
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <b />
+              </span>
+            </span>
+          </div>
         ))}
       </div>
 
@@ -935,6 +975,7 @@ function WhaleDreamScene({ interaction }) {
   const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
   const fishCount = interaction.fishCount || 0;
   const fishWave = fishCount % 18;
+  const mouthCenter = { x: 194, y: 446 };
   const ambientFish = useMemo(
     () =>
       Array.from({ length: 34 }, (_, index) => {
@@ -958,16 +999,16 @@ function WhaleDreamScene({ interaction }) {
     () =>
       Array.from({ length: 42 }, (_, index) => {
         const fromLeft = index % 2 === 0;
-        const sideOffset = 8 + ((index * 31) % 64);
-        const startX = fromLeft ? -28 - sideOffset : 392 + sideOffset;
-        const startY = 248 + ((index * 43) % 222);
-        const mouthX = 118 + ((index * 13) % 26);
-        const mouthY = 420 + ((index * 17) % 32);
+        const sideOffset = 24 + ((index * 31) % 96);
+        const startX = fromLeft ? -36 - sideOffset : 392 + sideOffset;
+        const startY = 232 + ((index * 43) % 274);
+        const mouthX = mouthCenter.x + ((index * 13) % 16) - 8;
+        const mouthY = mouthCenter.y + ((index * 17) % 14) - 7;
 
         return {
           id: index,
           delay: (index % 14) * 0.115,
-          duration: 1.0 + (index % 8) * 0.1,
+          duration: 0.92 + (index % 8) * 0.075,
           size: 0.58 + (index % 6) * 0.1,
           x: startX,
           y: startY,
@@ -1007,7 +1048,13 @@ function WhaleDreamScene({ interaction }) {
   return (
     <div
       className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''}`}
-      style={{ '--mouth-open': mouthOpen, '--flow': interaction.flow || 0, '--fish-wave': fishWave }}
+      style={{
+        '--mouth-open': mouthOpen,
+        '--flow': interaction.flow || 0,
+        '--fish-wave': fishWave,
+        '--mouth-x': `${mouthCenter.x}px`,
+        '--mouth-y': `${mouthCenter.y}px`,
+      }}
       aria-hidden="true"
     >
       <div className="whale-stars">
@@ -1096,15 +1143,25 @@ function WhaleDreamScene({ interaction }) {
           />
         ))}
       </div>
+      <div className="whale-suction-particles">
+        {Array.from({ length: 14 }, (_, index) => (
+          <span
+            key={index}
+            style={{
+              '--particle-x': `${mouthCenter.x + ((index * 41) % 142) - 71}px`,
+              '--particle-y': `${mouthCenter.y + ((index * 29) % 112) - 56}px`,
+              '--particle-delay': `${(index % 7) * -0.19}s`,
+            }}
+          />
+        ))}
+      </div>
       {fishCount > 0 && (
-        <div className="fish-eaten-burst" key={Math.floor(fishCount / 3)}>
+        <div className="fish-eaten-burst" key={fishCount}>
           <span />
           <span />
           <span />
         </div>
       )}
-      <div className="whale-current left" />
-      <div className="whale-current right" />
     </div>
   );
 }
@@ -1593,9 +1650,11 @@ function createTemplePressTargets(features, size) {
 
   const eyes = [features.leftEye, features.rightEye].sort((a, b) => a.center.x - b.center.x);
   const faceScale = features.faceScale || Math.max(width * 0.46, 160);
-  const outward = clamp(faceScale * 0.16, 26, 62);
-  const lift = clamp(faceScale * 0.05, 8, 22);
-  const tolerance = clamp(faceScale * 0.16, 42, 84);
+  // Keep the zones around the temples generous enough for natural finger drift,
+  // while still requiring each hand to remain on its own side of the face.
+  const outward = clamp(faceScale * 0.105, 20, 48);
+  const lift = clamp(faceScale * 0.02, 3, 12);
+  const tolerance = clamp(faceScale * 0.3, 70, 126);
 
   return {
     left: {
@@ -1726,25 +1785,26 @@ function scoreTemplePress({ features, fingertips, targets, timestamp, progressSt
   const deltaSeconds = Math.max(left.deltaSeconds, right.deltaSeconds);
 
   if (bothPressing) {
-    progressState.flow = clamp(progressState.flow + deltaSeconds * (scoring.flowBase + balanced * scoring.flowByBalance), 0, 1);
-    const holdEvents = consumeTimedEvents(progressState, 'rainHold', scoring.eventBase + balanced * scoring.eventByBalance, deltaSeconds);
-    progressState.score += holdEvents * (balanced > scoring.syncBonusThreshold ? scoring.balancedHoldScore : scoring.holdScore);
+    const holdQuality = clamp((left.value + right.value) / 2, 0, 1) * balanced;
+    progressState.flow = clamp(progressState.flow + deltaSeconds * (scoring.flowBase + holdQuality * scoring.flowByBalance), 0, 1);
+    progressState.gardenNourishment = clamp(
+      (progressState.gardenNourishment || 0) + deltaSeconds * (scoring.growthBase + holdQuality * scoring.growthByFlow),
+      0,
+      1,
+    );
+    progressState.score += deltaSeconds * (scoring.holdBase + holdQuality * scoring.holdByQuality);
+
+    const nourishmentEvents = consumeTimedEvents(progressState, 'gardenNourishment', scoring.nourishmentRate, deltaSeconds);
+    progressState.score += nourishmentEvents * (balanced > scoring.syncBonusThreshold ? scoring.stableNourishmentBonus : scoring.nourishmentBonus);
+    progressState.gardenCycle += nourishmentEvents;
   } else {
     progressState.flow = clamp(progressState.flow - deltaSeconds * scoring.decay, scoring.minimumFlow, 1);
   }
 
-  if (left.justReleased || right.justReleased) {
-    const completedBoth = left.holdSeconds >= scoring.completedHoldSeconds && right.holdSeconds >= scoring.completedHoldSeconds;
-    if (completedBoth) {
-      progressState.combo = Math.min(12, progressState.combo + 1);
-      progressState.score += scoring.releaseScore + (balanced > scoring.syncBonusThreshold ? scoring.syncBonusScore : 0);
-      progressState.gardenCycle += 1;
-    }
-  }
-
-  const rain = clamp((left.value + right.value) / 2, 0, 1);
-  const gardenPulse = (progressState.gardenCycle % 4) / 4;
-  const growth = clamp(scoring.growthBase + gardenPulse * scoring.growthByCycle + progressState.flow * scoring.growthByFlow, 0, 1);
+  const leftRain = clamp(left.value * (left.active ? 1 : 0.58), 0, 1);
+  const rightRain = clamp(right.value * (right.active ? 1 : 0.58), 0, 1);
+  const rain = bothPressing ? clamp((leftRain + rightRain) / 2, 0, 1) : Math.max(leftRain, rightRain) * 0.48;
+  const growth = clamp(progressState.gardenNourishment || 0, 0, 1);
   progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
@@ -1754,11 +1814,13 @@ function scoreTemplePress({ features, fingertips, targets, timestamp, progressSt
     isOnTrack: bothPressing,
     leftPress: left.value,
     rightPress: right.value,
+    leftRain,
+    rightRain,
     rain,
     growth,
     gardenCycle: progressState.gardenCycle,
-    ripple: onePressing ? clamp(rain * 0.7 + growth * 0.3, 0, 1) : growth * 0.4,
-    flow: growth,
+    ripple: clamp(rain * 0.78 + growth * 0.28, 0, 1),
+    flow: progressState.flow,
     isPressing: bothPressing,
     combo: progressState.combo,
     holdSeconds: Math.min(left.holdSeconds, right.holdSeconds),
@@ -1785,8 +1847,9 @@ function getTemplePressFeedback({ features, fingertips, bothPressing, onePressin
   if (!onePressing) return 'Move both fingers to your temples';
   if (!bothPressing) return 'Press both sides at the same time';
   if (balanced < tuning.scoring.balanceHintThreshold) return 'Balance both sides gently';
-  if (growth > 0.78) return 'Great, the garden is breathing';
-  return 'Good pulse, press and release slowly';
+  if (growth > 0.88) return 'Beautiful, your garden is in bloom';
+  if (growth > 0.58) return 'Keep holding gently to help the garden bloom';
+  return 'Hold both temples calmly to nourish the garden';
 }
 
 function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressState, stageProgress, tuning }) {
@@ -2021,21 +2084,23 @@ function scoreMouthOpening({ features, timestamp, progressState, stageProgress, 
 
   if (isOpen) {
     progressState.flow = clamp(progressState.flow + elapsedSeconds * (scoring.flowBase + mouthOpen * scoring.flowByValue), 0, 1);
+    progressState.score += elapsedSeconds * (
+      scoring.holdBase
+      + mouthOpen * scoring.holdByValue
+      + (isStable ? scoring.stableHoldBonus : 0)
+    );
     const eaten = consumeTimedEvents(progressState, 'fish', scoring.eventBase + mouthOpen * scoring.eventByValue + (isStable ? scoring.stableEventBonus : 0), elapsedSeconds);
     if (eaten > 0) {
       progressState.fishCount += eaten;
       const special = Math.floor(progressState.fishCount / scoring.specialEvery) - progressState.specialFish;
       progressState.specialFish += Math.max(0, special);
-      progressState.score += eaten + Math.max(0, special) * scoring.specialScore;
+      progressState.score += eaten * scoring.fishScore + Math.max(0, special) * scoring.specialScore;
     }
   } else {
     progressState.flow = clamp(progressState.flow - elapsedSeconds * scoring.decay, scoring.minimumFlow, 1);
   }
 
-  if (signal.justReleased && signal.holdSeconds >= scoring.releaseHoldSeconds) {
-    progressState.combo = Math.min(12, progressState.combo + 1);
-    progressState.score += signal.holdSeconds >= scoring.longHoldSeconds ? scoring.longHoldScore : scoring.releaseScore;
-  }
+  if (signal.justReleased && signal.holdSeconds >= 0.45) progressState.combo = Math.min(12, progressState.combo + 1);
   progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
@@ -2079,10 +2144,11 @@ function createMouthProgress() {
 function createTempleProgress() {
   return {
     score: 0,
-    flow: 0.12,
+    flow: 0,
     combo: 0,
     gardenCycle: 0,
-    rainHoldAccumulator: 0,
+    gardenNourishment: 0,
+    gardenNourishmentAccumulator: 0,
     leftSignal: createInteractionSignalState(),
     rightSignal: createInteractionSignalState(),
   };

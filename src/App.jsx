@@ -11,6 +11,7 @@ import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { SCENE_IDS } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
+import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
 import {
   hasSeenGuide,
@@ -36,6 +37,7 @@ const isDemoPreview = new URLSearchParams(window.location.search).get('demo') ==
 const isProgressDebug = new URLSearchParams(window.location.search).get('debug') === '1';
 const isResultPreview = import.meta.env.DEV
   && new URLSearchParams(window.location.search).get('result') === '1';
+const debugSceneId = getActiveDebugSceneId();
 const WELCOME_TRANSITION_MS = 1020;
 
 const RESULT_PREVIEW = {
@@ -65,15 +67,15 @@ const RESULT_PREVIEW = {
 
 export default function App() {
   const [screen, setScreen] = useState(
-    isResultPreview ? SCREENS.result : (isDemoPreview ? SCREENS.theme : SCREENS.landing),
+    debugSceneId ? SCREENS.permission : (isResultPreview ? SCREENS.result : (isDemoPreview ? SCREENS.theme : SCREENS.landing)),
   );
   const [cameraStream, setCameraStream] = useState(null);
   const [cameraError, setCameraError] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
   const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
-  const [selectedScene, setSelectedScene] = useState(SCENE_IDS.whaleDream);
-  const [autoStartCamera, setAutoStartCamera] = useState(false);
+  const [selectedScene, setSelectedScene] = useState(debugSceneId || SCENE_IDS.whaleDream);
+  const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
@@ -125,7 +127,7 @@ export default function App() {
     setCameraError('');
     setAutoStartCamera(false);
     setIsDemoMode(false);
-    setScreen(SCREENS.mirror);
+    setScreen(debugSceneId ? SCREENS.routine : SCREENS.mirror);
   };
 
   const startDemoMode = () => {
@@ -173,6 +175,12 @@ export default function App() {
   };
 
   const finishRoutine = (result) => {
+    if (debugSceneId) {
+      setLatestResult(null);
+      setScreen(SCREENS.landing);
+      return;
+    }
+
     saveSessionResult(result, {
       onMerged: () => setProgressRevision((value) => value + 1),
     });
@@ -274,7 +282,7 @@ export default function App() {
           isDemoMode={isDemoMode}
           selectedScene={selectedScene}
           onComplete={finishRoutine}
-          onExit={() => setScreen(SCREENS.theme)}
+          onExit={() => setScreen(debugSceneId ? SCREENS.landing : SCREENS.theme)}
         />
       )}
 
