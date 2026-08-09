@@ -39,7 +39,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     templeTargets: null,
     lemonTargets: null,
   });
-  const snapshotFramesRef = useRef([]);
+  const snapshotCandidateRef = useRef(null);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const [elapsed, setElapsed] = useState(0);
   const [interactionTick, setInteractionTick] = useState(0);
@@ -135,6 +135,11 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   }, [selectedScene, stage.id]);
 
   useEffect(() => {
+    snapshotCandidateRef.current = null;
+    snapshotTargetsRef.current = [0.12, 0.3, 0.48, 0.66, 0.84];
+  }, [selectedScene]);
+
+  useEffect(() => {
     const now = performance.now();
     const currentInputs = latestInputsRef.current;
     const tuning = sceneTuning;
@@ -212,15 +217,20 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     const snapshot = captureRoutineSnapshot({
       video: videoRef.current,
       isDemoMode,
-      progress: globalProgress,
+      sceneId: selectedScene,
       score: toFinalSceneScore(interaction.score),
+      features,
+      displayRect,
+      interaction,
     });
 
     if (snapshot) {
-      snapshotFramesRef.current = [...snapshotFramesRef.current, snapshot].slice(-5);
+      if (!snapshotCandidateRef.current || snapshot.qualityScore > snapshotCandidateRef.current.qualityScore) {
+        snapshotCandidateRef.current = snapshot;
+      }
       snapshotTargetsRef.current = snapshotTargetsRef.current.slice(1);
     }
-  }, [globalProgress, interaction.score, isDemoMode]);
+  }, [displayRect, features, globalProgress, interaction, isDemoMode, selectedScene]);
 
   useEffect(() => {
     setStageScores((current) => ({
@@ -237,7 +247,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
         ...stageScores,
         [selectedScene]: rawDisplayScore,
       },
-      snapshotFramesRef.current,
+      snapshotCandidateRef.current ? [snapshotCandidateRef.current] : [],
       selectedScene,
     ));
   };
@@ -1632,63 +1642,118 @@ function isInteractionDebugEnabled() {
   return new URLSearchParams(window.location.search).get('debug') === '1';
 }
 
-function captureRoutineSnapshot({ video, isDemoMode, progress, score }) {
+function captureRoutineSnapshot(options) {
+  try {
+    return createRoutineSnapshot(options);
+  } catch {
+    // A photo is optional; a failed canvas capture must never interrupt gameplay.
+    return null;
+  }
+}
+
+function createRoutineSnapshot({ video, isDemoMode, sceneId, score, features, displayRect, interaction }) {
+  if (isDemoMode || !video?.videoWidth || !video?.videoHeight || video.readyState < 2) {
+    return null;
+  }
+
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   const width = 360;
-  const height = 480;
+  const height = 440;
   canvas.width = width;
   canvas.height = height;
 
-  if (!isDemoMode && video?.videoWidth && video?.videoHeight && video.readyState >= 2) {
-    const sourceAspect = video.videoWidth / video.videoHeight;
-    const targetAspect = width / height;
-    let sourceWidth = video.videoWidth;
-    let sourceHeight = video.videoHeight;
-    let sourceX = 0;
-    let sourceY = 0;
+  const crop = getPortraitCrop({ video, features, displayRect, targetAspect: width / height });
+  context.save();
+  // The gameplay preview is mirrored, so keep the Result portrait in that same orientation.
+  context.translate(width, 0);
+  context.scale(-1, 1);
+  context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height);
+  context.restore();
 
-    if (sourceAspect > targetAspect) {
-      sourceWidth = video.videoHeight * targetAspect;
-      sourceX = (video.videoWidth - sourceWidth) / 2;
-    } else {
-      sourceHeight = video.videoWidth / targetAspect;
-      sourceY = (video.videoHeight - sourceHeight) / 2;
-    }
-
-    context.save();
-    context.translate(width, 0);
-    context.scale(-1, 1);
-    context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
-    context.restore();
-  } else {
-    const gradient = context.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#dff4f0');
-    gradient.addColorStop(1, '#f7dce8');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-    context.fillStyle = 'rgba(255,255,255,0.74)';
-    context.beginPath();
-    context.arc(width / 2, height * 0.42, 86, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  context.fillStyle = 'rgba(7, 20, 24, 0.28)';
-  context.fillRect(0, 0, width, height);
-  context.fillStyle = 'rgba(215, 255, 248, 0.92)';
-  context.beginPath();
-  context.arc(width * (0.18 + progress * 0.64), height * 0.92, 7, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = 'rgba(255,255,255,0.86)';
-  context.font = '700 22px Inter, sans-serif';
-  context.fillText(String(score), 22, 42);
+  const interactionStrength = getSnapshotInteractionStrength(interaction);
+  const faceQuality = getSnapshotFaceQuality(features?.bounds, displayRect);
+  const qualityScore = Math.round(
+    Math.min(100, 28 + faceQuality * 0.42 + interactionStrength * 0.22 + Math.min(100, score) * 0.08),
+  );
 
   return {
-    id: `${Date.now()}-${Math.round(progress * 1000)}`,
-    image: canvas.toDataURL('image/jpeg', 0.72),
-    progress,
+    id: `${sceneId}-${Date.now()}`,
+    sceneId,
+    image: canvas.toDataURL('image/webp', 0.82),
+    capturedAt: Date.now(),
+    qualityScore,
     score,
   };
+}
+
+function getPortraitCrop({ video, features, displayRect, targetAspect }) {
+  const fallbackHeight = video.videoHeight;
+  const fallbackWidth = Math.min(video.videoWidth, fallbackHeight * targetAspect);
+  const fallback = {
+    x: (video.videoWidth - fallbackWidth) / 2,
+    y: Math.max(0, (video.videoHeight - fallbackWidth / targetAspect) / 2),
+    width: fallbackWidth,
+    height: fallbackWidth / targetAspect,
+  };
+  const bounds = features?.bounds;
+
+  if (!bounds || !displayRect?.width || !displayRect?.height) return fallback;
+
+  const displayWidth = Math.max(bounds.width * 1.62, bounds.height * targetAspect * 1.28);
+  const displayHeight = displayWidth / targetAspect;
+  const displayX = bounds.center.x - displayWidth / 2;
+  const displayY = bounds.center.y - displayHeight * 0.45;
+  const normalizedX = (displayX - displayRect.x) / displayRect.width;
+  const normalizedY = (displayY - displayRect.y) / displayRect.height;
+  const normalizedWidth = displayWidth / displayRect.width;
+  const normalizedHeight = displayHeight / displayRect.height;
+  const sourceWidth = Math.min(video.videoWidth, Math.max(1, normalizedWidth * video.videoWidth));
+  const sourceHeight = Math.min(video.videoHeight, Math.max(1, normalizedHeight * video.videoHeight));
+
+  // Face landmarks are mapped into the mirrored stage, while the video pixels are not.
+  const sourceX = clampNumber(
+    (1 - normalizedX - normalizedWidth) * video.videoWidth,
+    0,
+    Math.max(0, video.videoWidth - sourceWidth),
+  );
+  const sourceY = clampNumber(
+    normalizedY * video.videoHeight,
+    0,
+    Math.max(0, video.videoHeight - sourceHeight),
+  );
+
+  return { x: sourceX, y: sourceY, width: sourceWidth, height: sourceHeight };
+}
+
+function getSnapshotInteractionStrength(interaction) {
+  const values = [
+    interaction?.flow,
+    interaction?.mouthOpen,
+    interaction?.leftPress,
+    interaction?.rightPress,
+    interaction?.sniffStrength,
+    interaction?.puffStrength,
+    interaction?.completion,
+  ].filter(Number.isFinite);
+  const strongest = values.length ? Math.max(...values) : 0;
+  return Math.round(Math.min(1, Math.max(interaction?.isOnTrack ? 0.7 : 0, strongest)) * 100);
+}
+
+function getSnapshotFaceQuality(bounds, displayRect) {
+  if (!bounds || !displayRect?.width || !displayRect?.height) return 34;
+  const stageCenterX = displayRect.x + displayRect.width / 2;
+  const stageCenterY = displayRect.y + displayRect.height / 2;
+  const offset = Math.hypot(
+    (bounds.center.x - stageCenterX) / displayRect.width,
+    (bounds.center.y - stageCenterY) / displayRect.height,
+  );
+  const size = Math.min(1, (bounds.width * bounds.height) / (displayRect.width * displayRect.height * 0.14));
+  return Math.round(Math.max(0, 100 - offset * 180) * 0.72 + size * 28);
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function createTemplePressTargets(features, size) {

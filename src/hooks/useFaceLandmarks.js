@@ -10,6 +10,8 @@ import {
 } from '../utils/faceLandmarks.js';
 
 const INITIAL_SIZE = { width: 0, height: 0 };
+const CALIBRATION_STABLE_MS = 450;
+const TRACKING_LOSS_GRACE_MS = 280;
 
 export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   const [landmarkData, setLandmarkData] = useState(null);
@@ -28,6 +30,9 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
     lastTime: null,
     stabilityMs: 0,
   });
+  const stabilityLossTimerRef = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(stabilityLossTimerRef.current), []);
 
   useEffect(() => {
     const element = stageRef.current;
@@ -163,24 +168,39 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   useEffect(() => {
     const now = performance.now();
     if (!features) {
-      stabilityRef.current = {
-        lastCenter: null,
-        lastScale: null,
-        lastTime: null,
-        stabilityMs: 0,
-      };
+      const previous = stabilityRef.current;
+      const age = previous.lastTime ? now - previous.lastTime : Infinity;
+
+      // Keep a short landmark-loss grace period so a dropped camera frame does
+      // not force someone to restart an otherwise valid alignment scan.
+      if (age <= TRACKING_LOSS_GRACE_MS) {
+        window.clearTimeout(stabilityLossTimerRef.current);
+        stabilityLossTimerRef.current = window.setTimeout(() => {
+          stabilityRef.current = {
+            lastCenter: null,
+            lastScale: null,
+            lastTime: null,
+            stabilityMs: 0,
+          };
+          setLandmarkStability({ stable: false, stabilityMs: 0 });
+        }, TRACKING_LOSS_GRACE_MS - age);
+        return;
+      }
+
+      stabilityRef.current = { lastCenter: null, lastScale: null, lastTime: null, stabilityMs: 0 };
       setLandmarkStability({ stable: false, stabilityMs: 0 });
       return;
     }
 
+    window.clearTimeout(stabilityLossTimerRef.current);
     const previous = stabilityRef.current;
     const center = features.bounds.center;
     const scale = features.faceScale;
     const elapsedMs = previous.lastTime ? Math.min(120, now - previous.lastTime) : 0;
     const movement = previous.lastCenter ? Math.hypot(center.x - previous.lastCenter.x, center.y - previous.lastCenter.y) : 0;
     const scaleDelta = previous.lastScale ? Math.abs(scale - previous.lastScale) : 0;
-    const movementLimit = Math.max(4, scale * 0.018);
-    const scaleLimit = Math.max(3, scale * 0.015);
+    const movementLimit = Math.max(5, scale * 0.026);
+    const scaleLimit = Math.max(4, scale * 0.022);
     const isFrameStable = previous.lastCenter ? movement < movementLimit && scaleDelta < scaleLimit : false;
     const stabilityMs = isFrameStable ? Math.min(2400, previous.stabilityMs + elapsedMs) : 0;
 
@@ -191,7 +211,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
       stabilityMs,
     };
     setLandmarkStability({
-      stable: stabilityMs >= 1100,
+      stable: stabilityMs >= CALIBRATION_STABLE_MS,
       stabilityMs,
     });
   }, [features]);

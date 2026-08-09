@@ -42,9 +42,9 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
       setScanProgress((current) => {
         let next = current;
         if (!currentFeatures) {
-          next = Math.max(0, current - elapsed / 700);
+          next = Math.max(0, current - elapsed / 2200);
         } else if (currentAlignment?.ready) {
-          next = Math.min(1, current + elapsed / 1850);
+          next = Math.min(1, current + elapsed / 650);
         } else if ((currentAlignment?.quality || 0) >= 72) {
           next = Math.min(0.74, current + elapsed / 3200);
         } else if ((currentAlignment?.quality || 0) >= 54) {

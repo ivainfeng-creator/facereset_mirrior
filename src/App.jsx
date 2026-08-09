@@ -79,6 +79,7 @@ export default function App() {
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
+  const sessionSnapshotsRef = useRef({ programDay: null, snapshots: [] });
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
 
   useEffect(() => () => window.clearTimeout(transitionTimerRef.current), []);
@@ -181,16 +182,26 @@ export default function App() {
       return;
     }
 
-    saveSessionResult(result, {
+    const { snapshots: sceneSnapshots = [], ...persistableResult } = result;
+    saveSessionResult(persistableResult, {
       onMerged: () => setProgressRevision((value) => value + 1),
     });
     const updatedHabit = loadHabitProgress();
     const dailyPlan = buildDailyPlanSummary(updatedHabit);
+    const sessionSnapshots = mergeSessionSnapshots({
+      current: sessionSnapshotsRef.current,
+      incoming: sceneSnapshots,
+      programDay: dailyPlan.programDay,
+    });
+    sessionSnapshotsRef.current = {
+      programDay: dailyPlan.programDay,
+      snapshots: sessionSnapshots,
+    };
 
     if (dailyPlan.isComplete) {
       setLatestResult({
         ...dailyPlan,
-        snapshots: result.snapshots || [],
+        snapshots: sessionSnapshots,
       });
     } else {
       setLatestResult(null);
@@ -206,7 +217,11 @@ export default function App() {
 
     setLatestResult((current) => ({
       ...dailyPlan,
-      snapshots: current?.snapshots || [],
+      snapshots: current?.programDay === dailyPlan.programDay
+        ? current.snapshots || []
+        : sessionSnapshotsRef.current.programDay === dailyPlan.programDay
+          ? sessionSnapshotsRef.current.snapshots
+          : [],
     }));
     setScreen(SCREENS.result);
   };
@@ -321,4 +336,21 @@ export default function App() {
       )}
     </main>
   );
+}
+
+function mergeSessionSnapshots({ current, incoming, programDay }) {
+  const existing = current?.programDay === programDay ? current.snapshots || [] : [];
+  const byScene = new Map(existing.map((snapshot) => [snapshot.sceneId, snapshot]));
+
+  incoming.forEach((snapshot) => {
+    if (!snapshot?.sceneId || !snapshot?.image) return;
+    const previous = byScene.get(snapshot.sceneId);
+    if (!previous || (snapshot.qualityScore || 0) >= (previous.qualityScore || 0)) {
+      byScene.set(snapshot.sceneId, snapshot);
+    }
+  });
+
+  return Array.from(byScene.values())
+    .sort((a, b) => (a.capturedAt || 0) - (b.capturedAt || 0))
+    .slice(-3);
 }

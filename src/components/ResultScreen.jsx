@@ -8,6 +8,7 @@ import {
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
+const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
 
 export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
   const [exportMessage, setExportMessage] = useState('');
@@ -314,7 +315,10 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 }
 
 function ResultRadarPanel({ result }) {
-  const afterMetrics = normalizeDownloadRadar(result?.radar).slice(0, 5);
+  const afterMetrics = normalizeDownloadRadar(result?.radar)
+    .slice(0, 5)
+    .map((metric, index) => ({ ...metric, label: RESULT_RADAR_LABELS[index] }));
+  const snapshots = (result?.snapshots || []).filter((snapshot) => snapshot?.image).slice(0, 3);
   const metricDeltas = [13, 11, 18, 16, 14];
   const beforeMetrics = afterMetrics.map((metric, index) => ({
     ...metric,
@@ -338,11 +342,6 @@ function ResultRadarPanel({ result }) {
     const point = pointFor(metric.value, index);
     return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
   }).join(' ');
-  const clipPoints = afterMetrics.map((metric, index) => {
-    const point = pointFor(Math.min(metric.value, beforeMetrics[index].value * 0.94), index);
-    return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
-  }).join(' ');
-
   return (
     <section className="result-radar-card" aria-label="Your face balance">
       <div className="result-radar-topline">
@@ -353,12 +352,8 @@ function ResultRadarPanel({ result }) {
         </div>
       </div>
       <div className="result-radar-stage">
+        <ResultRadarPortrait snapshots={snapshots} />
         <svg viewBox="0 0 200 200" role="img" aria-label="Result radar chart">
-          <defs>
-            <clipPath id="result-radar-photo-clip">
-              <polygon points={clipPoints} />
-            </clipPath>
-          </defs>
           <circle className="result-radar-ring" cx="100" cy="100" r={radius} />
           {afterMetrics.map((metric, index) => {
             const point = pointFor(100, index, radius);
@@ -373,16 +368,17 @@ function ResultRadarPanel({ result }) {
               />
             );
           })}
-          <image
-            className="result-radar-photo"
-            href="/assets/design-v3/result-mascot.png"
-            x="11"
-            y="11"
-            width="178"
-            height="178"
-            preserveAspectRatio="xMidYMid meet"
-            clipPath="url(#result-radar-photo-clip)"
-          />
+          {!snapshots.length && (
+            <image
+              className="result-radar-photo"
+              href="/assets/design-v3/result-mascot.png"
+              x="11"
+              y="11"
+              width="178"
+              height="178"
+              preserveAspectRatio="xMidYMid meet"
+            />
+          )}
           <polygon className="result-radar-before" points={beforePoints} />
           <polygon className="result-radar-after" points={afterPoints} />
           {afterMetrics.map((metric, index) => {
@@ -416,6 +412,39 @@ function ResultRadarPanel({ result }) {
         })}
       </div>
     </section>
+  );
+}
+
+function ResultRadarPortrait({ snapshots }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    setActiveIndex(0);
+    if (snapshots.length < 2) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % snapshots.length);
+    }, 2100);
+    return () => window.clearInterval(timer);
+  }, [snapshots.length]);
+
+  if (!snapshots.length) return null;
+
+  return (
+    <div className="result-radar-portrait" aria-label="Your session portraits">
+      {snapshots.map((snapshot, index) => (
+        <img
+          className={index === activeIndex ? 'is-active' : ''}
+          src={snapshot.image}
+          alt={`Portrait from ${snapshot.sceneId}`}
+          key={snapshot.id || `${snapshot.sceneId}-${index}`}
+        />
+      ))}
+      {snapshots.length > 1 && (
+        <div className="result-radar-portrait-dots" aria-hidden="true">
+          {snapshots.map((snapshot, index) => <i className={index === activeIndex ? 'is-active' : ''} key={snapshot.id || index} />)}
+        </div>
+      )}
+    </div>
   );
 }
 
