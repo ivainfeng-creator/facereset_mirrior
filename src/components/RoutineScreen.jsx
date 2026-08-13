@@ -26,6 +26,23 @@ import fishGreenAsset from '../../references/fish-green.png';
 import fishPinkAsset from '../../references/fish-pink.png';
 import fishPurpleAsset from '../../references/fish-purple.png';
 import fishYellowAsset from '../../references/fish-yellow.png';
+import cloudGardenBackgroundAsset from '../../references/cloudgarden-bg.png';
+import cloudGardenIslandAsset from '../../references/cloudgarden-island.png';
+import flowerPinkStage1 from '../../references/flower-pink-stage1.png';
+import flowerPinkStage2 from '../../references/flower-pink-stage2.png';
+import flowerPinkStage3 from '../../references/flower-pink-stage3.png';
+import flowerPinkStage4 from '../../references/flower-pink-stage4.png';
+import flowerPink2Stage1 from '../../references/flower-pink2-stage1.png';
+import flowerPink2Stage2 from '../../references/flower-pink2-stage2.png';
+import flowerPink2Stage3 from '../../references/flower-pink2-stage3.png';
+import flowerPink2Stage4 from '../../references/flower-pink2-stage4.png';
+import flowerPurpleStage1 from '../../references/flower-purple-stage1.png';
+import flowerPurpleStage2 from '../../references/flower-purple-stage2.png';
+import flowerPurpleStage3 from '../../references/flower-purple-stage3.png';
+import flowerYellowStage1 from '../../references/flower-yellow-stage1.png';
+import flowerYellowStage2 from '../../references/flower-yellow-stage2.png';
+import flowerYellowStage3 from '../../references/flower-yellow-stage3.png';
+import flowerYellowStage4 from '../../references/flower-yellow-stage4.png';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
@@ -36,6 +53,29 @@ const WHALE_FISH_ASSETS = [
   fishPinkAsset,
   fishPurpleAsset,
   fishYellowAsset,
+];
+
+const CLOUD_GARDEN_FLOWER_STAGES = {
+  pink: [flowerPinkStage1, flowerPinkStage2, flowerPinkStage3, flowerPinkStage4],
+  pink2: [flowerPink2Stage1, flowerPink2Stage2, flowerPink2Stage3, flowerPink2Stage4],
+  purple: [flowerPurpleStage1, flowerPurpleStage2, flowerPurpleStage3],
+  yellow: [flowerYellowStage1, flowerYellowStage2, flowerYellowStage3, flowerYellowStage4],
+};
+
+const CLOUD_GARDEN_FLOWER_SLOTS = [
+  { id: 'center-main', x: '50%', root: '51%', scale: 1.05, tilt: '-3deg', offset: 0.04, duration: 0.2, type: 'pink', depth: 6 },
+  { id: 'left-center', x: '39%', root: '49%', scale: 0.88, tilt: '5deg', offset: 0.18, duration: 0.19, type: 'pink2', depth: 5 },
+  { id: 'right-center', x: '63%', root: '49%', scale: 0.78, tilt: '-5deg', offset: 0.27, duration: 0.19, type: 'yellow', depth: 5 },
+  { id: 'left-front', x: '29%', root: '47%', scale: 0.66, tilt: '-8deg', offset: 0.39, duration: 0.17, type: 'purple', depth: 4 },
+  { id: 'right-front', x: '75%', root: '47%', scale: 0.71, tilt: '7deg', offset: 0.48, duration: 0.17, type: 'pink2', depth: 4 },
+  { id: 'left-side', x: '18%', root: '44%', scale: 0.5, tilt: '-11deg', offset: 0.58, duration: 0.15, type: 'yellow', depth: 3 },
+  { id: 'right-side', x: '85%', root: '44%', scale: 0.54, tilt: '10deg', offset: 0.67, duration: 0.14, type: 'pink', depth: 3 },
+  { id: 'center-detail', x: '55%', root: '50%', scale: 0.46, tilt: '4deg', offset: 0.75, duration: 0.08, type: 'purple', depth: 7 },
+  { id: 'left-late-detail', x: '25%', root: '45%', scale: 0.42, tilt: '9deg', offset: 0.82, duration: 0.1, type: 'pink', depth: 5 },
+  { id: 'right-late-detail', x: '79%', root: '45%', scale: 0.44, tilt: '-9deg', offset: 0.87, duration: 0.1, type: 'yellow', depth: 5 },
+  { id: 'left-inner-late', x: '34%', root: '48%', scale: 0.36, tilt: '-5deg', offset: 0.91, duration: 0.08, type: 'purple', depth: 7 },
+  { id: 'right-inner-late', x: '69%', root: '48%', scale: 0.38, tilt: '6deg', offset: 0.95, duration: 0.06, type: 'pink2', depth: 7 },
+  { id: 'center-late-detail', x: '47%', root: '50%', scale: 0.32, tilt: '-2deg', offset: 0.98, duration: 0.02, type: 'yellow', depth: 8 },
 ];
 
 const WHALE_FISH_TUNING = {
@@ -110,6 +150,7 @@ function getWhaleLayout(viewportWidth) {
 
 export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, stream, isDemoMode, onComplete, onExit }) {
   const isWhaleViewportScene = selectedScene === SCENE_IDS.whaleDream;
+  const isCloudGardenViewportScene = selectedScene === SCENE_IDS.templeGarden;
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
@@ -354,7 +395,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   };
 
   return (
-    <section className={`screen routine-screen play-routine-screen${isWhaleViewportScene ? ' whale-viewport-routine' : ''}`}>
+    <section className={`screen routine-screen play-routine-screen${isWhaleViewportScene ? ' whale-viewport-routine' : ''}${isCloudGardenViewportScene ? ' cloud-garden-viewport-routine' : ''}`}>
       <div className="routine-layout play-routine-layout">
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
           {selectedScene === SCENE_IDS.templeGarden ? (
@@ -806,28 +847,22 @@ function TempleGardenScene({ interaction }) {
   const rightRain = clamp(interaction.rightRain || 0, 0, 1);
   const rain = Math.max(leftRain, rightRain);
   const growth = clamp(interaction.growth || 0, 0, 1);
-  const gardenSlots = [
-    { id: 'left-back', x: '10%', offset: 0.12, duration: 0.42, scale: 0.72, rise: 12, stemHeight: 108, stemTilt: -11, leafTilt: -7, flowerScale: 0.78, flowerVariant: 'daisy', depth: 2 },
-    { id: 'left-front', x: '29%', offset: 0.05, duration: 0.36, scale: 0.96, rise: 2, stemHeight: 140, stemTilt: 8, leafTilt: 7, flowerScale: 0.92, flowerVariant: 'round', depth: 5 },
-    { id: 'center', x: '50%', offset: 0.01, duration: 0.31, scale: 1.02, rise: 9, stemHeight: 156, stemTilt: -4, leafTilt: -4, flowerScale: 1, flowerVariant: 'layered', depth: 4 },
-    { id: 'right-front', x: '72%', offset: 0.21, duration: 0.5, scale: 0.93, rise: 1, stemHeight: 132, stemTilt: 11, leafTilt: 9, flowerScale: 0.88, flowerVariant: 'daisy', depth: 5 },
-    { id: 'right-back', x: '91%', offset: 0.4, duration: 0.58, scale: 0.7, rise: 16, stemHeight: 112, stemTilt: -9, leafTilt: -10, flowerScale: 0.74, flowerVariant: 'round', depth: 2 },
-  ].map((slot) => ({
+  const gardenSlots = CLOUD_GARDEN_FLOWER_SLOTS.map((slot) => ({
     ...slot,
     growth: clamp((growth - slot.offset) / slot.duration, 0, 1),
+    isActive: growth >= slot.offset ? 1 : 0,
   }));
   const drops = useMemo(
     () =>
       Array.from({ length: 38 }, (_, index) => {
         const isLeftSource = index % 2 === 0;
         const laneOffset = (index % 7) - 3;
-        const cloudCenter = isLeftSource ? 108 : 276;
+        const cloudCenter = isLeftSource ? 34 : 66;
         return {
           id: index,
           source: isLeftSource ? 'left' : 'right',
-          // These match the actual centers of the two 120px clouds in the 384px scene.
-          x: cloudCenter + laneOffset * 11,
-          y: 316 + ((index * 23) % 58),
+          x: `${cloudCenter + laneOffset * 2.8}%`,
+          y: `${38 + ((index * 11) % 10)}%`,
           drift: isLeftSource ? 38 + (index % 4) * 4 : -38 - (index % 4) * 4,
           delay: (index % 13) * 0.09,
           length: 15 + (index % 5) * 6,
@@ -849,6 +884,7 @@ function TempleGardenScene({ interaction }) {
       }}
       aria-hidden="true"
     >
+      <img className="garden-art-background" src={cloudGardenBackgroundAsset} alt="" />
       <div className="temple-copy">
         <h1>Cloud Garden</h1>
         <p>Press both temples and let the garden breathe</p>
@@ -871,8 +907,8 @@ function TempleGardenScene({ interaction }) {
             key={drop.id}
             className={`${drop.source} ${drop.sparkle ? 'is-nourishing' : ''}`}
             style={{
-              '--drop-x': `${drop.x}px`,
-              '--drop-y': `${drop.y}px`,
+              '--drop-x': drop.x,
+              '--drop-y': drop.y,
               '--drop-drift': `${drop.drift}px`,
               '--drop-delay': `${drop.delay}s`,
               '--drop-length': `${drop.length}px`,
@@ -895,54 +931,36 @@ function TempleGardenScene({ interaction }) {
         <span className="garden-nutrient one" />
         <span className="garden-nutrient two" />
         <span className="garden-nutrient three" />
-        <div className="garden-soil">
-          {gardenSlots.map((slot) => (
-            <span
-              key={`${slot.id}-seed`}
-              className="garden-seed"
-              style={{
-                '--slot-x': slot.x,
-                '--slot-growth': slot.growth,
-                '--slot-scale': slot.scale,
-                '--slot-rise': `${slot.rise}px`,
-              }}
-            />
-          ))}
-        </div>
+        <img className="garden-island-art" src={cloudGardenIslandAsset} alt="" />
         {gardenSlots.map((slot) => (
           <div
             key={slot.id}
-            className={`garden-plant-slot ${slot.id}`}
+            className={`garden-plant-slot garden-asset-flower ${slot.id}`}
             style={{
               '--slot-x': slot.x,
               '--slot-growth': slot.growth,
+              '--slot-active': slot.isActive,
               '--slot-scale': slot.scale,
-              '--slot-rise': `${slot.rise}px`,
-              '--stem-height': `${slot.stemHeight}px`,
-              '--stem-tilt': `${slot.stemTilt}deg`,
-              '--leaf-tilt': `${slot.leafTilt}deg`,
-              '--flower-scale': slot.flowerScale,
+              '--slot-tilt': slot.tilt,
+              '--slot-root': slot.root,
               '--slot-depth': slot.depth,
             }}
-            aria-label={`Garden plant ${slot.id}`}
           >
-            <span className="plant-axis">
-              <span className="plant-stem" />
-              <span className="plant-sprout" />
-              <span className="plant-leaf leaf-left one" />
-              <span className="plant-leaf leaf-right one" />
-              <span className="plant-leaf leaf-left two" />
-              <span className="plant-leaf leaf-right two" />
-              <span className="plant-bud" />
-              <span className={`plant-flower ${slot.flowerVariant}`}>
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <b />
-              </span>
-            </span>
+            {CLOUD_GARDEN_FLOWER_STAGES[slot.type].map((asset, stageIndex) => (
+              <img
+                key={asset}
+                className="garden-flower-stage"
+                src={asset}
+                alt=""
+                style={{
+                  '--stage-opacity': clamp(
+                    1 - Math.abs(slot.growth * (CLOUD_GARDEN_FLOWER_STAGES[slot.type].length - 1) - stageIndex),
+                    0,
+                    1,
+                  ),
+                }}
+              />
+            ))}
           </div>
         ))}
       </div>

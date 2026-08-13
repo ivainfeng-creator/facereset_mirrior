@@ -2272,19 +2272,27 @@ h1 {
   z-index: 0;
   overflow: hidden;
   color: #f8fbff;
-  background:
-    radial-gradient(circle at 50% 72%, rgba(162, 255, 203, calc(0.1 + var(--growth) * 0.3)), transparent 28%),
-    radial-gradient(circle at 50% 30%, rgba(197, 235, 255, calc(0.06 + var(--rain) * 0.18)), transparent 24%),
-    linear-gradient(180deg, #12376d 0%, #216eaa 42%, #76c6c1 70%, #235f58 100%);
+  background: #9bb4f0;
+}
+
+.garden-art-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
 }
 
 .temple-garden-scene::before {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 19%),
-    radial-gradient(ellipse at 50% 94%, rgba(255, 235, 178, 0.3), transparent 38%),
-    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 26px);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 31%),
+    radial-gradient(ellipse at 50% 80%, rgba(232, 199, 255, calc(0.04 + var(--growth) * 0.14)), transparent 38%);
   content: '';
   opacity: 0.78;
   pointer-events: none;
@@ -2292,16 +2300,17 @@ h1 {
 
 .temple-garden-scene::after {
   position: absolute;
-  right: -10%;
-  bottom: -9%;
-  left: -10%;
-  height: 41%;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  height: 35%;
   background:
     radial-gradient(ellipse at 50% 28%, rgba(131, 255, 200, calc(0.08 + var(--growth) * 0.28)), transparent 30%),
-    radial-gradient(ellipse at 30% 60%, rgba(116, 129, 229, 0.28), transparent 28%),
-    linear-gradient(180deg, rgba(46, 134, 113, 0.16), rgba(8, 53, 55, 0.84));
+    radial-gradient(ellipse at 30% 60%, rgba(116, 129, 229, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(133, 108, 206, 0.04), rgba(57, 80, 141, 0.28));
   content: '';
-  filter: blur(8px);
+  filter: blur(6px);
   pointer-events: none;
 }
 
@@ -2333,22 +2342,23 @@ h1 {
 
 .garden-cloud {
   position: absolute;
-  top: 248px;
+  top: clamp(228px, 31vh, 282px);
   z-index: 3;
-  width: 120px;
-  height: 70px;
+  width: clamp(84px, 24vw, 120px);
+  height: clamp(50px, 14vw, 70px);
   opacity: 0.96;
   filter:
     drop-shadow(0 0 24px rgba(208, 255, 255, 0.45))
     drop-shadow(0 18px 18px rgba(13, 72, 118, 0.18));
   --cloud-press: var(--rain);
-  transform: translateX(-50%) translateY(calc(var(--cloud-press) * 10px)) scaleX(calc(1 + var(--cloud-press) * 0.13)) scaleY(calc(1 - var(--cloud-press) * 0.28));
+  --cloud-scale: 1;
+  transform: translateX(-50%) translateY(calc(var(--cloud-press) * 10px)) scale(var(--cloud-scale)) scaleX(calc(1 + var(--cloud-press) * 0.13)) scaleY(calc(1 - var(--cloud-press) * 0.28));
   transform-origin: center bottom;
   transition: filter 140ms ease-out, transform 140ms ease-out;
 }
 
-.garden-cloud-left { left: 28%; --cloud-press: var(--left-rain); }
-.garden-cloud-right { left: 72%; --cloud-press: var(--right-rain); }
+.garden-cloud-left { left: 34%; --cloud-press: var(--left-rain); }
+.garden-cloud-right { left: 66%; --cloud-press: var(--right-rain); }
 
 .garden-cloud::after {
   position: absolute;
@@ -2415,7 +2425,7 @@ h1 {
 .garden-rain {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 3;
   opacity: 1;
   pointer-events: none;
 }
@@ -2452,7 +2462,7 @@ h1 {
   right: 72px;
   bottom: 174px;
   left: 72px;
-  z-index: 1;
+  z-index: 2;
   height: 84px;
   border-radius: 50%;
   background:
@@ -2481,13 +2491,26 @@ h1 {
 
 .garden-growth-zone {
   position: absolute;
-  bottom: 128px;
+  bottom: clamp(82px, 13vh, 128px);
   left: 50%;
   z-index: 4;
-  width: 322px;
-  height: 268px;
+  width: min(88vw, 440px);
+  height: min(50vw, 260px);
+  min-height: 188px;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.garden-island-art {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  z-index: 1;
+  width: 122%;
+  max-width: 520px;
+  height: auto;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 13px 16px rgba(59, 69, 125, 0.22));
 }
 
 .garden-soil {
@@ -2559,6 +2582,34 @@ h1 {
   height: 210px;
   transform: translateX(-50%) scale(var(--slot-scale));
   transform-origin: bottom center;
+}
+
+.garden-plant-slot.garden-asset-flower {
+  bottom: var(--slot-root);
+  width: clamp(82px, 24vw, 130px);
+  height: clamp(82px, 24vw, 130px);
+  opacity: var(--slot-active);
+  transform:
+    translateX(-50%)
+    translateY(calc((1 - var(--slot-growth)) * 14px))
+    rotate(var(--slot-tilt))
+    scale(calc(var(--slot-scale) * (0.48 + var(--slot-growth) * 0.52)));
+  transform-origin: 50% 100%;
+  transition: opacity 180ms ease-out, transform 460ms cubic-bezier(.16,.9,.2,1);
+}
+
+.garden-flower-stage {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  opacity: calc(var(--stage-opacity) * var(--slot-active));
+  filter: drop-shadow(0 5px 7px rgba(75, 79, 144, 0.16));
+  transition: opacity 440ms ease-in-out;
 }
 
 .garden-plant-slot .plant-axis {
@@ -12713,6 +12764,136 @@ h1 {
 
 .whale-viewport-routine .routine-layout {
   display: block;
+}
+
+/* Cloud Garden uses the same full-viewport play surface as Whale Mouth. */
+.app-shell:has(.cloud-garden-viewport-routine) {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 0;
+  overflow: hidden;
+  background: #7b93d2;
+}
+
+.app-shell:has(.cloud-garden-viewport-routine) .ambient {
+  display: none;
+}
+
+.cloud-garden-viewport-routine,
+.cloud-garden-viewport-routine .routine-layout,
+.cloud-garden-viewport-routine .routine-mirror,
+.cloud-garden-viewport-routine .tracking-video,
+.cloud-garden-viewport-routine .tracking-video-placeholder {
+  box-sizing: border-box;
+  width: 100vw;
+  min-width: 100vw;
+  max-width: none;
+  height: 100vh;
+  height: 100svh;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.cloud-garden-viewport-routine {
+  aspect-ratio: auto;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.cloud-garden-viewport-routine .routine-layout {
+  display: block;
+}
+
+.cloud-garden-viewport-routine .temple-garden-scene {
+  background: #8498d4;
+}
+
+.cloud-garden-viewport-routine .garden-art-background {
+  object-position: center;
+}
+
+.cloud-garden-viewport-routine .garden-growth-zone {
+  bottom: clamp(24px, 3.5vh, 46px);
+  width: min(78vw, 780px);
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 3 / 2;
+}
+
+.cloud-garden-viewport-routine .garden-island-art {
+  width: 100%;
+  max-width: none;
+  filter: drop-shadow(0 7px 10px rgba(59, 69, 125, 0.12));
+}
+
+.cloud-garden-viewport-routine .garden-pond {
+  right: 22%;
+  bottom: clamp(34px, 5vh, 58px);
+  left: 22%;
+  height: clamp(40px, 6vh, 64px);
+  opacity: calc(0.045 + var(--growth) * 0.12 + var(--rain) * 0.1);
+  filter: blur(2px);
+}
+
+.cloud-garden-viewport-routine .garden-plant-slot.garden-asset-flower {
+  width: clamp(110px, 16.8vw, 180px);
+  height: clamp(110px, 16.8vw, 180px);
+}
+
+.cloud-garden-viewport-routine .garden-cloud {
+  top: clamp(190px, 23vh, 258px);
+  --cloud-scale: 1.25;
+}
+
+.cloud-garden-viewport-routine .play-close-button {
+  top: clamp(26px, 4vh, 48px);
+  right: clamp(26px, 4vw, 64px);
+}
+
+.cloud-garden-viewport-routine .play-timer.timer-ring {
+  top: clamp(24px, 4vh, 48px);
+  right: clamp(70px, 9vw, 132px);
+  bottom: auto;
+}
+
+.cloud-garden-viewport-routine .play-score {
+  bottom: clamp(28px, 4vh, 52px);
+  left: clamp(28px, 4vw, 64px);
+}
+
+.cloud-garden-viewport-routine .temple-copy {
+  top: clamp(30px, 4vh, 52px);
+  right: auto;
+  left: clamp(154px, 16vw, 270px);
+}
+
+@media (max-width: 559px) {
+  .cloud-garden-viewport-routine .garden-growth-zone {
+    bottom: 30px;
+    width: min(92vw, 440px);
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 3 / 2;
+  }
+
+  .cloud-garden-viewport-routine .garden-island-art {
+    width: 100%;
+  }
+
+  .cloud-garden-viewport-routine .garden-plant-slot.garden-asset-flower {
+    width: clamp(94px, 27.6vw, 142px);
+    height: clamp(94px, 27.6vw, 142px);
+  }
+
+  .cloud-garden-viewport-routine .garden-cloud {
+    top: clamp(184px, 25vh, 220px);
+  }
 }
 
 @media (min-width: 600px) {
