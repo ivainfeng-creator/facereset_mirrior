@@ -19,12 +19,97 @@ import {
 } from '../utils/interactionSignal.js';
 import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
+import whaleClosedAsset from '../../references/whale-closed.png';
+import whaleOpenAsset from '../../references/whale-open.png';
+import fishBlueAsset from '../../references/fish-blue.png';
+import fishGreenAsset from '../../references/fish-green.png';
+import fishPinkAsset from '../../references/fish-pink.png';
+import fishPurpleAsset from '../../references/fish-purple.png';
+import fishYellowAsset from '../../references/fish-yellow.png';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
+const WHALE_FISH_ASSETS = [
+  fishBlueAsset,
+  fishGreenAsset,
+  fishPinkAsset,
+  fishPurpleAsset,
+  fishYellowAsset,
+];
+
+const WHALE_FISH_TUNING = {
+  ambientCount: 34,
+  suctionCount: 30,
+  compactAmbientCount: 21,
+  compactSuctionCount: 18,
+  narrowAmbientCount: 17,
+  narrowSuctionCount: 14,
+  ambientScaleMin: 0.38,
+  ambientScaleStep: 0.09,
+  suctionScaleMin: 0.34,
+  suctionScaleStep: 0.13,
+  ambientDurationBase: 8.6,
+  suctionDurationBase: 1.8,
+  compactBreakpoint: 620,
+  narrowBreakpoint: 430,
+  compactScaleMultiplier: 0.76,
+  narrowScaleMultiplier: 0.62,
+  leftSourceRatio: 0.62,
+  nearbySourceRatio: 0.22,
+  rightSourceRatio: 0.16,
+  curveStrength: 1.24,
+  suctionStrength: 1,
+  motionVariance: 0.16,
+  finalAcceleration: 1.14,
+};
+
+const WHALE_LAYOUT_TUNING = {
+  desktopBreakpoint: 900,
+  tabletBreakpoint: 600,
+  desktopScale: 0.9,
+  tabletScale: 0.87,
+  mobileScale: 0.84,
+};
+
+function getWhaleFishLayout(viewportWidth) {
+  if (viewportWidth <= WHALE_FISH_TUNING.narrowBreakpoint) {
+    return {
+      ambientCount: WHALE_FISH_TUNING.narrowAmbientCount,
+      suctionCount: WHALE_FISH_TUNING.narrowSuctionCount,
+      scaleMultiplier: WHALE_FISH_TUNING.narrowScaleMultiplier,
+    };
+  }
+
+  if (viewportWidth <= WHALE_FISH_TUNING.compactBreakpoint) {
+    return {
+      ambientCount: WHALE_FISH_TUNING.compactAmbientCount,
+      suctionCount: WHALE_FISH_TUNING.compactSuctionCount,
+      scaleMultiplier: WHALE_FISH_TUNING.compactScaleMultiplier,
+    };
+  }
+
+  return {
+    ambientCount: WHALE_FISH_TUNING.ambientCount,
+    suctionCount: WHALE_FISH_TUNING.suctionCount,
+    scaleMultiplier: 1,
+  };
+}
+
+function getWhaleLayout(viewportWidth) {
+  if (viewportWidth >= WHALE_LAYOUT_TUNING.desktopBreakpoint) {
+    return { scale: WHALE_LAYOUT_TUNING.desktopScale };
+  }
+
+  if (viewportWidth >= WHALE_LAYOUT_TUNING.tabletBreakpoint) {
+    return { scale: WHALE_LAYOUT_TUNING.tabletScale };
+  }
+
+  return { scale: WHALE_LAYOUT_TUNING.mobileScale };
+}
 
 export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, stream, isDemoMode, onComplete, onExit }) {
+  const isWhaleViewportScene = selectedScene === SCENE_IDS.whaleDream;
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
@@ -269,7 +354,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   };
 
   return (
-    <section className="screen routine-screen play-routine-screen">
+    <section className={`screen routine-screen play-routine-screen${isWhaleViewportScene ? ' whale-viewport-routine' : ''}`}>
       <div className="routine-layout play-routine-layout">
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
           {selectedScene === SCENE_IDS.templeGarden ? (
@@ -988,67 +1073,117 @@ function WhaleDreamScene({ interaction }) {
   const sceneRef = useRef(null);
   const mouthAnchorRef = useRef(null);
   const [mouthCenter, setMouthCenter] = useState({ x: 214, y: 492 });
+  const [sceneSize, setSceneSize] = useState({ width: 375, height: 620 });
+  const fishLayout = useMemo(() => getWhaleFishLayout(sceneSize.width), [sceneSize.width]);
+  const whaleLayout = useMemo(() => getWhaleLayout(sceneSize.width), [sceneSize.width]);
   const suction = interaction.isOpen
     ? clamp(mouthOpen * 0.42 + (interaction.flow || 0) * 0.58, 0, 1)
     : 0;
   // Keep the calm seam completely separate from the open-mouth cavity.
   const mouthVisualOpen = interaction.isOpen ? mouthOpen : 0;
   const ambientFish = useMemo(
-    () =>
-      Array.from({ length: 34 }, (_, index) => {
-        const fromLeft = index % 2 === 0;
+    () => {
+      const swimLanes = [
+        { side: 'from-left', x: -14, swimX: 118, midX: 48 },
+        { side: 'from-left', x: 4, swimX: 106, midX: 43 },
+        { side: 'from-right', x: 106, swimX: -122, midX: -54 },
+        { side: 'from-right', x: 88, swimX: -98, midX: -42 },
+        { side: 'from-left', x: 28, swimX: 82, midX: 31 },
+        { side: 'from-right', x: 72, swimX: -78, midX: -27 },
+      ];
+
+      return Array.from({ length: fishLayout.ambientCount }, (_, index) => {
+        const lane = swimLanes[index % swimLanes.length];
         return {
           id: index,
-          side: fromLeft ? 'from-left' : 'from-right',
-          x: fromLeft ? -38 - (index % 7) * 16 : 394 + (index % 7) * 16,
-          y: 238 + ((index * 37) % 318),
-          swimX: fromLeft ? 450 + ((index * 19) % 90) : -450 - ((index * 19) % 90),
-          bobY: -18 + (index % 5) * 9,
-          delay: (index % 17) * -0.42,
-          duration: 7.2 + (index % 8) * 0.45,
-          size: 0.42 + (index % 6) * 0.08,
+          side: lane.side,
+          asset: WHALE_FISH_ASSETS[index % WHALE_FISH_ASSETS.length],
+          x: `${lane.x + ((index * 13) % 14)}vw`,
+          y: `${7 + ((index * 19) % 75)}vh`,
+          swimX: `${lane.swimX + ((index % 5) - 2) * 4}vw`,
+          midX: `${lane.midX + ((index % 5) - 2) * 2}vw`,
+          bobY: -15 + (index % 6) * 6,
+          delay: -((index * 0.53) % 8),
+          duration: WHALE_FISH_TUNING.ambientDurationBase + (index % 8) * 0.68,
+          size: (WHALE_FISH_TUNING.ambientScaleMin + (index % 6) * WHALE_FISH_TUNING.ambientScaleStep) * fishLayout.scaleMultiplier,
+          opacity: 0.36 + (index % 5) * 0.1,
           special: index % 19 === 0,
         };
-      }),
-    [],
+      });
+    },
+    [fishLayout],
   );
   const fish = useMemo(
-    () =>
-      Array.from({ length: 42 }, (_, index) => {
-        const fromLeft = index % 5 !== 4;
-        const sideOffset = 24 + ((index * 31) % 96);
-        const startX = fromLeft ? -36 - sideOffset : 392 + sideOffset;
+    () => {
+      const primarySources = [
+          { side: 'from-left', x: -116, y: 0.22, curveX: 72 },
+          { side: 'from-left', x: -88, y: 0.48, curveX: 58 },
+          { side: 'from-left', x: -72, y: 0.72, curveX: 80 },
+          { side: 'from-left', x: -44, y: 0.08, curveX: 60 },
+        ];
+      const nearbySources = [
+        { side: 'from-left', x: sceneSize.width * 0.2, y: 0.35, curveX: 44 },
+        { side: 'from-left', x: sceneSize.width * 0.31, y: 0.67, curveX: 52 },
+      ];
+      const rightSources = [
+          { side: 'from-right', x: sceneSize.width + 100, y: 0.2, curveX: -82 },
+          { side: 'from-right', x: sceneSize.width + 78, y: 0.58, curveX: -66 },
+          { side: 'from-right', x: sceneSize.width + 118, y: 0.78, curveX: -92 },
+          { side: 'from-right', x: sceneSize.width * 0.8, y: 0.43, curveX: -54 },
+      ];
+      const sourceRatioTotal = WHALE_FISH_TUNING.leftSourceRatio
+        + WHALE_FISH_TUNING.nearbySourceRatio
+        + WHALE_FISH_TUNING.rightSourceRatio;
+      const primaryCount = Math.max(1, Math.round(
+        fishLayout.suctionCount * WHALE_FISH_TUNING.leftSourceRatio / sourceRatioTotal,
+      ));
+      const nearbyCount = Math.max(1, Math.round(
+        fishLayout.suctionCount * WHALE_FISH_TUNING.nearbySourceRatio / sourceRatioTotal,
+      ));
+
+      return Array.from({ length: fishLayout.suctionCount }, (_, index) => {
+        const sourcePool = index < primaryCount
+          ? primarySources
+          : index < primaryCount + nearbyCount
+            ? nearbySources
+            : rightSources;
+        const source = sourcePool[index % sourcePool.length];
         const sourceBand = index % 3;
-        const startY = [172, 292, 426][sourceBand] + ((index * 29) % 74);
+        const startX = source.x + (source.side === 'from-left' ? -((index * 17) % 62) : (index * 17) % 62);
+        const startY = sceneSize.height * source.y + ((index * 29) % 68) - 34;
         const mouthX = mouthCenter.x + ((index * 13) % 8) - 4;
         const mouthY = mouthCenter.y + ((index * 17) % 6) - 3;
-        const curveDirection = fromLeft ? 1 : -1;
         const curveY = sourceBand === 0
-          ? 76 + (index % 4) * 11
+          ? 92 + (index % 4) * 16
           : sourceBand === 1
-            ? -24 + (index % 5) * 10
-            : -104 + (index % 4) * 12;
-        const pullStrength = 0.78 + (index % 5) * 0.07;
+            ? -38 + (index % 5) * 14
+            : -128 + (index % 4) * 18;
+        const pullStrength = (0.72 + (index % 6) * 0.075) * WHALE_FISH_TUNING.suctionStrength;
+        const motionVariance = 1 + ((index % 5) - 2) * WHALE_FISH_TUNING.motionVariance;
 
         return {
           id: index,
-          delay: (index % 14) * 0.115,
-          duration: (1.04 + (index % 8) * 0.08) / pullStrength,
-          size: 0.34 + (index % 7) * 0.15,
+          asset: WHALE_FISH_ASSETS[index % WHALE_FISH_ASSETS.length],
+          delay: -((index * 0.47) % 6.4),
+          duration: (WHALE_FISH_TUNING.suctionDurationBase + (index % 7) * 0.16)
+            / (pullStrength * WHALE_FISH_TUNING.finalAcceleration),
+          size: (WHALE_FISH_TUNING.suctionScaleMin + (index % 6) * WHALE_FISH_TUNING.suctionScaleStep) * fishLayout.scaleMultiplier,
           x: startX,
           y: startY,
           driftX: mouthX - startX,
           driftY: mouthY - startY,
-          curveX: curveDirection * (18 + (index % 5) * 9),
-          curveY,
-          cruiseX: fromLeft ? 128 + ((index * 23) % 86) : -128 - ((index * 23) % 86),
-          cruiseY: -20 + (index % 7) * 7,
-          side: fromLeft ? 'from-left' : 'from-right',
-          variant: ['round', 'dart', 'sail'][index % 3],
+          curveX: (source.curveX + (index % 5) * (source.side === 'from-left' ? 11 : -11))
+            * WHALE_FISH_TUNING.curveStrength * motionVariance,
+          curveY: curveY * WHALE_FISH_TUNING.curveStrength * motionVariance,
+          cruiseX: (source.side === 'from-left' ? 1 : -1) * (132 + ((index * 23) % 112)),
+          cruiseY: -32 + (index % 7) * 11,
+          side: source.side,
+          opacity: 0.6 + (index % 4) * 0.1,
           special: index % 17 === 0,
         };
-      }),
-    [mouthCenter],
+      });
+    },
+    [fishLayout, mouthCenter, sceneSize],
   );
   const stars = useMemo(
     () =>
@@ -1060,21 +1195,6 @@ function WhaleDreamScene({ interaction }) {
       })),
     [],
   );
-
-  const upperMouth = 382 - mouthVisualOpen * 58;
-  const lowerMouth = 392 + mouthVisualOpen * 98;
-  const leftMouth = 104 - mouthVisualOpen * 12;
-  const rightMouth = 244 + mouthVisualOpen * 19;
-  const mouthPath = [
-    `M ${leftMouth} ${upperMouth}`,
-    `C ${139 - mouthVisualOpen * 10} ${374 - mouthVisualOpen * 50} ${197 + mouthVisualOpen * 6} ${374 - mouthVisualOpen * 42} ${rightMouth} ${382 - mouthVisualOpen * 16}`,
-    `C ${233 + mouthVisualOpen * 9} ${394 + mouthVisualOpen * 76} ${157 - mouthVisualOpen * 4} ${403 + mouthVisualOpen * 84} ${leftMouth} ${lowerMouth}`,
-    `C ${88 - mouthVisualOpen * 9} ${397 + mouthVisualOpen * 20} ${88 - mouthVisualOpen * 10} ${380 - mouthVisualOpen * 18} ${leftMouth} ${upperMouth}`,
-    'Z',
-  ].join(' ');
-  const mouthAnchorX = (leftMouth + rightMouth) / 2;
-  const mouthAnchorY = (upperMouth + lowerMouth) / 2;
-  const mouthSeamPath = `M ${leftMouth + 10} ${388 - mouthVisualOpen * 18} C ${142 - mouthVisualOpen * 8} ${382 - mouthVisualOpen * 34} ${202 + mouthVisualOpen * 5} ${382 - mouthVisualOpen * 30} ${rightMouth - 9} ${386 - mouthVisualOpen * 16}`;
 
   useEffect(() => {
     const syncMouthCenter = () => {
@@ -1090,6 +1210,13 @@ function WhaleDreamScene({ interaction }) {
       setMouthCenter((current) => (
         current.x === nextCenter.x && current.y === nextCenter.y ? current : nextCenter
       ));
+      setSceneSize((current) => {
+        const nextSize = {
+          width: Math.round(sceneBounds.width),
+          height: Math.round(sceneBounds.height),
+        };
+        return current.width === nextSize.width && current.height === nextSize.height ? current : nextSize;
+      });
     };
 
     const frame = window.requestAnimationFrame(syncMouthCenter);
@@ -1098,7 +1225,7 @@ function WhaleDreamScene({ interaction }) {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', syncMouthCenter);
     };
-  }, [mouthOpen]);
+  }, [mouthOpen, mouthVisualOpen]);
 
   return (
     <div
@@ -1113,6 +1240,7 @@ function WhaleDreamScene({ interaction }) {
         '--fish-wave': fishWave,
         '--mouth-x': `${mouthCenter.x}px`,
         '--mouth-y': `${mouthCenter.y}px`,
+        '--whale-layout-scale': whaleLayout.scale,
       }}
       aria-hidden="true"
     >
@@ -1133,64 +1261,69 @@ function WhaleDreamScene({ interaction }) {
         <h1>Whale Mouth</h1>
         <p>Open wide and guide little fish in</p>
       </div>
-      <svg className="whale-svg" viewBox="0 0 375 620" role="img" aria-label="Dream whale">
-        <defs>
-          <radialGradient id="whaleGlow" cx="38%" cy="46%" r="65%">
-            <stop offset="0%" stopColor="#8cb5ff" />
-            <stop offset="58%" stopColor="#4267c7" />
-            <stop offset="100%" stopColor="#22357f" />
-          </radialGradient>
-          <radialGradient id="mouthGlow" cx="54%" cy="50%" r="62%">
-            <stop offset="0%" stopColor="#fff3a9" />
-            <stop offset="44%" stopColor="#ffaed2" />
-            <stop offset="100%" stopColor="#5d3a90" />
-          </radialGradient>
-          <linearGradient id="seaGlow" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stopColor="#e7b9ff" stopOpacity="0.74" />
-            <stop offset="100%" stopColor="#71e6ff" stopOpacity="0.18" />
-          </linearGradient>
-        </defs>
-
-        <path className="whale-water" d="M 0 510 C 70 482 132 534 200 504 C 270 474 316 493 375 468 L 375 620 L 0 620 Z" />
-        <path
-          className="whale-body"
-          d="M 101 335 C 111 210 207 161 284 227 C 350 283 344 431 286 495 C 220 568 119 518 89 430 C 59 412 52 372 101 335 Z"
-        />
-        <path
-          className={`whale-belly ${interaction.isOpen ? 'is-mouth-open' : ''}`}
-          d="M 103 368 C 135 328 200 320 248 350 C 231 427 174 470 102 424 C 78 409 76 384 103 368 Z"
-        />
-        {interaction.isOpen && <path className="whale-mouth-glow" d={mouthPath} />}
-        <path className="whale-mouth-line" d={mouthSeamPath} />
-        <circle ref={mouthAnchorRef} className="whale-mouth-anchor" cx={mouthAnchorX} cy={mouthAnchorY} r="4" />
-        <path className="whale-eye" d="M 262 323 C 268 344 291 344 297 323" />
-        <circle className="whale-cheek" cx="300" cy="369" r="18" />
-        <path className="whale-tail" d="M 314 432 C 360 407 354 354 371 342 C 389 383 378 439 337 462 C 366 470 377 501 364 531 C 336 512 313 486 314 432 Z" />
-      </svg>
+      <div className="whale-open-instruction">OPEN WIDE!</div>
+      <div
+        className={`whale-svg whale-art ${interaction.isOpen ? 'is-open' : ''}`}
+        style={{ '--whale-scale': whaleLayout.scale }}
+        role="img"
+        aria-label="Dream whale"
+      >
+        <img className="whale-art-state whale-art-closed" src={whaleClosedAsset} alt="" />
+        <img className="whale-art-state whale-art-open" src={whaleOpenAsset} alt="" />
+        <span ref={mouthAnchorRef} className="whale-image-mouth-anchor" />
+      </div>
+      <div className="whale-mouth-guide">
+        <svg className="whale-mouth-guide-art" viewBox="0 0 180 116" aria-hidden="true">
+          <path className="guide-arrow" d="M 25 82 C 11 75 10 56 25 45 M 16 47 L 25 45 L 24 55" />
+          <path className="guide-arrow guide-arrow-right" d="M 155 82 C 169 75 170 56 155 45 M 164 47 L 155 45 L 156 55" />
+          <path className="guide-mouth" d="M 45 27 C 66 16 114 16 135 27 C 146 37 144 78 123 94 C 104 109 76 109 57 94 C 36 78 34 37 45 27 Z" />
+          <path className="guide-teeth" d="M 61 31 V 48 M 75 27 V 48 M 90 25 V 48 M 105 27 V 48 M 119 31 V 48" />
+        </svg>
+        <strong>HOLD OPEN</strong>
+      </div>
+      <div className="whale-seabed" aria-hidden="true">
+        <svg viewBox="0 0 1200 180" preserveAspectRatio="none">
+          <path className="seabed-hill" d="M 0 150 C 132 112 220 164 360 145 C 520 123 614 165 760 143 C 918 119 1060 157 1200 136 V 180 H 0 Z" />
+          <g className="coral-art coral-left-art">
+            <path d="M 0 144 C 6 113 8 88 4 64 C 1 49 11 43 18 54 C 25 70 22 94 21 116 C 29 92 35 78 46 72 C 58 65 63 76 55 88 C 45 104 42 124 40 145 Z" />
+            <path d="M 25 144 C 28 119 29 96 23 78 C 19 63 29 58 35 72 C 42 89 40 112 39 144 Z" />
+          </g>
+          <g className="coral-art coral-right-art">
+            <path d="M 0 148 C 5 120 2 102 -8 85 C -14 73 -4 65 6 79 C 17 95 19 112 18 132 C 25 111 35 91 48 83 C 61 76 67 89 56 100 C 43 115 41 131 41 148 Z" />
+            <path d="M 25 148 C 30 126 34 107 29 91 C 25 79 35 74 41 88 C 48 105 45 128 43 148 Z" />
+          </g>
+          <g className="coral-art coral-small-art">
+            <path d="M 0 151 C 1 129 -3 112 -8 101 C -12 91 -3 85 4 98 C 9 109 9 124 9 137 C 15 122 22 111 32 107 C 42 102 46 112 36 120 C 25 129 23 140 23 151 Z" />
+          </g>
+        </svg>
+      </div>
 
       <div className="ambient-fish-layer">
         {ambientFish.map((item) => (
-          <span
+          <WhaleFishIllustration
             key={item.id}
             className={`ambient-fish ${item.side} ${item.special ? 'is-special' : ''}`}
+            asset={item.asset}
             style={{
-              '--ambient-x': `${item.x}px`,
-              '--ambient-y': `${item.y}px`,
-              '--ambient-swim-x': `${item.swimX}px`,
-              '--ambient-mid-x': `${item.swimX * 0.48}px`,
+              '--ambient-x': item.x,
+              '--ambient-y': item.y,
+              '--ambient-swim-x': item.swimX,
+              '--ambient-mid-x': item.midX,
               '--ambient-bob-y': `${item.bobY}px`,
               '--ambient-scale': item.size,
               '--ambient-delay': `${item.delay}s`,
               '--ambient-duration': `${item.duration}s`,
+              '--fish-opacity': item.opacity,
             }}
           />
         ))}
       </div>
       <div className="fish-layer">
         {fish.map((item) => (
-          <span
+          <WhaleFishIllustration
             key={item.id}
-            className={`dream-fish ${item.side} variant-${item.variant} ${item.special ? 'is-special' : ''}`}
+            className={`dream-fish ${item.side} ${item.special ? 'is-special' : ''}`}
+            asset={item.asset}
             style={{
               '--fish-x': `${item.x}px`,
               '--fish-y': `${item.y}px`,
@@ -1203,6 +1336,7 @@ function WhaleDreamScene({ interaction }) {
               '--fish-scale': item.size,
               '--fish-delay': `${item.delay - fishWave * 0.055}s`,
               '--fish-duration': `${item.duration}s`,
+              '--fish-opacity': item.opacity,
             }}
           />
         ))}
@@ -1227,6 +1361,18 @@ function WhaleDreamScene({ interaction }) {
         </div>
       )}
     </div>
+  );
+}
+
+function WhaleFishIllustration({ asset, className, style }) {
+  return (
+    <img
+      className={className}
+      style={style}
+      src={asset}
+      alt=""
+      aria-hidden="true"
+    />
   );
 }
 
