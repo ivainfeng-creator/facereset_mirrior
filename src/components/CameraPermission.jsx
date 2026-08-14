@@ -63,13 +63,11 @@ export default function CameraPermission({
         </span>
         <div className="camera-permission-copy">
           <p className="camera-permission-kicker">ONE QUICK CHECK</p>
-          <h1>Turn On Your Camera</h1>
-          <p>Turn on your camera to start the game.</p>
+          <h1>TURN ON YOUR CAMERA</h1>
+          <p>Allow camera access to start the game.</p>
         </div>
 
-        <button className="camera-retry-button" onClick={enableCamera} disabled={isPrompting}>
-          {isPrompting ? 'Waiting for permission' : 'Try again'}
-        </button>
+        <button className="camera-retry-button" onClick={onBack}>Got it</button>
       </main>
     </section>
   );

@@ -14802,7 +14802,7 @@ h1 {
   width: min(100%, 309px);
   min-height: 52px;
   color: #ffffff;
-  background: #1677ff;
+  background: var(--fr-blue);
   font-family: 'Instrument Sans', sans-serif;
   font-size: 1rem;
   font-weight: 900;
