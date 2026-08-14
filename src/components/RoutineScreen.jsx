@@ -54,11 +54,22 @@ import {
 } from '../utils/interactionSignal.js';
 import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
 import { preloadSceneAssets, preloadUpcomingScenes } from '../utils/scenePreload.js';
+import {
+  getSceneBackgroundDiagnostics,
+  playSceneEffect,
+  resetSceneBackground,
+  startSceneBackground,
+  stopSceneBackground,
+  stopSceneEffect,
+  traceAudioLifecycle,
+} from '../utils/audioManager.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
+let whaleAttemptSequence = 0;
+let previousRoutineSceneIdForDiagnostics = null;
 const WHALE_FISH_ASSETS = [
   fishBlueAsset,
   fishGreenAsset,
@@ -248,6 +259,7 @@ const SCENE_RENDERERS = {
 export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream, isDemoMode, onComplete, onExit }) {
   const scene = getSceneById(selectedScene);
   const activeSceneId = scene.id;
+  const whaleAttemptRef = useRef(null);
   const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
@@ -263,6 +275,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   });
   const snapshotCandidateRef = useRef(null);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
+  const routineFinishedRef = useRef(false);
+  const backgroundFadeStartedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
   const [interactionTick, setInteractionTick] = useState(0);
   const [stageScores, setStageScores] = useState({});
@@ -271,6 +285,48 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
+
+  const traceWhaleAttempt = (event, details = {}) => {
+    if (activeSceneId !== 'whaleDream' || !import.meta.env.DEV) return;
+
+    console.info(`[Whale Attempt #${whaleAttemptRef.current ?? '?'}] ${event}`, {
+      sceneId: activeSceneId,
+      previousSceneId: details.previousSceneId ?? null,
+      routineSessionId: whaleAttemptRef.current,
+      selectedScene,
+      completionGuard: routineFinishedRef.current,
+      completionRefValue: routineFinishedRef.current,
+      isFinished: routineFinishedRef.current,
+      fadeStarted: backgroundFadeStartedRef.current,
+      elapsed,
+      activeTotalSeconds,
+      ...details,
+    });
+  };
+
+  useEffect(() => {
+    if (activeSceneId !== 'whaleDream' || !import.meta.env.DEV) return undefined;
+
+    const previousSceneId = previousRoutineSceneIdForDiagnostics;
+    previousRoutineSceneIdForDiagnostics = activeSceneId;
+    whaleAttemptSequence += 1;
+    whaleAttemptRef.current = whaleAttemptSequence;
+    traceWhaleAttempt('React component mounted', {
+      sceneEnterDependencies: {
+        activeSceneId,
+        sceneAudioSource: scene.audio?.background?.source || null,
+        sceneAudioConfigured: Boolean(scene.audio?.background),
+      },
+      previousSceneId,
+      audio: getSceneBackgroundDiagnostics(scene.audio?.background?.source),
+    });
+
+    return () => {
+      traceWhaleAttempt('React component unmounting', {
+        audio: getSceneBackgroundDiagnostics(scene.audio?.background?.source),
+      });
+    };
+  }, [activeSceneId]);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -288,6 +344,34 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
     }), 0);
     return () => window.clearTimeout(timer);
   }, [activeSceneId, scene]);
+
+  useEffect(() => {
+    const background = scene.audio?.background;
+    if (!background) return undefined;
+
+    const backgroundConfig = { id: activeSceneId, ...background };
+    traceWhaleAttempt('scene-enter effect fired', {
+      sceneEnterDependencies: {
+        activeSceneId,
+        sceneAudioSource: background.source,
+        sceneAudioVolume: background.volume,
+        sceneAudioFadeInMs: background.fadeInMs,
+      },
+      audioBeforeStart: getSceneBackgroundDiagnostics(background.source),
+    });
+    traceAudioLifecycle('scene entered', { sceneId: activeSceneId });
+    startSceneBackground(backgroundConfig);
+    traceWhaleAttempt('BGM start function called', {
+      audioAfterStartCall: getSceneBackgroundDiagnostics(background.source),
+    });
+    return () => {
+      traceWhaleAttempt('scene-enter effect cleanup executing', {
+        audioBeforeCleanup: getSceneBackgroundDiagnostics(background.source),
+      });
+      traceAudioLifecycle('scene audio cleanup', { sceneId: activeSceneId });
+      stopSceneBackground(backgroundConfig, { fadeOutMs: background.fadeOutMs });
+    };
+  }, [activeSceneId, scene.audio]);
 
   const { containerSize, detectorMode, displayRect, features, hasLandmarks } = useFaceLandmarks({
     videoRef,
@@ -361,6 +445,15 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   }, [activeSceneId, scene.interaction, stage.id]);
 
   useEffect(() => {
+    routineFinishedRef.current = false;
+    backgroundFadeStartedRef.current = false;
+    traceWhaleAttempt('completion refs initialized', {
+      completionGuard: routineFinishedRef.current,
+      fadeStarted: backgroundFadeStartedRef.current,
+    });
+  }, [activeSceneId]);
+
+  useEffect(() => {
     snapshotCandidateRef.current = null;
     snapshotTargetsRef.current = [0.12, 0.3, 0.48, 0.66, 0.84];
   }, [activeSceneId]);
@@ -398,6 +491,21 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   }, [activeSceneId, detectorMode, handMode, hasLandmarks, interactionTick, isDemoMode, scene.interaction, sceneTuning, stageProgress]);
 
   useEffect(() => {
+    if (activeSceneId !== 'whaleDream') return;
+
+    const mouthEffect = scene.audio?.effects?.mouthOpen;
+    if (interaction.justActivated) playSceneEffect(mouthEffect);
+    if (interaction.justReleased) stopSceneEffect(mouthEffect);
+  }, [activeSceneId, interaction.justActivated, interaction.justReleased, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'whaleDream') return undefined;
+
+    const mouthEffect = scene.audio?.effects?.mouthOpen;
+    return () => stopSceneEffect(mouthEffect);
+  }, [activeSceneId, scene.audio]);
+
+  useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
     if (nextTarget === undefined || globalProgress < nextTarget) return;
 
@@ -429,6 +537,25 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const rawDisplayScore = Math.max(stageScores[activeSceneId] || 0, interaction.score);
   const displayScore = toFinalSceneScore(rawDisplayScore);
   const finishRoutine = () => {
+    traceWhaleAttempt('finishRoutine invoked', {
+      completionGuardBefore: routineFinishedRef.current,
+    });
+    if (routineFinishedRef.current) {
+      traceWhaleAttempt('finishRoutine skipped by completion guard');
+      return;
+    }
+    routineFinishedRef.current = true;
+    const background = scene.audio?.background;
+    if (background) {
+      traceWhaleAttempt('completion reset requested', {
+        audioBeforeReset: getSceneBackgroundDiagnostics(background.source),
+      });
+      traceAudioLifecycle('level completion final BGM reset', { sceneId: activeSceneId });
+      resetSceneBackground({ id: activeSceneId, ...background });
+      traceWhaleAttempt('completion reset finished', {
+        audioAfterReset: getSceneBackgroundDiagnostics(background.source),
+      });
+    }
     onComplete(buildResult(
       {
         ...stageScores,
@@ -440,10 +567,46 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   };
 
   useEffect(() => {
+    const background = scene.audio?.background;
+    if (!background || backgroundFadeStartedRef.current) return;
+
+    const fadeOutSeconds = Math.min(activeTotalSeconds, (background.fadeOutMs || 1000) / 1000);
+    const fadeOutStartAt = Math.max(0, activeTotalSeconds - fadeOutSeconds);
+    if (elapsed < fadeOutStartAt) return;
+
+    backgroundFadeStartedRef.current = true;
+    traceAudioLifecycle('pre-completion BGM fade-out starts', {
+      sceneId: activeSceneId,
+      elapsed,
+      activeTotalSeconds,
+      fadeOutStartAt,
+    });
+    traceWhaleAttempt('pre-completion fade-out requested', {
+      fadeOutStartAt,
+      audioBeforeFadeOut: getSceneBackgroundDiagnostics(background.source),
+    });
+    stopSceneBackground({ id: activeSceneId, ...background }, { fadeOutMs: background.fadeOutMs });
+  }, [activeSceneId, activeTotalSeconds, elapsed, scene.audio]);
+
+  useEffect(() => {
     if (elapsed >= activeTotalSeconds) {
+      traceWhaleAttempt('level timer reached completion');
+      traceAudioLifecycle('level timer reached completion', { sceneId: activeSceneId });
       finishRoutine();
     }
   }, [activeTotalSeconds, elapsed]);
+
+  const handleExit = () => {
+    const background = scene.audio?.background;
+    if (background) {
+      traceWhaleAttempt('close/exit fade-out requested', {
+        audioBeforeExitFade: getSceneBackgroundDiagnostics(background.source),
+      });
+      traceAudioLifecycle('scene exit starts BGM fade-out', { sceneId: activeSceneId });
+      stopSceneBackground({ id: activeSceneId, ...background }, { fadeOutMs: background.fadeOutMs });
+    }
+    onExit();
+  };
 
   const handleTuningChange = (section, key, value) => {
     saveSceneTuningValue(activeSceneId, section, key, value);
@@ -473,7 +636,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
             stream={stream}
           />
 
-          <button className="play-close-button" onClick={onExit} aria-label="Close routine" />
+          <button className="play-close-button" onClick={handleExit} aria-label="Close routine" />
 
           <div className="play-score">
             <span>Score</span>

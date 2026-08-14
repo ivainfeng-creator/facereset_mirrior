@@ -40,6 +40,20 @@ const sceneDefinitions = [
     renderer: 'whaleDream',
     interaction: 'mouthOpening',
     handTracking: 'none',
+    audio: {
+      background: {
+        source: '/audio/whale_mouth/whale_BG.mp3',
+        volume: 0.34,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        mouthOpen: {
+          source: '/audio/whale_mouth/bubble.mp3',
+          volume: 0.52,
+        },
+      },
+    },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine whale-viewport-routine' },
     planPhase: 'Warm up',
     planArt: '/assets/design-v3/challenge-step1.png',

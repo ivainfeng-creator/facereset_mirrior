@@ -1,4 +1,5 @@
 import { getUpcomingDailyScenes, getUpcomingScenes } from '../data/scenes.js';
+import { preloadSceneAudio } from './audioManager.js';
 
 const preloadedAssets = new Set();
 
@@ -7,7 +8,10 @@ function canPreload(assetUrl) {
 }
 
 export function preloadSceneAssets(scene) {
-  if (typeof window === 'undefined' || !scene?.assets) return;
+  if (typeof window === 'undefined' || !scene) return;
+
+  preloadSceneAudio(scene.audio);
+  if (!scene.assets) return;
 
   scene.assets.forEach((assetUrl) => {
     if (!canPreload(assetUrl) || preloadedAssets.has(assetUrl)) return;

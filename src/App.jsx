@@ -9,10 +9,11 @@ import ProgressDebugPanel from './components/ProgressDebugPanel.jsx';
 import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
-import { DEFAULT_SCENE_ID, dailyScenes } from './data/scenes.js';
+import { DEFAULT_SCENE_ID, dailyScenes, getSceneById } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
+import { preloadSceneAudio, traceAudioLifecycle, unlockAudio } from './utils/audioManager.js';
 import {
   hasSeenGuide,
   initializeProgressSync,
@@ -112,6 +113,9 @@ export default function App() {
   const startTodayPlan = () => {
     if (screenTransition) return;
 
+    traceAudioLifecycle('START pressed');
+    unlockAudio();
+
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setScreen(SCREENS.theme);
       return;
@@ -119,6 +123,7 @@ export default function App() {
 
     setScreenTransition('welcome-to-plan');
     transitionTimerRef.current = window.setTimeout(() => {
+      traceAudioLifecycle('Day 1 screen opened');
       setScreen(SCREENS.theme);
       setScreenTransition(null);
     }, WELCOME_TRANSITION_MS);
@@ -146,6 +151,9 @@ export default function App() {
   };
 
   const beginSelectedScene = () => {
+    traceAudioLifecycle('scene begin pressed', { sceneId: selectedScene });
+    preloadSceneAudio(getSceneById(selectedScene).audio);
+    unlockAudio();
     if (hasSeenGuide(selectedScene)) {
       setScreen(SCREENS.routine);
       return;
@@ -155,6 +163,9 @@ export default function App() {
   };
 
   const selectTheme = (sceneId) => {
+    traceAudioLifecycle('scene selected', { sceneId });
+    preloadSceneAudio(getSceneById(sceneId).audio);
+    unlockAudio();
     setSelectedScene(sceneId);
 
     if (cameraStream || isDemoMode) {
@@ -172,11 +183,15 @@ export default function App() {
   };
 
   const beginRoutine = () => {
+    traceAudioLifecycle('routine begin pressed', { sceneId: selectedScene });
+    preloadSceneAudio(getSceneById(selectedScene).audio);
+    unlockAudio();
     markGuideSeen(selectedScene);
     setScreen(SCREENS.routine);
   };
 
   const finishRoutine = (result) => {
+    traceAudioLifecycle('scene completion transition begins', { sceneId: result.sceneId });
     if (debugSceneId) {
       setLatestResult(null);
       setScreen(SCREENS.landing);
