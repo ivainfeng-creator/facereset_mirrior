@@ -581,6 +581,30 @@ function createBaseInteraction(sceneId) {
   };
 }
 
+export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
+  const scene = getSceneById(selectedScene);
+  const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
+  const interaction = useMemo(() => ({
+    ...createBaseInteraction(scene.id),
+    mouthOpen: scene.interaction === 'mouthOpening' ? 0.24 : 0,
+    isOpen: scene.interaction === 'mouthOpening',
+    fishCount: scene.interaction === 'mouthOpening' ? 6 : 0,
+    leftRain: scene.interaction === 'templePress' ? 0.26 : 0,
+    rightRain: scene.interaction === 'templePress' ? 0.26 : 0,
+    growth: scene.interaction === 'templePress' ? 0.2 : 0,
+    sniff: scene.interaction === 'noseSniff' ? 0.22 : 0,
+    puff: scene.interaction === 'cheekPuff' ? 0.24 : 0,
+    bubbleSize: scene.interaction === 'cheekPuff' ? 0.28 : 0.07,
+    squeeze: scene.interaction === 'lemonSqueeze' ? 0.2 : 0,
+  }), [scene.id, scene.interaction]);
+
+  return (
+    <div className={`routine-scene-preview ${scene.layout?.className || ''}`} aria-hidden="true">
+      <SceneRenderer interaction={interaction} />
+    </div>
+  );
+}
+
 function InteractionDebugPanel({ contract, onChange, onFinish, onReset, overrides, tuning }) {
   const [copyState, setCopyState] = useState('複製 JSON');
   const [isCollapsed, setIsCollapsed] = useState(
