@@ -17,8 +17,7 @@ export default function PracticeScreen({ selectedScene, onBegin, onBack }) {
       <main className="practice-card" aria-label={`How to play ${scene.title}`}>
         <section className="practice-instructions" aria-label="How to play">
           <div className="practice-guide">
-            <p className="practice-kicker">How to play</p>
-            <h1>{scene.title}</h1>
+            <h1 className="frtitle">{scene.title}</h1>
             <p>{guide.description}</p>
           </div>
           <div className="practice-steps">

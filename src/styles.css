@@ -14942,6 +14942,10 @@ h1 {
     background: #f7f7f7;
   }
 
+  .app-shell:has(.practice-screen) {
+    overscroll-behavior: none;
+  }
+
   .scan-alignment-screen {
     width: min(100%, 560px);
     min-height: min(720px, calc(100svh - 48px));
@@ -15469,7 +15473,7 @@ h1 {
   gap: clamp(9px, 0.9vw, 15px);
   width: min(500px, 100%);
   min-width: 0;
-  max-width: 560px;
+  max-width: 480px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -15482,7 +15486,7 @@ h1 {
 .practice-guide {
   display: grid;
   justify-items: start;
-  gap: clamp(11px, 1.1vw, 18px);
+  gap: 4px;
   width: 480px;
   max-width: 100%;
   text-align: left;
@@ -15497,23 +15501,27 @@ h1 {
   text-transform: uppercase;
 }
 
-.practice-guide h1 {
-  max-width: none;
-  color: #151515;
+.practice-guide .frtitle {
+  width: 100%;
+  max-width: 480px;
+  margin-top: 14px;
+  color: #1a1a1a;
   font-family: 'Luckiest Guy', 'Instrument Sans', system-ui, sans-serif;
-  font-size: clamp(3rem, 5.6vw, 6.4rem);
+  font-size: clamp(34px, 4.4vw, 64px);
   font-weight: 400;
-  letter-spacing: 0;
-  line-height: 0.88;
+  letter-spacing: 0.6px;
+  line-height: 1.02;
   text-transform: uppercase;
 }
 
 .practice-guide > p:not(.practice-kicker) {
-  max-width: 680px;
-  color: #505050;
+  width: 100%;
+  max-width: 480px;
+  color: #555;
   font-family: 'Instrument Sans', sans-serif;
-  font-size: clamp(0.94rem, 1.28vw, 1.32rem);
-  line-height: 1.35;
+  font-size: clamp(15px, 1.4vw, 20px);
+  line-height: 1.45;
+  text-wrap: pretty;
 }
 
 .practice-steps ol {
@@ -15788,6 +15796,10 @@ h1 {
     padding: 18px 0;
   }
 
+  .practice-tip-1 {
+    margin-top: 0;
+  }
+
   .practice-stage {
     order: -1;
     justify-self: stretch;
@@ -15799,5 +15811,27 @@ h1 {
   .practice-stage-toolbar,
   .practice-stage-footer {
     opacity: 0.9;
+  }
+}
+
+@media (min-width: 600px) {
+  .app-shell:has(.practice-screen) {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .practice-screen,
+  .practice-card {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .practice-card {
+    overflow: hidden;
+  }
+
+  .practice-stage {
+    max-height: calc(100svh - clamp(88px, 14vh, 224px));
   }
 }
