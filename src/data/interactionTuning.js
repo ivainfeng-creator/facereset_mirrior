@@ -108,7 +108,7 @@ export const sceneInteractionTuning = {
   },
   [SCENE_IDS.flowerCollector]: {
     actionType: 'nose_sniff',
-    feedbackInitial: 'Scrunch your nose to inhale blossoms',
+    feedbackInitial: 'Scrunch your nose to gather popcorn',
     input: {
       baseline: 0.05,
       range: 0.45,
@@ -116,11 +116,11 @@ export const sceneInteractionTuning = {
     },
     signal: {
       enterThreshold: 0.2,
-      releaseThreshold: 0.1,
+      releaseThreshold: 0.045,
       activateMs: 90,
-      releaseMs: 180,
+      releaseMs: 560,
       attackSeconds: 0.1,
-      releaseSeconds: 0.26,
+      releaseSeconds: 0.5,
     },
     scoring: {
       flowBase: 0.16,

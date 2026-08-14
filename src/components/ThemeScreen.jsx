@@ -1,12 +1,5 @@
-import { TODAY_SCENE_IDS, getSceneById } from '../data/scenes.js';
+import { dailyScenes } from '../data/scenes.js';
 import { buildDailyPlanSummary, getCompletedProgramDays } from '../utils/dailyPlan.js';
-
-const PLAN_PHASES = ['Warm up', 'Activate', 'Unwind'];
-const PLAN_ART = [
-  '/assets/design-v3/challenge-step1.png',
-  '/assets/design-v3/challenge-step2.png',
-  '/assets/design-v3/challenge-step3.png',
-];
 
 export default function ThemeScreen({
   habit,
@@ -15,7 +8,7 @@ export default function ThemeScreen({
   onContinue,
   isEntering = false,
 }) {
-  const todayScenes = TODAY_SCENE_IDS.map(getSceneById);
+  const todayScenes = dailyScenes;
   const dailyPlan = buildDailyPlanSummary(habit);
   const completedScenes = new Set(
     dailyPlan.sceneResults.filter((entry) => entry.completed).map((entry) => entry.sceneId),
@@ -100,13 +93,13 @@ export default function ThemeScreen({
                     : undefined}
                 >
                   <span className="challenge-v3-art-wrap">
-                    <img src={PLAN_ART[index]} alt="" className="challenge-v3-art" />
+                    <img src={scene.planArt} alt="" className="challenge-v3-art" />
                   </span>
 
                   <span className="challenge-v3-session-copy">
                     {isActive && !isDone && <small>START HERE</small>}
                     <strong>{scene.title}</strong>
-                    <span>30 sec · {PLAN_PHASES[index]}</span>
+                    <span>30 sec · {scene.planPhase}</span>
                   </span>
 
                   {isActive && !isDone && <span className="challenge-v3-start-hint">Tap to start</span>}

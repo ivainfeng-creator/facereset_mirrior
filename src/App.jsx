@@ -9,7 +9,7 @@ import ProgressDebugPanel from './components/ProgressDebugPanel.jsx';
 import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
-import { SCENE_IDS } from './data/scenes.js';
+import { DEFAULT_SCENE_ID, dailyScenes } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
@@ -42,20 +42,21 @@ const WELCOME_TRANSITION_MS = 1020;
 
 const RESULT_PREVIEW = {
   type: 'daily-plan',
-  completed: 3,
-  total: 3,
+  completed: dailyScenes.length,
+  total: dailyScenes.length,
   isComplete: true,
-  score: 280,
-  maxScore: 300,
+  score: dailyScenes.reduce((total, _scene, index) => total + Math.max(70, 94 - index), 0),
+  maxScore: dailyScenes.length * 100,
   holdSeconds: 52,
   sceneTitle: 'FULL RESET COMPLETE',
   area: 'ALL 3 SESSIONS',
   programDay: 1,
-  sceneResults: [
-    { sceneId: SCENE_IDS.whaleDream, sceneTitle: 'Whale Mouth', score: 93, completed: true },
-    { sceneId: SCENE_IDS.templeGarden, sceneTitle: 'Cloud Garden', score: 93, completed: true },
-    { sceneId: SCENE_IDS.flowerCollector, sceneTitle: 'Flower Collector', score: 94, completed: true },
-  ],
+  sceneResults: dailyScenes.map((scene, index) => ({
+    sceneId: scene.id,
+    sceneTitle: scene.title,
+    score: Math.max(70, 94 - index),
+    completed: true,
+  })),
   radar: [
     { label: 'movement', value: 84 },
     { label: 'hold', value: 78 },
@@ -74,7 +75,7 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
   const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
-  const [selectedScene, setSelectedScene] = useState(debugSceneId || SCENE_IDS.whaleDream);
+  const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);

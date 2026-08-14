@@ -12722,92 +12722,483 @@ h1 {
   }
 }
 
-/* Whale Mouth is the one full-viewport play scene. Other scenes keep the portrait canvas. */
-.app-shell:has(.whale-viewport-routine) {
+/* Full-viewport scenes share one responsive surface. Scene descriptors only add theme classes. */
+.app-shell:has(.full-viewport-routine) {
   display: block;
   width: 100%;
   min-height: 100vh;
   min-height: 100svh;
   padding: 0;
   overflow: hidden;
+}
+
+.app-shell:has(.full-viewport-routine) .ambient {
+  display: none;
+}
+
+.full-viewport-routine,
+.full-viewport-routine .routine-layout,
+.full-viewport-routine .routine-mirror,
+.full-viewport-routine .tracking-video,
+.full-viewport-routine .tracking-video-placeholder {
+  box-sizing: border-box;
+  width: 100vw;
+  min-width: 100vw;
+  max-width: none;
+  height: 100vh;
+  height: 100svh;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.full-viewport-routine {
+  aspect-ratio: auto;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.full-viewport-routine .routine-layout {
+  display: block;
+}
+
+.app-shell:has(.whale-viewport-routine) {
   background: #15347d;
 }
 
-.app-shell:has(.whale-viewport-routine) .ambient {
-  display: none;
-}
-
-.whale-viewport-routine,
-.whale-viewport-routine .routine-layout,
-.whale-viewport-routine .routine-mirror,
-.whale-viewport-routine .tracking-video,
-.whale-viewport-routine .tracking-video-placeholder {
-  box-sizing: border-box;
-  width: 100vw;
-  min-width: 100vw;
-  max-width: none;
-  height: 100vh;
-  height: 100svh;
-  min-height: 100vh;
-  min-height: 100svh;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-}
-
-.whale-viewport-routine {
-  aspect-ratio: auto;
-  overflow: hidden;
-  box-shadow: none;
-}
-
-.whale-viewport-routine .routine-layout {
-  display: block;
-}
-
-/* Cloud Garden uses the same full-viewport play surface as Whale Mouth. */
 .app-shell:has(.cloud-garden-viewport-routine) {
-  display: block;
-  width: 100%;
-  min-height: 100vh;
-  min-height: 100svh;
-  padding: 0;
-  overflow: hidden;
   background: #7b93d2;
 }
 
-.app-shell:has(.cloud-garden-viewport-routine) .ambient {
-  display: none;
+.app-shell:has(.popcorn-viewport-routine) {
+  background: #120e16;
 }
 
-.cloud-garden-viewport-routine,
-.cloud-garden-viewport-routine .routine-layout,
-.cloud-garden-viewport-routine .routine-mirror,
-.cloud-garden-viewport-routine .tracking-video,
-.cloud-garden-viewport-routine .tracking-video-placeholder {
-  box-sizing: border-box;
-  width: 100vw;
-  min-width: 100vw;
-  max-width: none;
-  height: 100vh;
-  height: 100svh;
-  min-height: 100vh;
-  min-height: 100svh;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-}
-
-.cloud-garden-viewport-routine {
-  aspect-ratio: auto;
+.popcorn-collector-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   overflow: hidden;
-  box-shadow: none;
+  color: #fff5df;
+  background: #160f16;
 }
 
-.cloud-garden-viewport-routine .routine-layout {
+.popcorn-background,
+.popcorn-foreground,
+.popcorn-bucket {
+  position: absolute;
   display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.popcorn-background {
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.popcorn-collector-scene::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(8, 9, 19, 0.32), transparent 44%),
+    linear-gradient(180deg, rgba(4, 7, 15, 0.16), transparent 48%, rgba(7, 4, 6, 0.28));
+  content: '';
+  pointer-events: none;
+}
+
+.popcorn-warm-glow {
+  position: absolute;
+  right: 8%;
+  bottom: 18%;
+  z-index: 2;
+  width: min(46vw, 580px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 181, 76, calc(0.15 + var(--sniff) * 0.16)), transparent 66%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.popcorn-copy {
+  position: absolute;
+  top: clamp(26px, 4vh, 52px);
+  left: clamp(156px, 16vw, 270px);
+  z-index: 8;
+  text-shadow: 0 5px 18px rgba(5, 3, 6, 0.75);
+}
+
+.popcorn-copy h1 {
+  margin: 0 0 8px;
+  color: #fff5df;
+  font-size: clamp(1.55rem, 2.7vw, 2.35rem);
+  font-weight: 850;
+  line-height: 1.04;
+}
+
+.popcorn-copy p {
+  max-width: 250px;
+  margin: 0;
+  color: rgba(255, 232, 193, 0.82);
+  font-size: clamp(0.88rem, 1.25vw, 1.05rem);
+  font-weight: 650;
+  line-height: 1.32;
+}
+
+.popcorn-field {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.collector-popcorn {
+  position: absolute;
+  top: var(--piece-current-y);
+  left: var(--piece-current-x);
+  width: clamp(30px, 4.4vw, 74px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition: top 220ms cubic-bezier(0.22, 0.78, 0.18, 1), left 220ms cubic-bezier(0.22, 0.78, 0.18, 1), opacity 180ms ease;
+}
+
+.collector-popcorn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(9, 4, 4, 0.44));
+  animation: popcornIdleFloat 3.5s ease-in-out infinite;
+  animation-delay: calc(var(--piece-phase) * -1);
+  transform: rotate(var(--piece-rotation)) scale(var(--piece-size));
+  transform-origin: 50% 50%;
+}
+
+.popcorn-collector-scene.is-sniffing .collector-popcorn img {
+  animation-duration: 2.2s;
+}
+
+.collector-popcorn.is-source.is-airborne img {
+  animation: popcornFlightFlow 760ms cubic-bezier(0.34, 0.08, 0.3, 1) infinite;
+  animation-delay: calc(var(--piece-phase) * -1);
+}
+
+.collector-popcorn.is-source.is-airborne {
+  transition: top 115ms linear, left 115ms linear, opacity 140ms ease;
+}
+
+.collector-popcorn.is-cluster {
+  z-index: 8;
+  width: clamp(30px, 4.2vw, 72px);
+  transition: opacity 160ms ease;
+}
+
+.collector-popcorn.is-cluster img {
+  animation: popcornClusterSettle 2.8s ease-in-out infinite;
+  animation-delay: calc(var(--piece-phase) * -1);
+  filter: drop-shadow(0 5px 7px rgba(26, 8, 3, 0.34));
+}
+
+.collector-popcorn.is-dropping,
+.collector-popcorn.is-release-drop {
+  z-index: 7;
+  pointer-events: none;
+  animation: popcornReleaseDrop 760ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+.collector-popcorn.is-release-drop {
+  z-index: 5;
+  animation-duration: 860ms;
+}
+
+.collector-popcorn.is-dropping img,
+.collector-popcorn.is-release-drop img {
+  animation: popcornDropTumble 720ms ease-in both;
+}
+
+.popcorn-bucket {
+  right: clamp(-48px, -2vw, -12px);
+  bottom: clamp(12px, 2.5vh, 38px);
+  z-index: 9;
+  width: min(49vw, 660px);
+  max-width: 56vw;
+  filter: drop-shadow(0 18px 24px rgba(6, 2, 1, 0.46));
+  transform: rotate(-3deg) translateY(calc(var(--sniff) * -4px));
+  transition: transform 180ms ease-out;
+}
+
+.popcorn-foreground {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 6;
+  width: 100%;
+  height: auto;
+  min-height: 30%;
+  object-fit: cover;
+  object-position: bottom center;
+  pointer-events: none;
+}
+
+.popcorn-tabletop-seeds {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.tabletop-popcorn-seed {
+  position: absolute;
+  top: var(--piece-current-y);
+  left: var(--piece-current-x);
+  width: clamp(26px, 3.7vw, 58px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition: top 220ms cubic-bezier(0.22, 0.78, 0.18, 1), left 220ms cubic-bezier(0.22, 0.78, 0.18, 1), opacity 160ms ease;
+}
+
+.tabletop-popcorn-seed img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 6px rgba(37, 13, 5, 0.36));
+  animation: popcornTabletopSettle 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--piece-phase) * -1);
+  transform: rotate(var(--piece-rotation)) scale(var(--piece-size));
+}
+
+.tabletop-popcorn-seed.is-lifting img {
+  animation: popcornTabletopLift 160ms ease-in-out infinite alternate;
+  animation-delay: calc(var(--piece-phase) * -1);
+}
+
+.popcorn-nose-cue {
+  position: absolute;
+  z-index: 9;
+  width: var(--preview-frame-width);
+  height: var(--preview-frame-height);
+  border-radius: 17px;
+  pointer-events: none;
+  transform: scale(calc(0.985 + var(--sniff) * 0.04));
+  transform-origin: 50% 50%;
+  transition: transform 220ms ease-out, opacity 220ms ease-out;
+}
+
+.popcorn-nose-cue-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed rgba(255, 221, 140, calc(0.44 + var(--sniff) * 0.4));
+  border-radius: inherit;
+  box-shadow: 0 0 18px rgba(255, 211, 120, calc(0.05 + var(--sniff) * 0.18));
+  animation: popcornPreviewRimBreathe 1.8s ease-in-out infinite;
+}
+
+.practice-mini-scene.popcorn {
+  overflow: hidden;
+  background: linear-gradient(135deg, #211321, #7e3e2b);
+}
+
+.mini-popcorn-bucket {
+  position: absolute;
+  right: 4px;
+  bottom: -8px;
+  width: 40px;
+  height: 48px;
+  border-radius: 10px 10px 5px 5px;
+  background: repeating-linear-gradient(90deg, #d43b2d 0 8px, #fff5dc 8px 14px);
+  transform: rotate(-14deg);
+}
+
+.mini-popcorn {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 48% 42% 52% 40%;
+  background: #ffe6a0;
+  box-shadow: 2px -2px 0 #ffb638, -2px 1px 0 #fff7da;
+}
+
+.mini-popcorn.one { right: 34px; bottom: 19px; }
+.mini-popcorn.two { right: 50px; bottom: 10px; transform: rotate(22deg) scale(0.76); }
+.mini-popcorn.three { right: 23px; bottom: 7px; transform: rotate(-18deg) scale(0.65); }
+.mini-popcorn.four { right: 62px; bottom: 25px; transform: rotate(14deg) scale(0.54); }
+
+.popcorn-viewport-routine .play-close-button {
+  top: clamp(26px, 4vh, 48px);
+  right: clamp(26px, 4vw, 64px);
+}
+
+.popcorn-viewport-routine .play-timer.timer-ring {
+  top: clamp(24px, 4vh, 48px);
+  right: clamp(70px, 9vw, 132px);
+  bottom: auto;
+}
+
+.popcorn-viewport-routine .play-score {
+  bottom: clamp(28px, 4vh, 52px);
+  left: clamp(28px, 4vw, 64px);
+}
+
+.popcorn-viewport-routine .camera-preview {
+  top: clamp(26px, 4vh, 48px);
+  left: clamp(28px, 4vw, 64px);
+}
+
+@keyframes popcornIdleFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: var(--piece-drift-x) var(--piece-drift-y);
+  }
+}
+
+@keyframes popcornFlightFlow {
+  0% {
+    translate: -1px 2px;
+    rotate: -2deg;
+  }
+
+  52% {
+    translate: 3px -5px;
+    rotate: 3deg;
+  }
+
+  100% {
+    translate: -2px -1px;
+    rotate: -1deg;
+  }
+}
+
+@keyframes popcornPreviewRimBreathe {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: scale(0.992);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.018);
+  }
+}
+
+@keyframes popcornClusterSettle {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 1px -2px;
+  }
+}
+
+@keyframes popcornTabletopSettle {
+  0%,
+  100% {
+    translate: 0 1px;
+  }
+
+  50% {
+    translate: 1px -2px;
+  }
+}
+
+@keyframes popcornTabletopLift {
+  0% {
+    translate: 0 1px;
+    rotate: 0deg;
+  }
+
+  55% {
+    translate: 2px -3px;
+    rotate: 3deg;
+  }
+
+  100% {
+    translate: -1px -5px;
+    rotate: -2deg;
+  }
+}
+
+@keyframes popcornReleaseDrop {
+  0% {
+    opacity: 0.94;
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--cluster-drop-x)), calc(-50% + var(--cluster-drop-y))) rotate(26deg);
+  }
+}
+
+@keyframes popcornDropTumble {
+  0% {
+    transform: rotate(var(--piece-rotation)) scale(var(--piece-size));
+  }
+
+  100% {
+    transform: rotate(calc(var(--piece-rotation) + 75deg)) scale(calc(var(--piece-size) * 0.92));
+  }
+}
+
+@media (max-width: 559px) {
+  .popcorn-copy {
+    top: 24px;
+    right: 52px;
+    left: 146px;
+  }
+
+  .popcorn-copy h1 {
+    font-size: 1.45rem;
+  }
+
+  .popcorn-copy p {
+    font-size: 0.84rem;
+  }
+
+  .popcorn-bucket {
+    right: -58px;
+    bottom: 30px;
+    width: min(70vw, 380px);
+    max-width: none;
+  }
+
+  .popcorn-foreground {
+    min-height: 24%;
+  }
+
+  .popcorn-nose-cue {
+    border-radius: 14px;
+  }
+
+  .popcorn-viewport-routine .camera-preview {
+    width: 89.76px;
+  }
+
+  .collector-popcorn {
+    width: clamp(25px, 9vw, 48px);
+  }
+
+  .collector-popcorn.is-cluster {
+    width: clamp(24px, 8vw, 46px);
+  }
+
+  .tabletop-popcorn-seed {
+    width: clamp(21px, 6vw, 38px);
+  }
 }
 
 .cloud-garden-viewport-routine .temple-garden-scene {

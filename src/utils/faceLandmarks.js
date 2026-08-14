@@ -413,8 +413,7 @@ export function getFaceAlignmentStatus(features, containerSize, stability = {}) 
   if (!notTooClose) return { label: 'Move back a little', quality: Math.max(48, quality), ready: false, checks };
   if (!centered) return { label: 'Center your face', quality: Math.max(58, quality), ready: false, checks };
   if (!stable) {
-    const label = stabilityMs > 360 ? 'Hold still' : 'Face aligned';
-    return { label, quality: Math.max(72, quality), ready: false, checks };
+    return { label: 'Face aligned', quality: Math.max(72, quality), ready: false, checks };
   }
 
   return { label: 'Landmarks ready', quality: 96, ready: true, checks };

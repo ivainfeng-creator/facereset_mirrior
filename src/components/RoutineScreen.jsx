@@ -7,7 +7,42 @@ import {
   saveSceneTuningValue,
 } from '../data/interactionTuning.js';
 import { STAGE_SECONDS, routineStages } from '../data/routine.js';
-import { SCENE_IDS, getSceneById } from '../data/scenes.js';
+import { DEFAULT_SCENE_ID, getSceneById } from '../data/scenes.js';
+import {
+  cloudGardenBackgroundAsset,
+  cloudGardenIslandAsset,
+  fishBlueAsset,
+  fishGreenAsset,
+  fishPinkAsset,
+  fishPurpleAsset,
+  fishYellowAsset,
+  flowerPink2Stage1,
+  flowerPink2Stage2,
+  flowerPink2Stage3,
+  flowerPink2Stage4,
+  flowerPinkStage1,
+  flowerPinkStage2,
+  flowerPinkStage3,
+  flowerPinkStage4,
+  flowerPurpleStage1,
+  flowerPurpleStage2,
+  flowerPurpleStage3,
+  flowerYellowStage1,
+  flowerYellowStage2,
+  flowerYellowStage3,
+  flowerYellowStage4,
+  popcornCollectorBackgroundAsset,
+  popcornCollectorBucketAsset,
+  popcornCollectorForegroundAsset,
+  popcornPiece01Asset,
+  popcornPiece02Asset,
+  popcornPiece03Asset,
+  popcornPiece04Asset,
+  popcornPiece05Asset,
+  popcornPiece06Asset,
+  whaleClosedAsset,
+  whaleOpenAsset,
+} from '../data/sceneAssets.js';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { useHandTracking } from '../hooks/useHandTracking.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
@@ -18,31 +53,8 @@ import {
   updateInteractionSignal,
 } from '../utils/interactionSignal.js';
 import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
+import { preloadSceneAssets, preloadUpcomingScenes } from '../utils/scenePreload.js';
 import { MirrorVideo } from './MirrorScreen.jsx';
-import whaleClosedAsset from '../../references/whale-closed.png';
-import whaleOpenAsset from '../../references/whale-open.png';
-import fishBlueAsset from '../../references/fish-blue.png';
-import fishGreenAsset from '../../references/fish-green.png';
-import fishPinkAsset from '../../references/fish-pink.png';
-import fishPurpleAsset from '../../references/fish-purple.png';
-import fishYellowAsset from '../../references/fish-yellow.png';
-import cloudGardenBackgroundAsset from '../../references/cloudgarden-bg.png';
-import cloudGardenIslandAsset from '../../references/cloudgarden-island.png';
-import flowerPinkStage1 from '../../references/flower-pink-stage1.png';
-import flowerPinkStage2 from '../../references/flower-pink-stage2.png';
-import flowerPinkStage3 from '../../references/flower-pink-stage3.png';
-import flowerPinkStage4 from '../../references/flower-pink-stage4.png';
-import flowerPink2Stage1 from '../../references/flower-pink2-stage1.png';
-import flowerPink2Stage2 from '../../references/flower-pink2-stage2.png';
-import flowerPink2Stage3 from '../../references/flower-pink2-stage3.png';
-import flowerPink2Stage4 from '../../references/flower-pink2-stage4.png';
-import flowerPurpleStage1 from '../../references/flower-purple-stage1.png';
-import flowerPurpleStage2 from '../../references/flower-purple-stage2.png';
-import flowerPurpleStage3 from '../../references/flower-purple-stage3.png';
-import flowerYellowStage1 from '../../references/flower-yellow-stage1.png';
-import flowerYellowStage2 from '../../references/flower-yellow-stage2.png';
-import flowerYellowStage3 from '../../references/flower-yellow-stage3.png';
-import flowerYellowStage4 from '../../references/flower-yellow-stage4.png';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
@@ -54,6 +66,32 @@ const WHALE_FISH_ASSETS = [
   fishPurpleAsset,
   fishYellowAsset,
 ];
+
+const POPCORN_PIECE_ASSETS = [
+  popcornPiece01Asset,
+  popcornPiece02Asset,
+  popcornPiece03Asset,
+  popcornPiece04Asset,
+  popcornPiece05Asset,
+  popcornPiece06Asset,
+];
+
+const POPCORN_SOURCE_COUNT = 46;
+const POPCORN_CLUSTER_LIMIT = 220;
+const POPCORN_VISUAL_SCALE = 1.5;
+// These normalized zones sit in front of the tipped bucket on the visible tabletop spill.
+// They deliberately avoid the bucket body, sofa line, and background so every launch reads
+// as a piece lifting from the foreground table rather than emerging through the bucket.
+const POPCORN_TABLETOP_SOURCE_ZONES = [
+  { x: 59, y: 89, spreadX: 7, spreadY: 3, source: 'front-spill' },
+  { x: 52, y: 91, spreadX: 8, spreadY: 3, source: 'front-spill' },
+  { x: 45, y: 93, spreadX: 7, spreadY: 2.5, source: 'table-scatter' },
+  { x: 66, y: 94, spreadX: 5, spreadY: 2, source: 'front-spill' },
+  { x: 38, y: 94, spreadX: 5, spreadY: 2, source: 'table-scatter' },
+];
+const POPCORN_TABLETOP_ZONE_ORDER = [0, 1, 0, 2, 1, 3, 0, 1, 4, 2];
+const POPCORN_RIM_PILE_ANGLES = [-2.55, -1.48, -0.35, 0.72, 1.88, 2.72];
+const POPCORN_MOBILE_CAMERA_SCALE = 0.88;
 
 const CLOUD_GARDEN_FLOWER_STAGES = {
   pink: [flowerPinkStage1, flowerPinkStage2, flowerPinkStage3, flowerPinkStage4],
@@ -148,17 +186,75 @@ function getWhaleLayout(viewportWidth) {
   return { scale: WHALE_LAYOUT_TUNING.mobileScale };
 }
 
-export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, stream, isDemoMode, onComplete, onExit }) {
-  const isWhaleViewportScene = selectedScene === SCENE_IDS.whaleDream;
-  const isCloudGardenViewportScene = selectedScene === SCENE_IDS.templeGarden;
+const INTERACTION_PROGRESS_FACTORIES = {
+  mouthOpening: createMouthProgress,
+  templePress: createTempleProgress,
+  lemonSqueeze: createLemonProgress,
+  noseSniff: createNoseProgress,
+  cheekPuff: createBubbleProgress,
+};
+
+const INTERACTION_SCORERS = {
+  templePress: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreTemplePress({
+    features: inputs.features,
+    fingertips: inputs.fingertips,
+    targets: inputs.templeTargets,
+    timestamp,
+    progressState,
+    stageProgress,
+    tuning,
+  }),
+  lemonSqueeze: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreLemonSqueeze({
+    features: inputs.features,
+    fingertips: inputs.fingertips,
+    targets: inputs.lemonTargets,
+    timestamp,
+    progressState,
+    stageProgress,
+    tuning,
+  }),
+  noseSniff: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreNoseSniff({
+    features: inputs.features,
+    timestamp,
+    progressState,
+    stageProgress,
+    tuning,
+  }),
+  cheekPuff: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreCheekPuff({
+    features: inputs.features,
+    timestamp,
+    progressState,
+    stageProgress,
+    tuning,
+  }),
+  mouthOpening: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreMouthOpening({
+    features: inputs.features,
+    timestamp,
+    progressState,
+    stageProgress,
+    tuning,
+  }),
+};
+
+const SCENE_RENDERERS = {
+  whaleDream: WhaleDreamScene,
+  whaleDream2: WhaleDream2Scene,
+  templeGarden: TempleGardenScene,
+  popcornCollector: FlowerCollectorScene,
+  bubbleGumBunny: BubbleGumBunnyScene,
+  lemonSqueeze: LemonSqueezeScene,
+};
+
+export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream, isDemoMode, onComplete, onExit }) {
+  const scene = getSceneById(selectedScene);
+  const activeSceneId = scene.id;
+  const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
-  const mouthProgressRef = useRef(createMouthProgress());
-  const templeProgressRef = useRef(createTempleProgress());
-  const lemonProgressRef = useRef(createLemonProgress());
-  const noseProgressRef = useRef(createNoseProgress());
-  const bubbleProgressRef = useRef(createBubbleProgress());
+  const interactionProgressRefs = useRef(Object.fromEntries(
+    Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [key, createProgress()]),
+  ));
   const latestInputsRef = useRef({
     features: null,
     fingertips: { left: null, right: null, all: [] },
@@ -184,6 +280,14 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       previewVideoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  useEffect(() => {
+    preloadSceneAssets(scene);
+    const timer = window.setTimeout(() => preloadUpcomingScenes(activeSceneId, 2, {
+      useDailyOrder: Number.isFinite(scene.dailyOrder),
+    }), 0);
+    return () => window.clearTimeout(timer);
+  }, [activeSceneId, scene]);
 
   const { containerSize, detectorMode, displayRect, features, hasLandmarks } = useFaceLandmarks({
     videoRef,
@@ -238,87 +342,44 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     stream,
     isDemoMode,
     displayRect,
-    trajectories: selectedScene === SCENE_IDS.templeGarden
-      ? templeTrajectories
-      : selectedScene === SCENE_IDS.lemonSqueeze
-        ? lemonTrajectories
-        : undefined,
+    trajectories: {
+      temple: templeTrajectories,
+      lemon: lemonTrajectories,
+    }[scene.handTracking],
   });
-  const sceneTuning = useMemo(() => getSceneTuning(selectedScene), [selectedScene, tuningRevision]);
-  const tuningOverrides = useMemo(() => loadSceneTuningOverrides(selectedScene), [selectedScene, tuningRevision]);
+  const sceneTuning = useMemo(() => getSceneTuning(activeSceneId), [activeSceneId, tuningRevision]);
+  const tuningOverrides = useMemo(() => loadSceneTuningOverrides(activeSceneId), [activeSceneId, tuningRevision]);
 
   useEffect(() => {
     latestInputsRef.current = { features, fingertips, templeTargets, lemonTargets };
   }, [features, fingertips, lemonTargets, templeTargets]);
 
   useEffect(() => {
-    mouthProgressRef.current = createMouthProgress();
-    templeProgressRef.current = createTempleProgress();
-    lemonProgressRef.current = createLemonProgress();
-    noseProgressRef.current = createNoseProgress();
-    bubbleProgressRef.current = createBubbleProgress();
-    setInteraction(createBaseInteraction(selectedScene));
-  }, [selectedScene, stage.id]);
+    const createProgress = INTERACTION_PROGRESS_FACTORIES[scene.interaction];
+    if (createProgress) interactionProgressRefs.current[scene.interaction] = createProgress();
+    setInteraction(createBaseInteraction(activeSceneId));
+  }, [activeSceneId, scene.interaction, stage.id]);
 
   useEffect(() => {
     snapshotCandidateRef.current = null;
     snapshotTargetsRef.current = [0.12, 0.3, 0.48, 0.66, 0.84];
-  }, [selectedScene]);
+  }, [activeSceneId]);
 
   useEffect(() => {
     const now = performance.now();
     const currentInputs = latestInputsRef.current;
     const tuning = sceneTuning;
-    let nextInteraction;
-
-    if (selectedScene === SCENE_IDS.templeGarden) {
-      nextInteraction = scoreTemplePress({
-          features: currentInputs.features,
-          fingertips: currentInputs.fingertips,
-          targets: currentInputs.templeTargets,
-          timestamp: now,
-          progressState: templeProgressRef.current,
-          stageProgress,
-          tuning,
-        });
-    } else if (selectedScene === SCENE_IDS.lemonSqueeze) {
-      nextInteraction = scoreLemonSqueeze({
-        features: currentInputs.features,
-        fingertips: currentInputs.fingertips,
-        targets: currentInputs.lemonTargets,
-        timestamp: now,
-        progressState: lemonProgressRef.current,
-        stageProgress,
-        tuning,
-      });
-    } else if (selectedScene === SCENE_IDS.flowerCollector) {
-      nextInteraction = scoreNoseSniff({
-        features: currentInputs.features,
-        timestamp: now,
-        progressState: noseProgressRef.current,
-        stageProgress,
-        tuning,
-      });
-    } else if (selectedScene === SCENE_IDS.bubbleGumBunny) {
-      nextInteraction = scoreCheekPuff({
-        features: currentInputs.features,
-        timestamp: now,
-        progressState: bubbleProgressRef.current,
-        stageProgress,
-        tuning,
-      });
-    } else {
-      nextInteraction = scoreMouthOpening({
-          features: currentInputs.features,
-          timestamp: now,
-          progressState: mouthProgressRef.current,
-          stageProgress,
-          tuning,
-        });
-    }
+    const scoreInteraction = INTERACTION_SCORERS[scene.interaction] || INTERACTION_SCORERS.mouthOpening;
+    const nextInteraction = scoreInteraction({
+      inputs: currentInputs,
+      timestamp: now,
+      progressState: interactionProgressRefs.current[scene.interaction],
+      stageProgress,
+      tuning,
+    });
 
     const contract = createSceneInteractionContract({
-      sceneId: selectedScene,
+      sceneId: activeSceneId,
       interaction: nextInteraction,
       tracking: {
         detectorMode,
@@ -334,7 +395,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       ...nextInteraction,
       contract,
     });
-  }, [detectorMode, handMode, hasLandmarks, interactionTick, isDemoMode, sceneTuning, selectedScene, stageProgress]);
+  }, [activeSceneId, detectorMode, handMode, hasLandmarks, interactionTick, isDemoMode, scene.interaction, sceneTuning, stageProgress]);
 
   useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
@@ -343,7 +404,7 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
     const snapshot = captureRoutineSnapshot({
       video: videoRef.current,
       isDemoMode,
-      sceneId: selectedScene,
+      sceneId: activeSceneId,
       score: toFinalSceneScore(interaction.score),
       features,
       displayRect,
@@ -356,25 +417,25 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
       }
       snapshotTargetsRef.current = snapshotTargetsRef.current.slice(1);
     }
-  }, [displayRect, features, globalProgress, interaction, isDemoMode, selectedScene]);
+  }, [activeSceneId, displayRect, features, globalProgress, interaction, isDemoMode]);
 
   useEffect(() => {
     setStageScores((current) => ({
       ...current,
-      [selectedScene]: Math.max(current[selectedScene] || 0, interaction.score),
+      [activeSceneId]: Math.max(current[activeSceneId] || 0, interaction.score),
     }));
-  }, [interaction.score, selectedScene]);
+  }, [activeSceneId, interaction.score]);
 
-  const rawDisplayScore = Math.max(stageScores[selectedScene] || 0, interaction.score);
+  const rawDisplayScore = Math.max(stageScores[activeSceneId] || 0, interaction.score);
   const displayScore = toFinalSceneScore(rawDisplayScore);
   const finishRoutine = () => {
     onComplete(buildResult(
       {
         ...stageScores,
-        [selectedScene]: rawDisplayScore,
+        [activeSceneId]: rawDisplayScore,
       },
       snapshotCandidateRef.current ? [snapshotCandidateRef.current] : [],
-      selectedScene,
+      activeSceneId,
     ));
   };
 
@@ -385,36 +446,28 @@ export default function RoutineScreen({ selectedScene = SCENE_IDS.whaleDream, st
   }, [activeTotalSeconds, elapsed]);
 
   const handleTuningChange = (section, key, value) => {
-    saveSceneTuningValue(selectedScene, section, key, value);
+    saveSceneTuningValue(activeSceneId, section, key, value);
     setTuningRevision((current) => current + 1);
   };
 
   const handleTuningReset = () => {
-    clearSceneTuningOverrides(selectedScene);
+    clearSceneTuningOverrides(activeSceneId);
     setTuningRevision((current) => current + 1);
   };
 
   return (
-    <section className={`screen routine-screen play-routine-screen${isWhaleViewportScene ? ' whale-viewport-routine' : ''}${isCloudGardenViewportScene ? ' cloud-garden-viewport-routine' : ''}`}>
+    <section
+      className={`screen routine-screen play-routine-screen ${scene.layout?.className || ''}`}
+      data-scene-id={activeSceneId}
+      data-scene-layout={scene.layout?.mode || 'portrait'}
+    >
       <div className="routine-layout play-routine-layout">
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
-          {selectedScene === SCENE_IDS.templeGarden ? (
-            <TempleGardenScene interaction={interaction} targets={templeTargets} />
-          ) : selectedScene === SCENE_IDS.lemonSqueeze ? (
-            <LemonSqueezeScene interaction={interaction} />
-          ) : selectedScene === SCENE_IDS.flowerCollector ? (
-            <FlowerCollectorScene interaction={interaction} />
-          ) : selectedScene === SCENE_IDS.bubbleGumBunny ? (
-            <BubbleGumBunnyScene interaction={interaction} />
-          ) : selectedScene === SCENE_IDS.whaleDream2 ? (
-            <WhaleDream2Scene interaction={interaction} />
-          ) : (
-            <WhaleDreamScene interaction={interaction} />
-          )}
+          <SceneRenderer interaction={interaction} targets={templeTargets} />
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
           <CameraPreview
             detectorMode={detectorMode}
-            handMode={[SCENE_IDS.whaleDream, SCENE_IDS.whaleDream2].includes(selectedScene) ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
+            handMode={scene.interaction === 'mouthOpening' ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
             isDemoMode={isDemoMode}
             previewVideoRef={previewVideoRef}
             stream={stream}
@@ -1437,163 +1490,310 @@ function WhaleDream2Scene({ interaction }) {
 
 function FlowerCollectorScene({ interaction }) {
   const sniff = clamp(interaction.sniff || 0, 0, 1);
-  const gathered = clamp(interaction.completion || 0, 0, 1);
-  const flowerCount = interaction.flowerCount || 0;
-  const flowerWave = flowerCount % 36;
-  const flowers = useMemo(
+  const collectedCount = interaction.flowerCount || 0;
+  const isSniffing = Boolean(interaction.isSniffing);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === 'undefined' ? 1280 : window.innerWidth,
+    height: typeof window === 'undefined' ? 720 : window.innerHeight,
+  }));
+  const [release, setRelease] = useState({ version: 0, total: 0, retained: 0, lost: 0 });
+  const previousSniffingRef = useRef(isSniffing);
+  const releaseTimerRef = useRef(null);
+  const popcornPieces = useMemo(
     () =>
-      Array.from({ length: 180 }, (_, index) => ({
-        ...getFlowerDockPoint(index, 16 + Math.floor(index / 42) * 8),
-        id: index,
-        x: 24 + ((index * 43) % 330),
-        y: 146 + ((index * 67) % 494),
-        size: 0.68 + (index % 8) * 0.09,
-        delay: (index % 13) * 0.07,
-        hue: index % 5,
-        drift: 0.74 + (index % 8) * 0.05,
-        settle: 0.76 + (index % 6) * 0.04,
-      })),
+      Array.from({ length: POPCORN_SOURCE_COUNT }, (_, index) => {
+        const sourceZone = POPCORN_TABLETOP_SOURCE_ZONES[
+          POPCORN_TABLETOP_ZONE_ORDER[index % POPCORN_TABLETOP_ZONE_ORDER.length]
+        ];
+        const pathSeed = ((index * 73) % 101) / 101;
+        const horizontalSeed = (((index * 29) % 101) / 100) * 2 - 1;
+        const verticalSeed = (((index * 47) % 101) / 100) * 2 - 1;
+        return {
+          id: index,
+          asset: POPCORN_PIECE_ASSETS[(index * 5 + 1) % POPCORN_PIECE_ASSETS.length],
+          x: sourceZone.x + horizontalSeed * sourceZone.spreadX,
+          y: sourceZone.y + verticalSeed * sourceZone.spreadY,
+          size: POPCORN_VISUAL_SCALE * (0.72 + (index % 8) * 0.04),
+          rotation: -26 + ((index * 29) % 54),
+          driftX: -9 + ((index * 17) % 19),
+          driftY: -7 + ((index * 13) % 15),
+          phase: (index % 11) * 0.24,
+          delay: (index % 9) * 0.12,
+          pullBias: 0.66 + (index % 6) * 0.055,
+          travelRate: 0.82 + (index % 7) * 0.055,
+          targetAngle: -Math.PI + pathSeed * Math.PI * 2 + ((index % 5) - 2) * 0.07,
+          arcX: -128 + ((index * 23) % 54),
+          arcY: -124 + ((index * 31) % 68),
+          sway: 9 + (index % 6) * 3.2,
+          swayPhase: (index * 1.71) % (Math.PI * 2),
+          source: sourceZone.source,
+        };
+      }),
     [],
   );
-  const fallingFlowers = useMemo(
+  const clusterPieces = useMemo(
     () =>
-      Array.from({ length: 42 }, (_, index) => ({
-        id: index,
-        x: -8 + ((index * 37) % 112),
-        delay: (index % 12) * 0.18,
-        duration: 3.4 + (index % 7) * 0.3,
-        size: 0.62 + (index % 6) * 0.12,
-        hue: index % 5,
-      })),
+      Array.from({ length: POPCORN_CLUSTER_LIMIT }, (_, index) => {
+        const isPilePiece = index % 4 !== 0;
+        const pileAngle = POPCORN_RIM_PILE_ANGLES[index % POPCORN_RIM_PILE_ANGLES.length];
+        const angle = isPilePiece
+          ? pileAngle + ((((index * 37) % 101) / 100) - 0.5) * 0.78
+          : index * 2.3999632297 + ((((index * 29) % 101) / 100) - 0.5) * 0.36;
+        const baseRing = Math.floor(index / 11);
+        const backfillLayers = isPilePiece && (index * 17) % 7 < 4
+          ? 1 + ((index * 11) % 4 === 0 ? 1 : 0)
+          : 0;
+        const ring = Math.max(0, baseRing - backfillLayers) + (isPilePiece ? (index % 3) * 0.18 : 0);
+        return {
+          id: index,
+          asset: POPCORN_PIECE_ASSETS[(index * 7 + 2) % POPCORN_PIECE_ASSETS.length],
+          angle,
+          ring,
+          offset: -4 + ((index * 17) % 9),
+          radialOffset: -1.3 + ((index * 23) % 25) / 10,
+          protrusion: index % 23 === 0 ? 2.25 : 0,
+          size: POPCORN_VISUAL_SCALE * (0.78 + (index % 6) * 0.035),
+          rotation: -28 + ((index * 37) % 58),
+          phase: (index % 8) * 0.16,
+          dropX: -34 + ((index * 19) % 68),
+          dropY: 88 + ((index * 17) % 92),
+        };
+      }),
     [],
   );
-  const groundFlowers = useMemo(
-    () =>
-      Array.from({ length: 78 }, (_, index) => ({
-        id: index,
-        x: -5 + ((index * 23) % 112),
-        y: 52 + ((index * 19) % 48),
-        size: 0.62 + (index % 8) * 0.1,
-        hue: index % 5,
-        delay: (index % 19) * 0.045,
-        driftX: -64 - (index % 8) * 9,
-        liftY: -360 - (index % 9) * 26,
-      })),
-    [],
-  );
-  const sparkles = useMemo(
-    () =>
-      Array.from({ length: 18 }, (_, index) => ({
-        id: index,
-        x: 4 + ((index * 29) % 92),
-        y: 12 + ((index * 41) % 78),
-        delay: (index % 8) * 0.16,
-      })),
-    [],
-  );
+  const cameraLeft = clamp(viewport.width * 0.04, 28, 64);
+  const cameraTop = clamp(viewport.height * 0.04, 26, 48);
+  const isNarrowViewport = viewport.width <= 559;
+  const cameraGroupScale = isNarrowViewport ? POPCORN_MOBILE_CAMERA_SCALE : 1;
+  const cameraFrame = {
+    left: cameraLeft,
+    top: cameraTop,
+    width: 102 * cameraGroupScale,
+    height: 148 * cameraGroupScale,
+  };
+  const cameraRimPadding = 13 * cameraGroupScale;
+  const accumulatedCount = Math.min(POPCORN_CLUSTER_LIMIT, Math.floor(collectedCount * 0.72));
+  const availableCount = Math.max(0, accumulatedCount - release.lost);
+  const retainedCount = isSniffing || release.total === 0
+    ? availableCount
+    : Math.min(availableCount, release.retained);
+
+  useEffect(() => {
+    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (releaseTimerRef.current) {
+      window.clearInterval(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+
+    if (previousSniffingRef.current && !isSniffing && availableCount > 0) {
+      const minimumCore = Math.max(8, Math.floor(availableCount * 0.54));
+      const initialLoss = Math.min(2, Math.max(1, availableCount - minimumCore));
+      setRelease((current) => ({
+        version: current.version + 1,
+        total: availableCount,
+        retained: availableCount - initialLoss,
+        lost: current.lost + initialLoss,
+      }));
+
+      releaseTimerRef.current = window.setInterval(() => {
+        setRelease((current) => {
+          const nextRetained = Math.max(minimumCore, current.retained - 1);
+          if (nextRetained === current.retained && releaseTimerRef.current) {
+            window.clearInterval(releaseTimerRef.current);
+            releaseTimerRef.current = null;
+          }
+          return {
+            ...current,
+            retained: nextRetained,
+            lost: current.lost + (current.retained === nextRetained ? 0 : 1),
+          };
+        });
+      }, 900);
+    }
+    previousSniffingRef.current = isSniffing;
+
+    return () => {
+      if (releaseTimerRef.current) {
+        window.clearInterval(releaseTimerRef.current);
+        releaseTimerRef.current = null;
+      }
+    };
+  }, [accumulatedCount, isSniffing]);
+
+  const getCameraRimPoint = (angle, extraRing = 0) => {
+    const radiusX = cameraFrame.width / 2 + cameraRimPadding + extraRing * 4.8 * cameraGroupScale;
+    const radiusY = cameraFrame.height / 2 + cameraRimPadding + extraRing * 3.6 * cameraGroupScale;
+    return {
+      x: cameraFrame.left + cameraFrame.width / 2 + Math.cos(angle) * radiusX,
+      y: cameraFrame.top + cameraFrame.height / 2 + Math.sin(angle) * radiusY,
+    };
+  };
+
+  const getCurvePoint = (piece, travel) => {
+    const start = { x: (piece.x / 100) * viewport.width, y: (piece.y / 100) * viewport.height };
+    const target = getCameraRimPoint(piece.targetAngle);
+    const control = {
+      x: (start.x + target.x) / 2 + piece.arcX,
+      y: (start.y + target.y) / 2 + piece.arcY,
+    };
+    const inverse = 1 - travel;
+    const curveStrength = Math.sin(travel * Math.PI) * piece.sway;
+    return {
+      x: inverse * inverse * start.x + 2 * inverse * travel * control.x + travel * travel * target.x
+        + Math.cos(piece.swayPhase + travel * 4.4) * curveStrength,
+      y: inverse * inverse * start.y + 2 * inverse * travel * control.y + travel * travel * target.y
+        + Math.sin(piece.swayPhase + travel * 3.1) * curveStrength,
+    };
+  };
+
+  const getPieceMotion = (piece) => {
+    const piecesPerWave = 3;
+    const waveIndex = Math.floor(piece.id / piecesPerWave);
+    const pieceIndexInWave = piece.id % piecesPerWave;
+    const sequenceLength = Math.ceil(popcornPieces.length / piecesPerWave) * 2.1;
+    const cycle = Math.floor(collectedCount / sequenceLength);
+    const launchAt = cycle * sequenceLength + waveIndex * 2.1 + pieceIndexInWave * 0.26;
+    const collected = clamp((collectedCount - launchAt) / 5.4, 0, 1);
+    const liftProgress = clamp((collected - 0.04) / 0.22, 0, 1);
+    const launchProgress = clamp((collected - 0.22) / 0.78, 0, 1);
+    const easedLaunch = launchProgress * launchProgress * (3 - 2 * launchProgress);
+    const travel = clamp(Math.pow(easedLaunch, piece.travelRate), 0, 0.985);
+    return {
+      collected,
+      liftProgress,
+      travel,
+      isLifting: liftProgress > 0 && liftProgress < 1,
+      isAirborne: travel > 0.012 && collected < 0.96,
+      point: getCurvePoint(piece, travel),
+    };
+  };
 
   return (
     <div
-      className={`flower-collector-scene ${interaction.isSniffing ? 'is-sniffing' : ''}`}
+      className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''}`}
       style={{
         '--sniff': sniff,
-        '--gathered': gathered,
-        '--flower-wave': flowerWave,
+        '--popcorn-count': collectedCount,
       }}
       aria-hidden="true"
     >
-      <div className="flower-sky-glow" />
-      <div className="flower-copy">
-        <h1>Flower Collector</h1>
-        <p>Inhale and gather the blossoms</p>
+      <img className="popcorn-background" src={popcornCollectorBackgroundAsset} alt="" />
+      <div className="popcorn-warm-glow" />
+      <div className="popcorn-copy">
+        <h1>Popcorn Collector</h1>
+        <p>Inhale and gather the popcorn</p>
       </div>
-
-      <div className="scent-bottle">
-        <span className="bottle-neck" />
-        <span className="bottle-face" />
-        <span className="bottle-bloom one" />
-        <span className="bottle-bloom two" />
-        <span className="bottle-bloom three" />
+      <div
+        className="popcorn-nose-cue"
+        style={{
+          left: `${cameraFrame.left - cameraRimPadding}px`,
+          top: `${cameraFrame.top - cameraRimPadding}px`,
+          '--preview-frame-width': `${cameraFrame.width + cameraRimPadding * 2}px`,
+          '--preview-frame-height': `${cameraFrame.height + cameraRimPadding * 2}px`,
+        }}
+      >
+        <span className="popcorn-nose-cue-ring" />
       </div>
-
-      <div className="scent-streams">
-        <span className="stream one" />
-        <span className="stream two" />
-        <span className="stream three" />
-      </div>
-
-      <div className="flower-field">
-        {flowers.map((flower) => {
-          const collected = clamp((flowerCount - flower.id * 0.78) / 10, 0, 1);
-          const previewPull = sniff * (1 - collected) * 0.1;
-          const moveProgress = clamp(collected + previewPull, 0, 1);
-          const deltaX = (flower.dockX - flower.x) * moveProgress;
-          const deltaY = (flower.dockY - flower.y) * moveProgress;
+      <div className="popcorn-field">
+        {popcornPieces.map((piece) => {
+          const { collected, travel, isAirborne, point } = getPieceMotion(piece);
           return (
-            <span
-              key={flower.id}
-              className={`collector-flower hue-${flower.hue}`}
+            <div
+              key={piece.id}
+              className={`collector-popcorn is-source ${isAirborne ? 'is-airborne' : ''} source-${piece.source}`}
               style={{
-                '--flower-x': `${flower.x}px`,
-                '--flower-y': `${flower.y}px`,
-                '--flower-size': flower.size,
-                '--flower-delay': `${flower.delay}s`,
-                '--flower-drift': flower.drift,
-                '--collect-progress': collected,
-                opacity: 0.24 + sniff * 0.26 + collected * 0.5,
-                transform: `translate(${deltaX}px, ${deltaY}px) scale(${flower.size * (0.72 + sniff * 0.18 + collected * 0.42) * flower.settle})`,
+                '--piece-size': piece.size,
+                '--piece-rotation': `${piece.rotation}deg`,
+                '--piece-drift-x': `${piece.driftX}px`,
+                '--piece-drift-y': `${piece.driftY}px`,
+                '--piece-phase': `${piece.phase}s`,
+                '--piece-delay': `${piece.delay}s`,
+                '--piece-pull': travel,
+                '--piece-current-x': `${point.x}px`,
+                '--piece-current-y': `${point.y}px`,
+                opacity: isAirborne && collected < 0.96 ? 0.62 + sniff * 0.28 : 0,
               }}
-            />
+            >
+              <img src={piece.asset} alt="" />
+            </div>
+          );
+        })}
+        {clusterPieces.map((piece) => {
+          const isRetained = piece.id < retainedCount;
+          const isDropping = !isSniffing && piece.id >= retainedCount && piece.id < release.total;
+          if (!isRetained && !isDropping) return null;
+          const clusterPoint = getCameraRimPoint(
+            piece.angle,
+            piece.ring + piece.radialOffset + piece.protrusion,
+          );
+          return (
+            <div
+              key={`${piece.id}-${isDropping ? release.version : 'cluster'}`}
+              className={`collector-popcorn is-cluster ${isDropping ? 'is-dropping' : ''}`}
+              style={{
+                '--piece-size': piece.size * cameraGroupScale,
+                '--piece-rotation': `${piece.rotation}deg`,
+                '--piece-phase': `${piece.phase}s`,
+                '--piece-current-x': `${clusterPoint.x + Math.cos(piece.angle * 2.7 + piece.phase) * piece.offset}px`,
+                '--piece-current-y': `${clusterPoint.y + Math.sin(piece.angle * 1.9 + piece.phase) * piece.offset}px`,
+                '--cluster-drop-x': `${piece.dropX}px`,
+                '--cluster-drop-y': `${piece.dropY}px`,
+              }}
+            >
+              <img src={piece.asset} alt="" />
+            </div>
+          );
+        })}
+        {!isSniffing && release.total > release.retained && popcornPieces.slice(0, 2).map((piece, index) => {
+          const point = getCurvePoint(piece, 0.3 + (index % 4) * 0.09);
+          return (
+            <div
+              key={`in-flight-drop-${release.version}-${piece.id}`}
+              className="collector-popcorn is-release-drop"
+              style={{
+                '--piece-size': piece.size,
+                '--piece-rotation': `${piece.rotation}deg`,
+                '--piece-current-x': `${point.x}px`,
+                '--piece-current-y': `${point.y}px`,
+                '--cluster-drop-x': `${-28 + index * 7}px`,
+                '--cluster-drop-y': `${110 + (index % 4) * 24}px`,
+              }}
+            >
+              <img src={piece.asset} alt="" />
+            </div>
           );
         })}
       </div>
-
-      <div className="falling-flower-layer">
-        {fallingFlowers.map((flower) => (
-          <span
-            key={flower.id}
-            className={`falling-flower hue-${flower.hue}`}
-            style={{
-              '--fall-x': `${flower.x}%`,
-              '--fall-delay': `${flower.delay - flowerWave * 0.025}s`,
-              '--fall-duration': `${flower.duration}s`,
-              '--fall-size': flower.size,
-              opacity: 0.24 + sniff * 0.56,
-            }}
-          />
-        ))}
+      <img className="popcorn-bucket" src={popcornCollectorBucketAsset} alt="" />
+      <img className="popcorn-foreground" src={popcornCollectorForegroundAsset} alt="" />
+      <div className="popcorn-tabletop-seeds">
+        {popcornPieces.map((piece) => {
+          const { collected, liftProgress, travel, isLifting, point } = getPieceMotion(piece);
+          const lift = Math.min(travel, 0.22) / 0.22;
+          return (
+            <div
+              key={`tabletop-${piece.id}`}
+              className={`tabletop-popcorn-seed ${isLifting ? 'is-lifting' : ''}`}
+              style={{
+                '--piece-size': piece.size,
+                '--piece-rotation': `${piece.rotation}deg`,
+                '--piece-phase': `${piece.phase}s`,
+                '--piece-current-x': `${point.x}px`,
+                '--piece-current-y': `${point.y}px`,
+                '--lift-progress': liftProgress,
+                opacity: collected > 0.96 ? 0 : clamp(1 - lift * 1.18, 0, 0.9),
+              }}
+            >
+              <img src={piece.asset} alt="" />
+            </div>
+          );
+        })}
       </div>
-
-      <div className="flower-ground">
-        {groundFlowers.map((flower) => (
-          <span
-            key={flower.id}
-            className={`ground-flower hue-${flower.hue}`}
-            style={{
-              '--ground-x': `${flower.x}%`,
-              '--ground-y': `${flower.y}%`,
-              '--ground-size': flower.size,
-              '--ground-delay': `${flower.delay - flowerWave * 0.015}s`,
-              '--ground-drift-x': `${flower.driftX}px`,
-              '--ground-lift-y': `${flower.liftY}px`,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="flower-sparkles">
-        {sparkles.map((sparkle) => (
-          <span
-            key={sparkle.id}
-            style={{
-              '--sparkle-x': `${sparkle.x}%`,
-              '--sparkle-y': `${sparkle.y}%`,
-              '--sparkle-delay': `${sparkle.delay}s`,
-            }}
-          />
-        ))}
-      </div>
-
     </div>
   );
 }
@@ -2348,9 +2548,9 @@ function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tun
 
 function getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }) {
   if (!features?.nose) return 'Find your face';
-  if (!isSniffing) return 'Wrinkle your nose like smelling a flower';
-  if (!isControlled) return 'Hold the scent gently';
-  if (isStrong) return 'Lovely inhale, blossoms are gathering';
+  if (!isSniffing) return 'Wrinkle your nose to gather popcorn';
+  if (!isControlled) return 'Hold the inhale gently';
+  if (isStrong) return 'Lovely inhale, popcorn is gathering';
   return 'Good, scrunch a little stronger';
 }
 

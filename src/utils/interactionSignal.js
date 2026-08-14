@@ -161,10 +161,14 @@ function clamp(value, min, max) {
 }
 
 function getActionType(sceneId) {
-  if (sceneId === 'flowerCollector') return INTERACTION_ACTIONS.noseSniff;
-  if (sceneId === 'bubbleGumBunny') return INTERACTION_ACTIONS.cheekPuff;
-  if (sceneId === 'templeGarden' || sceneId === 'lemonSqueeze') return INTERACTION_ACTIONS.dualPress;
-  return INTERACTION_ACTIONS.mouthOpen;
+  const actionByInteraction = {
+    mouthOpening: INTERACTION_ACTIONS.mouthOpen,
+    noseSniff: INTERACTION_ACTIONS.noseSniff,
+    cheekPuff: INTERACTION_ACTIONS.cheekPuff,
+    templePress: INTERACTION_ACTIONS.dualPress,
+    lemonSqueeze: INTERACTION_ACTIONS.dualPress,
+  };
+  return actionByInteraction[getSceneById(sceneId).interaction] || INTERACTION_ACTIONS.mouthOpen;
 }
 
 function getControlsForAction(actionType, interaction) {
@@ -218,3 +222,4 @@ function getFeedbackLevel({ interaction, isActive, phase }) {
   if (isActive || phase === 'detecting' || phase === 'active') return 'active';
   return 'idle';
 }
+import { getSceneById } from '../data/scenes.js';

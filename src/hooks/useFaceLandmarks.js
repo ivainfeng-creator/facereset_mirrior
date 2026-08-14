@@ -10,7 +10,9 @@ import {
 } from '../utils/faceLandmarks.js';
 
 const INITIAL_SIZE = { width: 0, height: 0 };
-const CALIBRATION_STABLE_MS = 450;
+// Calibration only needs a brief run of valid landmarks. Scene interactions
+// retain their own precise per-frame tracking requirements.
+const CALIBRATION_CONFIRM_MS = 180;
 const TRACKING_LOSS_GRACE_MS = 280;
 
 export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
@@ -194,24 +196,17 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
 
     window.clearTimeout(stabilityLossTimerRef.current);
     const previous = stabilityRef.current;
-    const center = features.bounds.center;
-    const scale = features.faceScale;
     const elapsedMs = previous.lastTime ? Math.min(120, now - previous.lastTime) : 0;
-    const movement = previous.lastCenter ? Math.hypot(center.x - previous.lastCenter.x, center.y - previous.lastCenter.y) : 0;
-    const scaleDelta = previous.lastScale ? Math.abs(scale - previous.lastScale) : 0;
-    const movementLimit = Math.max(5, scale * 0.026);
-    const scaleLimit = Math.max(4, scale * 0.022);
-    const isFrameStable = previous.lastCenter ? movement < movementLimit && scaleDelta < scaleLimit : false;
-    const stabilityMs = isFrameStable ? Math.min(2400, previous.stabilityMs + elapsedMs) : 0;
+    const stabilityMs = Math.min(2400, previous.stabilityMs + elapsedMs);
 
     stabilityRef.current = {
-      lastCenter: center,
-      lastScale: scale,
+      lastCenter: features.bounds.center,
+      lastScale: features.faceScale,
       lastTime: now,
       stabilityMs,
     };
     setLandmarkStability({
-      stable: stabilityMs >= CALIBRATION_STABLE_MS,
+      stable: stabilityMs >= CALIBRATION_CONFIRM_MS,
       stabilityMs,
     });
   }, [features]);

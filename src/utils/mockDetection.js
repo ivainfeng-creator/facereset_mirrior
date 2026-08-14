@@ -73,10 +73,10 @@ function getSceneRadar(sceneId, score, softVariance) {
 
   if (sceneId === SCENE_IDS.flowerCollector) {
     return [
-      { label: '吸香力', value: clamp(score + 5, 52, 99) },
-      { label: '花朵收集', value: clamp(score + 9 - softVariance, 50, 99) },
+      { label: '吸入力', value: clamp(score + 5, 52, 99) },
+      { label: '爆米花收集', value: clamp(score + 9 - softVariance, 50, 99) },
       { label: '皺鼻節奏', value: clamp(score + softVariance, 46, 98) },
-      { label: '療癒香氣', value: clamp(80 + softVariance * 2, 48, 98) },
+      { label: '電影夜氛圍', value: clamp(80 + softVariance * 2, 48, 98) },
       { label: '可愛濃度', value: clamp(86 + Math.round(Math.cos(score * 0.09) * 6), 52, 99) },
       { label: '放鬆回彈', value: clamp(88 - Math.abs(82 - score), 45, 98) },
     ];
@@ -115,7 +115,7 @@ function getSceneComment(sceneId) {
     return '今天的 Bubble Gum Bunny 完成！鼓臉節奏很穩，粉紅泡泡也越吹越可愛。';
   }
   if (sceneId === SCENE_IDS.flowerCollector) {
-    return '今天的 Flower Collector 完成！鼻子輕輕一皺，花朵都被香氣吸進來了。';
+    return '今天的 Popcorn Collector 完成！鼻子輕輕一皺，爆米花都被吸進來了。';
   }
   if (sceneId === SCENE_IDS.whaleDream) {
     return '今天的 Whale Mouth 完成！張嘴節奏很穩，小魚順著海流游進鯨魚嘴裡。';

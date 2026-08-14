@@ -442,7 +442,7 @@ export function buildLeaderboard(habit = loadHabit()) {
     { name: 'Puffer Club', score: 91, detail: 'Whale Dream 2' },
     { name: 'Face Garden', score: 88, detail: 'Cloud Garden' },
     { name: 'Bubble Hero', score: 84, detail: 'Bubble Gum Bunny' },
-    { name: 'Bloom Crew', score: 79, detail: 'Flower Collector' },
+    { name: 'Popcorn Crew', score: 79, detail: 'Popcorn Collector' },
     { name: 'Soda Sprout', score: 74, detail: 'Lemon Squeeze' },
   ].sort((a, b) => b.score - a.score);
 
