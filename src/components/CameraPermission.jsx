@@ -9,7 +9,6 @@ export default function CameraPermission({
 }) {
   const [cameraPhase, setCameraPhase] = useState('idle');
   const hasAutoStarted = useRef(false);
-  const isPrompting = cameraPhase === 'prompting';
 
   const enableCamera = async () => {
     setCameraPhase('prompting');
@@ -22,9 +21,6 @@ export default function CameraPermission({
         },
         audio: false,
       });
-      const preparingStartedAt = performance.now();
-      setCameraPhase('preparing');
-      await waitForMinimumLoadingTime(preparingStartedAt, 620);
       onCameraReady(stream);
     } catch {
       setCameraPhase('idle');
@@ -41,15 +37,8 @@ export default function CameraPermission({
     enableCamera();
   }, [autoStart]);
 
-  if (autoStart || cameraPhase === 'prompting' || cameraPhase === 'preparing') {
-    return (
-      <section className={`screen preparing-landing ${isOverlay ? 'guide-flow-overlay' : ''}`}>
-        <main className="preparing-card" aria-live="polite" aria-label="Preparing camera">
-          <span className="preparing-spinner" aria-hidden="true" />
-          <p>{cameraPhase === 'prompting' ? 'Allow camera access...' : 'Preparing...'}</p>
-        </main>
-      </section>
-    );
+  if (autoStart || cameraPhase === 'prompting') {
+    return null;
   }
 
   return (
@@ -71,12 +60,4 @@ export default function CameraPermission({
       </main>
     </section>
   );
-}
-
-function waitForMinimumLoadingTime(startedAt, minimumMs) {
-  const elapsed = performance.now() - startedAt;
-  const remaining = Math.max(0, minimumMs - elapsed);
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, remaining);
-  });
 }
