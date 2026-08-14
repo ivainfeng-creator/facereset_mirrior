@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 export default function CameraPermission({
   cameraError,
   autoStart = false,
+  isOverlay = false,
   onCameraReady,
   onCameraError,
   onBack,
@@ -43,7 +44,7 @@ export default function CameraPermission({
 
   if (autoStart || cameraPhase === 'prompting' || cameraPhase === 'preparing') {
     return (
-      <section className="screen preparing-landing">
+      <section className={`screen preparing-landing ${isOverlay ? 'guide-flow-overlay' : ''}`}>
         <main className="preparing-card" aria-live="polite" aria-label="Preparing camera">
           <span className="preparing-spinner" aria-hidden="true" />
           <p>{cameraPhase === 'prompting' ? 'Allow camera access...' : 'Preparing...'}</p>
@@ -53,18 +54,21 @@ export default function CameraPermission({
   }
 
   return (
-    <section className="screen camera-permission-fallback">
+    <section className={`screen camera-permission-fallback ${isOverlay ? 'guide-flow-overlay' : ''}`}>
       <button className="intro-back-button" onClick={onBack} aria-label="Back to today plan" />
 
       <main className="camera-permission-card" aria-label="Camera permission">
+        <span className="camera-permission-icon" aria-hidden="true" />
         <div className="camera-permission-copy">
-          <h1>Camera access needed</h1>
-          <p>{cameraError || 'Please allow camera access to continue Face Reset.'}</p>
+          <p className="camera-permission-kicker">ONE QUICK CHECK</p>
+          <h1>Turn on your camera</h1>
+          <p>{cameraError || 'Face Reset uses your camera to guide each gentle movement.'}</p>
         </div>
 
         <button className="camera-retry-button" onClick={enableCamera} disabled={isPrompting}>
           {isPrompting ? 'Waiting for permission' : 'Try again'}
         </button>
+        <p className="camera-permission-privacy">Your camera stays on this device.</p>
       </main>
     </section>
   );

@@ -268,6 +268,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const [stageScores, setStageScores] = useState({});
   const [interaction, setInteraction] = useState(() => createBaseInteraction(selectedScene));
   const [tuningRevision, setTuningRevision] = useState(0);
+  const [isSoundOn, setIsSoundOn] = useState(true);
+  const [isQuitOpen, setIsQuitOpen] = useState(false);
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
@@ -297,6 +299,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   });
 
   useEffect(() => {
+    if (isQuitOpen) return undefined;
     const timer = window.setInterval(() => {
       setElapsed((current) => {
         const next = Math.min(activeTotalSeconds, current + 1);
@@ -304,7 +307,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [activeTotalSeconds]);
+  }, [activeTotalSeconds, isQuitOpen]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);
@@ -473,7 +476,22 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
             stream={stream}
           />
 
-          <button className="play-close-button" onClick={onExit} aria-label="Close routine" />
+          <button
+            className={`play-sound-toggle ${isSoundOn ? 'is-on' : 'is-off'}`}
+            type="button"
+            onClick={() => setIsSoundOn((value) => !value)}
+            aria-label={isSoundOn ? 'Mute sound' : 'Turn sound on'}
+            aria-pressed={isSoundOn}
+          >
+            <span aria-hidden="true" />
+          </button>
+
+          <button
+            className="play-close-button"
+            type="button"
+            onClick={() => setIsQuitOpen(true)}
+            aria-label="Quit routine"
+          />
 
           <div className="play-score">
             <span>Score</span>
@@ -488,6 +506,20 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
           <div className="play-feedback">
             {interaction.feedback || feedback.label}
           </div>
+
+          {isQuitOpen && (
+            <div className="play-quit-backdrop" role="presentation">
+              <section className="play-quit-modal" role="dialog" aria-modal="true" aria-labelledby="quit-routine-title">
+                <p>SESSION IN PROGRESS</p>
+                <h2 id="quit-routine-title">Quit this reset?</h2>
+                <span>Your score for this session will not be saved.</span>
+                <div>
+                  <button type="button" onClick={() => setIsQuitOpen(false)}>KEEP GOING</button>
+                  <button type="button" onClick={onExit}>QUIT</button>
+                </div>
+              </section>
+            </div>
+          )}
 
           {debugEnabled ? (
             <InteractionDebugPanel

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { dailyScenes } from '../data/scenes.js';
 import { buildDailyPlanSummary, getCompletedProgramDays } from '../utils/dailyPlan.js';
 
@@ -7,7 +8,10 @@ export default function ThemeScreen({
   onSelect,
   onContinue,
   isEntering = false,
+  celebrateCompletion = false,
 }) {
+  const [preparingSceneId, setPreparingSceneId] = useState(null);
+  const preparingTimerRef = useRef(null);
   const todayScenes = dailyScenes;
   const dailyPlan = buildDailyPlanSummary(habit);
   const completedScenes = new Set(
@@ -21,6 +25,28 @@ export default function ThemeScreen({
   const currentDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
   const completedProgramDays = getCompletedProgramDays(habit);
   const isAllDone = completedCount >= todayScenes.length;
+
+  useEffect(() => () => window.clearTimeout(preparingTimerRef.current), []);
+
+  useEffect(() => {
+    if (!celebrateCompletion || !isAllDone) return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onContinue();
+      return undefined;
+    }
+
+    const timer = window.setTimeout(onContinue, 1580);
+    return () => window.clearTimeout(timer);
+  }, [celebrateCompletion, isAllDone, onContinue]);
+
+  const startSession = (sceneId) => {
+    if (preparingSceneId) return;
+    setPreparingSceneId(sceneId);
+    preparingTimerRef.current = window.setTimeout(() => {
+      setPreparingSceneId(null);
+      onSelect(sceneId);
+    }, 900);
+  };
 
   return (
     <section className={`screen theme-screen today-plan-screen challenge-v3-screen ${isEntering ? 'is-paper-entering' : ''}`}>
@@ -72,6 +98,7 @@ export default function ThemeScreen({
               const isActive = activeIndex === index;
               const isLocked = activeIndex !== -1 && index > activeIndex;
               const canStart = isDone || (!isLocked && !isAllDone);
+              const isPreparing = preparingSceneId === scene.id;
               const bestScore = todayBestScores.get(scene.id) || 0;
               const rowClassName = [
                 'challenge-v3-session',
@@ -79,6 +106,7 @@ export default function ThemeScreen({
                 isDone ? 'is-done' : '',
                 isActive ? 'is-active' : '',
                 isLocked ? 'is-locked' : '',
+                isPreparing ? 'is-preparing' : '',
               ].filter(Boolean).join(' ');
 
               return (
@@ -86,14 +114,15 @@ export default function ThemeScreen({
                   key={scene.id}
                   className={rowClassName}
                   type="button"
-                  onClick={() => canStart && onSelect(scene.id)}
-                  disabled={!canStart}
+                  onClick={() => canStart && startSession(scene.id)}
+                  disabled={!canStart || Boolean(preparingSceneId)}
                   aria-label={isDone
                     ? `Replay ${scene.title}. Today's best score ${bestScore}`
                     : undefined}
                 >
                   <span className="challenge-v3-art-wrap">
                     <img src={scene.planArt} alt="" className="challenge-v3-art" />
+                    {isPreparing && <span className="challenge-v3-preparing-spinner" aria-hidden="true" />}
                   </span>
 
                   <span className="challenge-v3-session-copy">
@@ -114,7 +143,14 @@ export default function ThemeScreen({
             })}
           </div>
 
-          {isAllDone && (
+          {isAllDone && celebrateCompletion && (
+            <div className="challenge-v3-day-complete-banner" role="status">
+              <span>DAY {currentDay}</span>
+              <strong>COMPLETE!</strong>
+            </div>
+          )}
+
+          {isAllDone && !celebrateCompletion && (
             <div className="challenge-v3-complete" role="status">
               <p>TODAY’S RESET COMPLETE</p>
               <button className="challenge-v3-continue" type="button" onClick={onContinue}>

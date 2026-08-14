@@ -10,7 +10,7 @@ import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
 
-export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
+export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onPassport, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -66,6 +66,17 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
       return () => { isCurrent = false; };
     }
 
+    if (isLeaderboardLoading) {
+      return () => { isCurrent = false; };
+    }
+
+    const tenthPlaceScore = leaderboard[9]?.score ?? -1;
+    const qualifiesForLeaderboard = leaderboard.length < 10 || score >= tenthPlaceScore;
+    if (!qualifiesForLeaderboard) {
+      setIsNameEntryOpen(false);
+      return () => { isCurrent = false; };
+    }
+
     const resolveName = async () => {
       setIsNameChecking(true);
       const localName = getDisplayName(habit);
@@ -93,7 +104,15 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 
     void resolveName();
     return () => { isCurrent = false; };
-  }, [dailyPlan.isComplete, habit?.displayName, onProgressChanged, shouldPromptForDisplayName]);
+  }, [
+    dailyPlan.isComplete,
+    habit?.displayName,
+    isLeaderboardLoading,
+    leaderboard,
+    onProgressChanged,
+    score,
+    shouldPromptForDisplayName,
+  ]);
 
   const saveName = async (event) => {
     event.preventDefault();
@@ -274,6 +293,12 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
           </aside>
         </div>
 
+        <nav className="result-dashboard-actions" aria-label="Result navigation">
+          <button type="button" onClick={onTodayPlan}>TODAY&apos;S PLAN</button>
+          <button type="button" onClick={onPassport}>PASSPORT</button>
+          <button type="button" onClick={onLeaderboard}>LEADERBOARD</button>
+        </nav>
+
         {exportMessage && <p className="export-message result-dashboard-message">{exportMessage}</p>}
 
         {isNameEntryOpen && !isNameChecking && (
@@ -315,6 +340,7 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 }
 
 function ResultRadarPanel({ result }) {
+  const [rotationStep, setRotationStep] = useState(0);
   const afterMetrics = normalizeDownloadRadar(result?.radar)
     .slice(0, 5)
     .map((metric, index) => ({ ...metric, label: RESULT_RADAR_LABELS[index] }));
@@ -324,8 +350,16 @@ function ResultRadarPanel({ result }) {
     ...metric,
     value: Math.max(24, (metric.value || 0) - metricDeltas[index]),
   }));
-  const axes = [-90, -18, 54, 126, 198];
+  const axes = [-90, -18, 54, 126, 198].map((angle) => angle + rotationStep * 72);
   const radius = 89;
+  const rotationDegrees = rotationStep * 72;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setRotationStep((current) => (current + 1) % 5);
+    }, 2600);
+    return () => window.clearInterval(timer);
+  }, []);
   const pointFor = (value, index, extraRadius = 0) => {
     const angle = axes[index] * Math.PI / 180;
     const distance = extraRadius || (Math.max(0, Math.min(100, value)) / 100) * radius;
@@ -352,7 +386,11 @@ function ResultRadarPanel({ result }) {
         </div>
       </div>
       <div className="result-radar-stage">
-        <ResultRadarPortrait snapshots={snapshots} />
+        <ResultRadarPortrait
+          snapshots={snapshots}
+          activeIndex={snapshots.length ? rotationStep % snapshots.length : 0}
+          rotationDegrees={rotationDegrees}
+        />
         <svg viewBox="0 0 200 200" role="img" aria-label="Result radar chart">
           <circle className="result-radar-ring" cx="100" cy="100" r={radius} />
           {afterMetrics.map((metric, index) => {
@@ -415,22 +453,15 @@ function ResultRadarPanel({ result }) {
   );
 }
 
-function ResultRadarPortrait({ snapshots }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    setActiveIndex(0);
-    if (snapshots.length < 2) return undefined;
-    const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % snapshots.length);
-    }, 2100);
-    return () => window.clearInterval(timer);
-  }, [snapshots.length]);
-
+function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
   if (!snapshots.length) return null;
 
   return (
-    <div className="result-radar-portrait" aria-label="Your session portraits">
+    <div
+      className="result-radar-portrait"
+      aria-label="Your session portraits"
+      style={{ '--radar-turn': `${rotationDegrees}deg` }}
+    >
       {snapshots.map((snapshot, index) => (
         <img
           className={index === activeIndex ? 'is-active' : ''}

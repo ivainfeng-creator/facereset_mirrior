@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 
-export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
+export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOverlay = false }) {
   const videoRef = useRef(null);
   const stageRef = useRef(null);
   const alignmentRef = useRef(null);
@@ -70,7 +70,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
   );
 
   return (
-    <section className="screen mirror-screen scan-alignment-screen">
+    <section className={`screen mirror-screen scan-alignment-screen ${isOverlay ? 'guide-flow-overlay' : ''}`}>
       <main className="scan-alignment-card" aria-label="Mirror alignment">
         <div className="scan-alignment-header">
           <h1>Align your face</h1>
@@ -96,7 +96,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
 }
 
 function ScanProgressRing({ progress }) {
-  const dots = 56;
+  const dots = 50;
   const center = 120;
   const radius = 102;
 
