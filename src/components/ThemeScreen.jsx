@@ -122,26 +122,42 @@ export default function ThemeScreen({
                 >
                   <span className="challenge-v3-art-wrap">
                     <img src={scene.planArt} alt="" className="challenge-v3-art" />
+                    {isLocked && <span className="challenge-v3-art-disabled-overlay" aria-hidden="true" />}
                     {isPreparing && <span className="challenge-v3-preparing-spinner" aria-hidden="true" />}
                   </span>
 
                   <span className="challenge-v3-session-copy">
-                    {isActive && !isDone && <small>START HERE</small>}
+                    {isActive && !isDone && <small>SESSION {index + 1}</small>}
                     <strong>{scene.title}</strong>
                     <span>30 sec · {scene.planPhase}</span>
                   </span>
 
-                  {isActive && !isDone && <span className="challenge-v3-start-hint">Tap to start</span>}
                   {isDone && (
                     <span className="challenge-v3-done-actions">
                       <span className="challenge-v3-done">DONE | {bestScore}</span>
                       <span className="challenge-v3-replay" aria-hidden="true">↻</span>
                     </span>
                   )}
+                  {!isDone && <span className="challenge-v3-arrow" aria-hidden="true">→</span>}
                 </button>
               );
             })}
           </div>
+
+          {!isAllDone && activeIndex >= 0 && (
+            <button
+              className="challenge-v3-start"
+              type="button"
+              onClick={() => startSession(todayScenes[activeIndex].id)}
+              disabled={Boolean(preparingSceneId)}
+            >
+              {preparingSceneId ? (
+                <span className="challenge-v3-start-preparing">
+                  Preparing<span>.</span><span>.</span><span>.</span>
+                </span>
+              ) : (completedCount ? 'Continue' : 'Start')}
+            </button>
+          )}
 
           {isAllDone && celebrateCompletion && (
             <div className="challenge-v3-day-complete-banner" role="status">
