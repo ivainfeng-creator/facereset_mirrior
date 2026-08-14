@@ -293,7 +293,6 @@ export default function App() {
 
       {screen === SCREENS.permission && (
         <CameraPermission
-          cameraError={cameraError}
           autoStart={autoStartCamera}
           isOverlay
           onCameraReady={handleCameraReady}

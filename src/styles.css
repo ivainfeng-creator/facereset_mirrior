@@ -10704,23 +10704,6 @@ h1 {
   background: var(--fr-yellow);
 }
 
-.camera-permission-icon::before {
-  width: 25px;
-  height: 18px;
-  border: 3px solid #1a1a1a;
-  border-radius: 5px;
-  content: '';
-}
-
-.camera-permission-icon::after {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border: 2px solid #1a1a1a;
-  border-radius: 50%;
-  content: '';
-}
-
 .camera-permission-copy {
   display: grid;
   gap: 10px;
@@ -14731,7 +14714,7 @@ h1 {
 }
 
 .guide-flow-overlay.camera-permission-fallback {
-  background: rgba(10, 10, 10, 0.54) !important;
+  background: rgba(247, 247, 247, 0.4) !important;
 }
 
 .guide-flow-overlay.scan-alignment-screen {
@@ -14753,6 +14736,16 @@ h1 {
   background: #f7f7f7;
 }
 
+.guide-flow-overlay .camera-permission-card {
+  position: relative;
+  width: min(100%, 375px);
+  gap: 20px;
+  padding: 26px 24px 28px;
+  border-radius: var(--fr-radius-card);
+  background: #f7f7f7;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
+}
+
 .guide-flow-overlay .scan-alignment-header {
   display: grid;
   grid-template-columns: 1fr;
@@ -14769,6 +14762,56 @@ h1 {
   font-size: 32px;
   font-weight: 400;
   letter-spacing: 0;
+}
+
+.guide-flow-overlay .camera-permission-copy h1 {
+  color: #171716;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.guide-flow-overlay .camera-permission-copy p {
+  max-width: 270px;
+  color: #6a6a66;
+  font-family: var(--fr-font-body);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.guide-flow-overlay .camera-permission-kicker {
+  display: none;
+}
+
+.guide-flow-overlay .camera-permission-icon {
+  width: 64px;
+  height: 64px;
+  background: #101010;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.14),
+    0 0 0 4px #ffffff;
+}
+
+.guide-flow-overlay .camera-permission-icon svg {
+  width: 32px;
+  height: 32px;
+  fill: #ffffff;
+}
+
+.guide-flow-overlay .camera-retry-button {
+  width: min(100%, 309px);
+  min-height: 52px;
+  color: #ffffff;
+  background: #1677ff;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.guide-flow-overlay .camera-permission-privacy {
+  margin-top: -8px;
+  color: #6a6a66;
 }
 
 .guide-flow-overlay .scan-alignment-header p {
@@ -14789,8 +14832,41 @@ h1 {
   background: transparent;
 }
 
+.guide-flow-overlay .camera-close-button {
+  position: absolute;
+  top: 26px;
+  right: 24px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.guide-flow-overlay .camera-close-button::before,
+.guide-flow-overlay .camera-close-button::after {
+  position: absolute;
+  top: 16px;
+  left: 11px;
+  width: 12px;
+  height: 1.5px;
+  background: #1b1c1d;
+  content: '';
+}
+
+.guide-flow-overlay .camera-close-button::before {
+  transform: rotate(45deg);
+}
+
+.guide-flow-overlay .camera-close-button::after {
+  transform: rotate(-45deg);
+}
+
 .guide-flow-overlay .scan-close-button:hover,
-.guide-flow-overlay .scan-close-button:focus-visible {
+.guide-flow-overlay .scan-close-button:focus-visible,
+.guide-flow-overlay .camera-close-button:hover,
+.guide-flow-overlay .camera-close-button:focus-visible {
   background: #e8e7e3;
 }
 
@@ -14854,7 +14930,8 @@ h1 {
     padding: 0 !important;
   }
 
-  .guide-flow-overlay .scan-alignment-card {
+  .guide-flow-overlay .scan-alignment-card,
+  .guide-flow-overlay .camera-permission-card {
     width: 100%;
     min-height: 100svh;
     border-radius: 0;

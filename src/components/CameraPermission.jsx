@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
 export default function CameraPermission({
-  cameraError,
   autoStart = false,
   isOverlay = false,
   onCameraReady,
@@ -55,20 +54,22 @@ export default function CameraPermission({
 
   return (
     <section className={`screen camera-permission-fallback ${isOverlay ? 'guide-flow-overlay' : ''}`}>
-      <button className="intro-back-button" onClick={onBack} aria-label="Back to today plan" />
-
       <main className="camera-permission-card" aria-label="Camera permission">
-        <span className="camera-permission-icon" aria-hidden="true" />
+        <button className="camera-close-button" onClick={onBack} aria-label="Close camera permission" />
+        <span className="camera-permission-icon" aria-hidden="true">
+          <svg viewBox="0 -960 960 960" focusable="false">
+            <path d="M400-480Zm240 320H467q13-18 22.5-38t16.5-42h134v-480H160v131q-22 6-42 15.5T80-551v-169q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160ZM98.5-178.5Q40-237 40-320t58.5-141.5Q157-520 240-520t141.5 58.5Q440-403 440-320t-58.5 141.5Q323-120 240-120T98.5-178.5ZM240-200q8 0 14-6t6-14q0-8-6-14t-14-6q-8 0-14 6t-6 14q0 8 6 14t14 6Zm-20-80h40v-160h-40v160Z" />
+          </svg>
+        </span>
         <div className="camera-permission-copy">
           <p className="camera-permission-kicker">ONE QUICK CHECK</p>
-          <h1>Turn on your camera</h1>
-          <p>{cameraError || 'Face Reset uses your camera to guide each gentle movement.'}</p>
+          <h1>Turn On Your Camera</h1>
+          <p>Turn on your camera to start the game.</p>
         </div>
 
         <button className="camera-retry-button" onClick={enableCamera} disabled={isPrompting}>
           {isPrompting ? 'Waiting for permission' : 'Try again'}
         </button>
-        <p className="camera-permission-privacy">Your camera stays on this device.</p>
       </main>
     </section>
   );
