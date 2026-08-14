@@ -254,6 +254,18 @@ export default function App() {
     navigate(SCREENS.result, 'paper');
   };
 
+  useEffect(() => {
+    if (!isCelebratingCompletion || screen !== SCREENS.theme) return undefined;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      openDailyResult();
+      return undefined;
+    }
+
+    const timer = window.setTimeout(openDailyResult, 1240);
+    return () => window.clearTimeout(timer);
+  }, [isCelebratingCompletion, progressRevision, screen]);
+
   const restartRoutine = () => {
     navigate(SCREENS.theme, 'slide-back');
   };
@@ -306,7 +318,6 @@ export default function App() {
           onGuide={openGuide}
           onBack={resetToLanding}
           onContinue={openDailyResult}
-          celebrateCompletion={isCelebratingCompletion}
           habit={habit}
           isEntering={screenTransition === 'welcome-to-plan'}
         />

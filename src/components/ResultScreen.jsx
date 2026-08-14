@@ -6,6 +6,7 @@ import {
   saveSupabaseDisplayName,
 } from '../utils/supabaseProgressAdapter.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
+import TodayPlanCard from './TodayPlanCard.jsx';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
@@ -241,49 +242,13 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
           </section>
 
           <aside className="result-challenge-right">
-            <section className="result-focus-card" aria-label="Today's completed sessions">
-              <header className="result-focus-header">
-                <div>
-                  <p className="result-eyebrow">TODAY'S FOCUS</p>
-                  <h2>Facial Warm-up</h2>
-                </div>
-                <div className="result-focus-progress">
-                  <span><i style={{ width: `${(dailyPlan.completed / dailyPlan.total) * 100}%` }} /></span>
-                  <b>{dailyPlan.completed} / {dailyPlan.total}</b>
-                </div>
-              </header>
-
-              <ol className="result-session-list">
-                {dailyPlan.sceneResults.map((item, index) => (
-                  <li key={item.sceneId}>
-                    <div className="result-session-art">
-                      <img src={`/assets/design-v3/challenge-step${index + 1}.png`} alt="" />
-                    </div>
-                    <div className="result-session-copy">
-                      <strong>{item.sceneTitle}</strong>
-                      <span>30 sec · {['Warm up', 'Activate', 'Unwind'][index]}</span>
-                    </div>
-                    <div className="result-done-stamp" aria-label={`Done, score ${item.score}`}>
-                      DONE | {item.score}
-                    </div>
-                    <button type="button" onClick={onRestart} aria-label={`Play ${item.sceneTitle} again`}>
-                      <RestartIcon />
-                    </button>
-                  </li>
-                ))}
-              </ol>
-
-              <div className="result-day-complete">
-                <div>
-                  <strong>Day {programDay} Complete</strong>
-                  <span>Come back on your next active day for Day {programDay + 1}</span>
-                </div>
-                <div className="result-calendar" aria-hidden="true">
-                  <small>DAY</small>
-                  <b>{programDay + 1}</b>
-                </div>
-              </div>
-            </section>
+            <TodayPlanCard
+              className="result-focus-card"
+              sceneResults={dailyPlan.sceneResults}
+              programDay={programDay}
+              onSessionSelect={onRestart}
+              showCompletion
+            />
 
             <ResultLeaderboard
               rows={leaderboard}

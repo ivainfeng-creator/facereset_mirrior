@@ -72,3 +72,8 @@ export function clearTodayProgressDebug() {
 export function seedProgressDebug(days = 7) {
   return activeAdapter.debug?.seed?.({ days }) ?? localProgressAdapter.debug.seed({ days });
 }
+
+export function seedSessionOneCompleteDebug() {
+  return activeAdapter.debug?.seedSessionOneComplete?.()
+    ?? localProgressAdapter.debug.seedSessionOneComplete();
+}

@@ -390,6 +390,17 @@ export function seedDemoProgress({ days = 7 } = {}) {
   return nextHabit;
 }
 
+export function seedSessionOneCompleteProgress() {
+  clearTodayProgress();
+  const sceneId = TODAY_SCENE_IDS[0];
+  return saveResult({
+    sceneId,
+    score: 92,
+    holdSeconds: 30,
+    metrics: { [sceneId]: 92 },
+  });
+}
+
 export function buildPassport(habit = loadHabit()) {
   const history = habit.history || [];
   const weekDays = getLastSevenDays();
