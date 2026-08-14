@@ -6021,9 +6021,7 @@ h1 {
   overflow: hidden;
   border-radius: 50%;
   background: #101010;
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.12),
-    0 0 0 3px rgba(255, 255, 255, 0.28);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
 }
 
 .scan-face-frame .mirror-video,
@@ -6035,6 +6033,20 @@ h1 {
   min-height: 0;
   object-fit: cover;
   transform: scaleX(-1);
+}
+
+.scan-camera-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+}
+
+.guide-flow-overlay .scan-camera-placeholder.camera-permission-icon {
+  background: transparent;
+  box-shadow: none;
 }
 
 .scan-face-frame .demo-face {
@@ -14840,9 +14852,7 @@ h1 {
 .guide-flow-overlay .scan-face-frame {
   width: 158px;
   height: 158px;
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.14),
-    0 0 0 4px #ffffff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
 }
 
 .guide-flow-overlay .scan-ring-dot {
