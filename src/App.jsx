@@ -201,6 +201,10 @@ export default function App() {
     navigate(SCREENS.routine, 'slide-fwd');
   };
 
+  const finishGuideScan = () => {
+    setGuideOverlay(null);
+  };
+
   const finishRoutine = (result) => {
     if (debugSceneId) {
       setLatestResult(null);
@@ -337,6 +341,7 @@ export default function App() {
         <CameraPermission
           cameraError={cameraError}
           autoStart={autoStartCamera}
+          isOverlay
           onCameraReady={handleCameraReady}
           onCameraError={handleCameraError}
           onBack={() => {
@@ -351,7 +356,8 @@ export default function App() {
         <MirrorScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
-          onBegin={beginSelectedScene}
+          isOverlay
+          onBegin={finishGuideScan}
           onBack={() => {
             setGuideOverlay(null);
             navigate(SCREENS.theme, 'slide-back');

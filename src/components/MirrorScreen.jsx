@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 
 export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOverlay = false }) {
@@ -6,9 +6,9 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
   const stageRef = useRef(null);
   const alignmentRef = useRef(null);
   const featuresRef = useRef(null);
-  const onBeginRef = useRef(onBegin);
   const completedRef = useRef(false);
   const [scanProgress, setScanProgress] = useState(0);
+  const [isScanComplete, setIsScanComplete] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -26,8 +26,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
   useEffect(() => {
     alignmentRef.current = alignment;
     featuresRef.current = features;
-    onBeginRef.current = onBegin;
-  }, [alignment, features, onBegin]);
+  }, [alignment, features]);
 
   useEffect(() => {
     let lastTick = performance.now();
@@ -55,7 +54,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
 
         if (next >= 1 && !completedRef.current) {
           completedRef.current = true;
-          window.setTimeout(() => onBeginRef.current(), 220);
+          setIsScanComplete(true);
         }
 
         return next;
@@ -64,18 +63,15 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
     return () => window.clearInterval(timer);
   }, []);
 
-  const alignmentMessage = useMemo(
-    () => getAlignmentScanMessage({ alignment, features, scanProgress }),
-    [alignment, features, scanProgress],
-  );
-
   return (
     <section className={`screen mirror-screen scan-alignment-screen ${isOverlay ? 'guide-flow-overlay' : ''}`}>
       <main className="scan-alignment-card" aria-label="Mirror alignment">
         <div className="scan-alignment-header">
-          <h1>Align your face</h1>
-          <button className="scan-close-button" onClick={onBack} aria-label="Back to intro" />
+          <h1>Face detection</h1>
+          <p>Center your face in the frame</p>
         </div>
+
+        <button className="scan-close-button" onClick={onBack} aria-label="Back to intro" />
 
         <div className="scan-face-zone">
           <div className="scan-face-frame" ref={stageRef}>
@@ -85,10 +81,18 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
           <ScanProgressRing progress={scanProgress} />
         </div>
 
-        <div className="scan-copy">
-          <p>{alignmentMessage}</p>
-          <span>{formatDetectorMode(detectorMode)} · {detectorMessage}</span>
-        </div>
+        <button
+          className={`scan-primary-action ${isScanComplete ? 'is-complete' : ''}`}
+          type="button"
+          disabled={!isScanComplete}
+          onClick={onBegin}
+        >
+          {isScanComplete ? 'Next' : (
+            <span className="challenge-v3-start-preparing">
+              Scanning<span>.</span><span>.</span><span>.</span>
+            </span>
+          )}
+        </button>
 
       </main>
     </section>
@@ -126,33 +130,9 @@ function ScanProgressRing({ progress }) {
   );
 }
 
-function getAlignmentScanMessage({ alignment, features, scanProgress }) {
-  if (!features) return 'Find your face';
-  if (!alignment.ready) return alignment.label || 'Center your face';
-  if (scanProgress < 0.28) return 'Great! Hold still';
-  if (scanProgress < 0.72) return 'Scanning gently';
-  if (scanProgress < 1) return 'Almost done';
-  return 'Done. Nice work';
-}
-
-function formatDetectorMode(mode) {
-  if (mode === 'real-landmark') return 'Real landmark mode';
-  if (mode === 'mock-landmark') return 'Mock landmark mode';
-  return 'Camera preview';
-}
-
 export function MirrorVideo({ videoRef, isDemoMode }) {
   if (isDemoMode) {
-    return (
-      <div className="demo-mirror">
-        <div className="demo-face">
-          <span className="demo-eye left" />
-          <span className="demo-eye right" />
-          <span className="demo-nose" />
-          <span className="demo-mouth" />
-        </div>
-      </div>
-    );
+    return <div className="demo-mirror" />;
   }
 
   return <video ref={videoRef} className="mirror-video" autoPlay playsInline muted />;

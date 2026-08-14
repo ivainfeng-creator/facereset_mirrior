@@ -14735,14 +14735,118 @@ h1 {
 }
 
 .guide-flow-overlay.scan-alignment-screen {
-  background: rgba(10, 10, 10, 0.54) !important;
+  background: rgba(247, 247, 247, 0.4) !important;
 }
 
 .guide-flow-overlay .scan-alignment-card {
   width: min(100%, 375px);
-  min-height: min(100%, 640px);
+  min-height: 0;
   border-radius: var(--fr-radius-card);
   box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
+}
+
+.guide-flow-overlay .scan-alignment-card {
+  grid-template-rows: auto auto auto;
+  gap: 20px;
+  min-height: 0;
+  padding: 26px 24px 28px;
+  background: #f7f7f7;
+}
+
+.guide-flow-overlay .scan-alignment-header {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  justify-items: center;
+  padding-right: 34px;
+  padding-left: 34px;
+}
+
+.guide-flow-overlay .scan-alignment-header h1 {
+  grid-column: auto;
+  color: #171716;
+  font-family: var(--fr-font-display);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.guide-flow-overlay .scan-alignment-header p {
+  margin: 0;
+  color: #6a6a66;
+  font-family: var(--fr-font-body);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.guide-flow-overlay .scan-close-button {
+  position: absolute;
+  top: 26px;
+  right: 24px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.guide-flow-overlay .scan-close-button:hover,
+.guide-flow-overlay .scan-close-button:focus-visible {
+  background: #e8e7e3;
+}
+
+.guide-flow-overlay .scan-face-zone {
+  width: 232px;
+  height: 232px;
+  margin: 0;
+}
+
+.guide-flow-overlay .scan-face-frame {
+  width: 158px;
+  height: 158px;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.14),
+    0 0 0 4px #ffffff;
+}
+
+.guide-flow-overlay .scan-ring-dot {
+  fill: #d5d7d5;
+}
+
+.guide-flow-overlay .scan-ring-dot.active {
+  fill: #00a95f;
+  filter: drop-shadow(0 0 4px rgba(0, 169, 95, 0.38));
+}
+
+.guide-flow-overlay .scan-primary-action {
+  display: inline-grid;
+  width: min(100%, 309px);
+  min-height: 52px;
+  place-items: center;
+  justify-self: center;
+  border: 0;
+  border-radius: 999px;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  cursor: default;
+}
+
+.guide-flow-overlay .scan-primary-action:disabled {
+  color: #737875;
+  background: #daddd9;
+}
+
+.guide-flow-overlay .scan-primary-action.is-complete {
+  color: #ffffff;
+  background: #00a95f;
+  cursor: pointer;
+}
+
+.guide-flow-overlay .scan-primary-action.is-complete:hover,
+.guide-flow-overlay .scan-primary-action.is-complete:focus-visible {
+  filter: brightness(0.96);
 }
 
 @media (max-width: 460px) {
@@ -15300,9 +15404,9 @@ h1 {
 .practice-card {
   display: flex;
   gap: 40px;
-  align-items: start;
+  align-items: center;
   width: 100%;
-  min-height: min(920px, calc(100svh - 48px));
+  min-height: 100svh;
   padding: clamp(44px, 7vh, 112px) clamp(22px, 3.5vw, 72px);
   overflow: visible;
   background: transparent;
@@ -15314,7 +15418,7 @@ h1 {
   flex: 1 1 0;
   flex-direction: column;
   align-content: center;
-  gap: clamp(18px, 1.8vw, 30px);
+  gap: clamp(9px, 0.9vw, 15px);
   width: min(500px, 100%);
   min-width: 0;
   max-width: 560px;
@@ -15381,7 +15485,7 @@ h1 {
   gap: 10px;
   width: 100%;
   min-height: 0;
-  margin-top: clamp(22px, 3.2vh, 40px);
+  margin-top: clamp(11px, 1.6vh, 20px);
   padding: 15px 0;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   color: #30302f;
@@ -15483,7 +15587,7 @@ h1 {
 .practice-stage {
   position: relative;
   inset: auto;
-  align-self: start;
+  align-self: center;
   justify-self: end;
   flex: 1 1 0;
   min-width: 0;
@@ -15586,20 +15690,45 @@ h1 {
 
 @media (max-width: 599px) {
   .practice-screen {
-    width: min(100%, 640px);
+    width: 100%;
   }
 
   .practice-card {
     flex-direction: column;
-    gap: 34px;
+    gap: 26px;
     min-height: 100svh;
-    padding: 42px 24px 28px;
+    padding: 24px 24px 28px;
   }
 
   .practice-instructions {
     width: 100%;
     max-width: none;
-    gap: 22px;
+    gap: 8px;
+  }
+
+  .practice-guide,
+  .practice-steps ol,
+  .practice-actions {
+    width: 100%;
+    max-width: none;
+  }
+
+  .practice-guide {
+    order: 0;
+  }
+
+  .practice-steps {
+    order: 1;
+  }
+
+  .practice-actions {
+    order: 2;
+  }
+
+  .practice-back,
+  .practice-got-it {
+    height: 53px;
+    min-height: 53px;
   }
 
   .practice-guide h1 {
@@ -15612,9 +15741,10 @@ h1 {
   }
 
   .practice-stage {
+    order: -1;
     justify-self: stretch;
     width: 100%;
-    aspect-ratio: 1 / 1.06;
+    aspect-ratio: 1.46;
     border-radius: 28px;
   }
 
