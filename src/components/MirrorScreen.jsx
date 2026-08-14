@@ -24,7 +24,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
     }
   }, [stream]);
 
-  const { alignment, containerSize, detectorMessage, detectorMode, features, hasLandmarks } = useFaceLandmarks({
+  const { alignment, containerSize, detectorMessage, detectorMode, features } = useFaceLandmarks({
     videoRef,
     stageRef,
     stream,
@@ -83,7 +83,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
 
         <div className="scan-face-zone">
           <div className={`scan-face-frame ${isCameraUnavailable ? 'is-camera-unavailable' : ''}`} ref={stageRef}>
-            <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} showPlaceholder={isCameraUnavailable || !hasLandmarks} />
+            <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} showPlaceholder={isCameraUnavailable} />
             <div className="scan-face-tint" style={{ '--scan-progress': scanProgress }} />
           </div>
           {!isCameraUnavailable && <ScanProgressRing progress={scanProgress} />}
