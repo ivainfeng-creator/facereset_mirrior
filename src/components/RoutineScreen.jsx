@@ -859,7 +859,116 @@ function createBaseInteraction(sceneId) {
 export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
   const scene = getSceneById(selectedScene);
   const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
-  const interaction = useMemo(() => ({
+  const previewFrameRef = useRef(null);
+  const [previewFrame, setPreviewFrame] = useState({ width: 0, height: 0 });
+  const [sourceViewport, setSourceViewport] = useState(() => getPreviewSourceViewport());
+  const previewDemo = usePracticePreviewDemo(scene.practice?.previewDemo);
+  const interaction = useMemo(
+    () => createPracticePreviewInteraction(scene, previewDemo),
+    [scene, previewDemo],
+  );
+  const previewScale = previewFrame.width && previewFrame.height
+    ? Math.min(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
+    : 0;
+
+  useEffect(() => {
+    const syncPreviewFrame = () => {
+      const bounds = previewFrameRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setPreviewFrame((current) => {
+        const next = { width: Math.round(bounds.width), height: Math.round(bounds.height) };
+        return current.width === next.width && current.height === next.height ? current : next;
+      });
+      setSourceViewport((current) => {
+        const next = getPreviewSourceViewport();
+        return current.width === next.width && current.height === next.height ? current : next;
+      });
+    };
+
+    syncPreviewFrame();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncPreviewFrame);
+    if (previewFrameRef.current) observer?.observe(previewFrameRef.current);
+    window.addEventListener('resize', syncPreviewFrame);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', syncPreviewFrame);
+    };
+  }, []);
+
+  return (
+    <div ref={previewFrameRef} className="routine-scene-preview" aria-hidden="true">
+      <PreviewSceneBackground scene={scene} />
+      <div
+        className={`routine-scene-preview-canvas ${scene.layout?.className || ''}`}
+        style={{
+          width: `${sourceViewport.width}px`,
+          height: `${sourceViewport.height}px`,
+          opacity: previewScale ? 1 : 0,
+          transform: `translate(-50%, -50%) scale(${previewScale || 1})`,
+        }}
+      >
+        <SceneRenderer interaction={interaction} previewForegroundOnly />
+      </div>
+    </div>
+  );
+}
+
+function PreviewSceneBackground({ scene }) {
+  if (scene.id === 'flowerCollector') {
+    return (
+      <div className="routine-scene-preview-background preview-popcorn-environment">
+        <img className="preview-popcorn-background" src={popcornCollectorBackgroundAsset} alt="" />
+        <img className="preview-popcorn-foreground" src={popcornCollectorForegroundAsset} alt="" />
+        <img className="preview-popcorn-bucket" src={popcornCollectorBucketAsset} alt="" />
+      </div>
+    );
+  }
+
+  const backgroundAsset = scene.id === 'templeGarden' ? cloudGardenBackgroundAsset : null;
+
+  return (
+    <div
+      className={`routine-scene-preview-background preview-background-${scene.renderer}`}
+      style={backgroundAsset ? { backgroundImage: `url(${backgroundAsset})` } : undefined}
+    />
+  );
+}
+
+function getPreviewSourceViewport() {
+  if (typeof window === 'undefined') return { width: 1280, height: 720 };
+  return {
+    width: Math.max(1, window.innerWidth),
+    height: Math.max(1, window.innerHeight),
+  };
+}
+
+function usePracticePreviewDemo(demoConfig) {
+  const effect = demoConfig?.effect || null;
+  const cycleMs = demoConfig?.cycleMs || 0;
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!effect || !cycleMs || typeof window === 'undefined') {
+      setProgress(0);
+      return undefined;
+    }
+
+    const startedAt = performance.now();
+    let timer = null;
+    const updateProgress = () => {
+      setProgress(((performance.now() - startedAt) % cycleMs) / cycleMs);
+      timer = window.setTimeout(updateProgress, 100);
+    };
+
+    updateProgress();
+    return () => window.clearTimeout(timer);
+  }, [cycleMs, effect]);
+
+  return { effect, progress };
+}
+
+function createPracticePreviewInteraction(scene, previewDemo) {
+  const interaction = {
     ...createBaseInteraction(scene.id),
     mouthOpen: scene.interaction === 'mouthOpening' ? 0.24 : 0,
     isOpen: scene.interaction === 'mouthOpening',
@@ -871,13 +980,52 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
     puff: scene.interaction === 'cheekPuff' ? 0.24 : 0,
     bubbleSize: scene.interaction === 'cheekPuff' ? 0.28 : 0.07,
     squeeze: scene.interaction === 'lemonSqueeze' ? 0.2 : 0,
-  }), [scene.id, scene.interaction]);
+  };
 
-  return (
-    <div className={`routine-scene-preview ${scene.layout?.className || ''}`} aria-hidden="true">
-      <SceneRenderer interaction={interaction} />
-    </div>
-  );
+  if (!previewDemo.effect) return interaction;
+
+  const activation = getPracticePreviewActivation(previewDemo.progress);
+  const isActive = activation > 0.12;
+  if (previewDemo.effect === 'mouthFlow') {
+    return {
+      ...interaction,
+      mouthOpen: 0.05 + activation * 0.44,
+      isOpen: isActive,
+      flow: activation,
+      fishCount: Math.round(activation * 14),
+    };
+  }
+
+  if (previewDemo.effect === 'rainGrowth') {
+    return {
+      ...interaction,
+      leftRain: activation,
+      rightRain: activation * 0.92,
+      rain: activation,
+      growth: 0.04 + activation * 0.56,
+      ripple: activation,
+      isPressing: isActive,
+    };
+  }
+
+  if (previewDemo.effect === 'popcornGather') {
+    return {
+      ...interaction,
+      sniff: activation,
+      isSniffing: isActive,
+      flow: activation,
+      flowerCount: Math.round(activation * 46),
+    };
+  }
+
+  return interaction;
+}
+
+function getPracticePreviewActivation(progress) {
+  const enter = clamp((progress - 0.16) / 0.16, 0, 1);
+  const exit = clamp((0.84 - progress) / 0.16, 0, 1);
+  const eased = Math.min(enter, exit);
+  return eased * eased * (3 - 2 * eased);
 }
 
 function InteractionDebugPanel({ contract, onChange, onFinish, onReset, overrides, tuning }) {
@@ -1226,7 +1374,7 @@ function parseTuningValue(value, previousValue) {
   return Number.isInteger(previousValue) ? Math.round(nextValue) : nextValue;
 }
 
-function TempleGardenScene({ interaction }) {
+function TempleGardenScene({ interaction, previewForegroundOnly = false }) {
   const leftRain = clamp(interaction.leftRain || 0, 0, 1);
   const rightRain = clamp(interaction.rightRain || 0, 0, 1);
   const rain = Math.max(leftRain, rightRain);
@@ -1258,7 +1406,7 @@ function TempleGardenScene({ interaction }) {
 
   return (
     <div
-      className={`temple-garden-scene ${rain > 0.06 ? 'is-pressing' : ''}`}
+      className={`temple-garden-scene ${rain > 0.06 ? 'is-pressing' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--rain': rain,
         '--left-rain': leftRain,
@@ -1269,11 +1417,6 @@ function TempleGardenScene({ interaction }) {
       aria-hidden="true"
     >
       <img className="garden-art-background" src={cloudGardenBackgroundAsset} alt="" />
-      <div className="temple-copy">
-        <h1>Cloud Garden</h1>
-        <p>Press both temples and let the garden breathe</p>
-      </div>
-
       <div className="garden-cloud garden-cloud-left">
         <span />
         <span />
@@ -1406,8 +1549,6 @@ function LemonSqueezeScene({ interaction }) {
       </div>
       <div className="lemon-horizon" />
       <div className="lemon-shore" />
-
-      <div className="lemon-squeeze-prompt">SQUEEZE!</div>
       <div className="lemon-press-board">
         <span className="lemon-board-grip left" />
         <LemonPressHalf side="left" />
@@ -1472,7 +1613,7 @@ function LemonFriend({ position }) {
   );
 }
 
-function WhaleDreamScene({ interaction }) {
+function WhaleDreamScene({ interaction, previewForegroundOnly = false }) {
   const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
   const fishCount = interaction.fishCount || 0;
   const fishWave = fishCount % 18;
@@ -1636,7 +1777,7 @@ function WhaleDreamScene({ interaction }) {
   return (
     <div
       ref={sceneRef}
-      className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''}`}
+      className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--mouth-open': mouthVisualOpen,
         '--flow': interaction.flow || 0,
@@ -1663,11 +1804,6 @@ function WhaleDreamScene({ interaction }) {
           />
         ))}
       </div>
-      <div className="whale-copy">
-        <h1>Whale Mouth</h1>
-        <p>Open wide and guide little fish in</p>
-      </div>
-      <div className="whale-open-instruction">OPEN WIDE!</div>
       <div
         className={`whale-svg whale-art ${interaction.isOpen ? 'is-open' : ''}`}
         style={{ '--whale-scale': whaleLayout.scale }}
@@ -1677,15 +1813,6 @@ function WhaleDreamScene({ interaction }) {
         <img className="whale-art-state whale-art-closed" src={whaleClosedAsset} alt="" />
         <img className="whale-art-state whale-art-open" src={whaleOpenAsset} alt="" />
         <span ref={mouthAnchorRef} className="whale-image-mouth-anchor" />
-      </div>
-      <div className="whale-mouth-guide">
-        <svg className="whale-mouth-guide-art" viewBox="0 0 180 116" aria-hidden="true">
-          <path className="guide-arrow" d="M 25 82 C 11 75 10 56 25 45 M 16 47 L 25 45 L 24 55" />
-          <path className="guide-arrow guide-arrow-right" d="M 155 82 C 169 75 170 56 155 45 M 164 47 L 155 45 L 156 55" />
-          <path className="guide-mouth" d="M 45 27 C 66 16 114 16 135 27 C 146 37 144 78 123 94 C 104 109 76 109 57 94 C 36 78 34 37 45 27 Z" />
-          <path className="guide-teeth" d="M 61 31 V 48 M 75 27 V 48 M 90 25 V 48 M 105 27 V 48 M 119 31 V 48" />
-        </svg>
-        <strong>HOLD OPEN</strong>
       </div>
       <div className="whale-seabed" aria-hidden="true">
         <svg viewBox="0 0 1200 180" preserveAspectRatio="none">
@@ -1823,7 +1950,7 @@ function WhaleDream2Scene({ interaction }) {
   );
 }
 
-function FlowerCollectorScene({ interaction }) {
+function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
   const sniff = clamp(interaction.sniff || 0, 0, 1);
   const collectedCount = interaction.flowerCount || 0;
   const isSniffing = Boolean(interaction.isSniffing);
@@ -2036,7 +2163,7 @@ function FlowerCollectorScene({ interaction }) {
 
   return (
     <div
-      className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''}`}
+      className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--sniff': sniff,
         '--popcorn-count': collectedCount,
@@ -2045,21 +2172,6 @@ function FlowerCollectorScene({ interaction }) {
     >
       <img className="popcorn-background" src={popcornCollectorBackgroundAsset} alt="" />
       <div className="popcorn-warm-glow" />
-      <div className="popcorn-copy">
-        <h1>Popcorn Collector</h1>
-        <p>Inhale and gather the popcorn</p>
-      </div>
-      <div
-        className="popcorn-nose-cue"
-        style={{
-          left: `${cameraFrame.left - cameraRimPadding}px`,
-          top: `${cameraFrame.top - cameraRimPadding}px`,
-          '--preview-frame-width': `${cameraFrame.width + cameraRimPadding * 2}px`,
-          '--preview-frame-height': `${cameraFrame.height + cameraRimPadding * 2}px`,
-        }}
-      >
-        <span className="popcorn-nose-cue-ring" />
-      </div>
       <div className="popcorn-field">
         {popcornPieces.map((piece) => {
           const { collected, travel, isAirborne, point } = getPieceMotion(piece);
@@ -2239,11 +2351,6 @@ function BubbleGumBunnyScene({ interaction }) {
       }}
       aria-hidden="true"
     >
-      <div className="bunny-copy">
-        <h1>Bubble Gum Bunny</h1>
-        <p>Puff, relax, and grow the bubble</p>
-      </div>
-
       <div className="bunny-sparkles">
         {sparkles.map((sparkle) => (
           <span

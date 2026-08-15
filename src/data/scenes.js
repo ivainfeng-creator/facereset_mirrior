@@ -64,6 +64,7 @@ const sceneDefinitions = [
       tips: ['Keep your face centered.', 'Open your mouth gently and hold it steady.', 'Let the ocean scene react to your breath.'],
       effectTitle: 'Guide the fish',
       effectDescription: 'Open gently. Hold steady. Watch the ocean respond.',
+      previewDemo: { effect: 'mouthFlow', cycleMs: 3600 },
     },
   },
   {
@@ -130,6 +131,7 @@ const sceneDefinitions = [
       tips: ['Use both hands at the same time.', 'Keep both fingertips visible.', 'Gentle balanced pressure grows the garden.'],
       effectTitle: 'Let it rain',
       effectDescription: 'Press evenly and let the garden breathe.',
+      previewDemo: { effect: 'rainGrowth', cycleMs: 3600 },
     },
   },
   {
@@ -171,6 +173,7 @@ const sceneDefinitions = [
       tips: ['Keep your face centered.', 'Scrunch your nose gently.', 'Each good inhale gathers more popcorn.'],
       effectTitle: 'Gather popcorn',
       effectDescription: 'Inhale gently and pull popcorn toward you.',
+      previewDemo: { effect: 'popcornGather', cycleMs: 3600 },
     },
   },
   {
