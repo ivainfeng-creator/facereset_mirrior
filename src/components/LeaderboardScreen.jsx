@@ -55,7 +55,10 @@ export default function LeaderboardScreen({ habit, onBack, onRestart }) {
 
         <section className="leaderboard-list">
           {rows.map((row) => (
-            <article key={`${row.rank}-${row.name}`}>
+            <article
+              className={row.rank <= 3 ? `is-medal rank-${row.rank}` : ''}
+              key={`${row.rank}-${row.name}`}
+            >
               <span>{row.rank}</span>
               <div>
                 <strong>{row.name}</strong>
@@ -64,8 +67,8 @@ export default function LeaderboardScreen({ habit, onBack, onRestart }) {
               <b>{row.score}</b>
             </article>
           ))}
-          {!isLoading && !rows.length && <p>No completed Day {programDay} scores yet.</p>}
-          {isLoading && <p>Loading leaderboard...</p>}
+          {!isLoading && !rows.length && <p className="leaderboard-status">No completed Day {programDay} scores yet.</p>}
+          {isLoading && <p className="leaderboard-status">Loading leaderboard...</p>}
         </section>
 
         <footer className="passport-actions">

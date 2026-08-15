@@ -40,6 +40,7 @@ const isResultPreview = import.meta.env.DEV
   && new URLSearchParams(window.location.search).get('result') === '1';
 const debugSceneId = getActiveDebugSceneId();
 const WELCOME_TRANSITION_MS = 1020;
+const NAVIGATION_TRANSITION_MS = 420;
 
 const RESULT_PREVIEW = {
   type: 'daily-plan',
@@ -78,6 +79,8 @@ export default function App() {
   const [progressRevision, setProgressRevision] = useState(0);
   const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
+  const [guideOverlay, setGuideOverlay] = useState(null);
+  const [isCelebratingCompletion, setIsCelebratingCompletion] = useState(false);
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
@@ -129,11 +132,29 @@ export default function App() {
     }, WELCOME_TRANSITION_MS);
   };
 
+  const navigate = (nextScreen, type = 'quiet') => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setScreen(nextScreen);
+      return;
+    }
+
+    window.clearTimeout(transitionTimerRef.current);
+    setScreen(nextScreen);
+    setScreenTransition(type);
+    transitionTimerRef.current = window.setTimeout(() => {
+      setScreenTransition(null);
+    }, NAVIGATION_TRANSITION_MS);
+  };
+
   const handleCameraReady = (stream) => {
     setCameraStream(stream);
     setCameraError('');
     setAutoStartCamera(false);
     setIsDemoMode(false);
+    if (guideOverlay === 'permission') {
+      setGuideOverlay('scan');
+      return;
+    }
     setScreen(debugSceneId ? SCREENS.routine : SCREENS.mirror);
   };
 
@@ -154,8 +175,9 @@ export default function App() {
     traceAudioLifecycle('scene begin pressed', { sceneId: selectedScene });
     preloadSceneAudio(getSceneById(selectedScene).audio);
     unlockAudio();
+    setGuideOverlay(null);
     if (hasSeenGuide(selectedScene)) {
-      setScreen(SCREENS.routine);
+      navigate(SCREENS.routine, 'slide-fwd');
       return;
     }
 
@@ -167,34 +189,41 @@ export default function App() {
     preloadSceneAudio(getSceneById(sceneId).audio);
     unlockAudio();
     setSelectedScene(sceneId);
+    navigate(SCREENS.practice, 'zoom-step');
 
     if (cameraStream || isDemoMode) {
-      setScreen(SCREENS.mirror);
+      setGuideOverlay('scan');
       return;
     }
 
     setAutoStartCamera(true);
-    setScreen(SCREENS.permission);
+    setGuideOverlay('permission');
   };
 
   const openGuide = (sceneId) => {
     setSelectedScene(sceneId);
-    setScreen(SCREENS.practice);
+    setGuideOverlay(null);
+    navigate(SCREENS.practice, 'slide-fwd');
   };
 
   const beginRoutine = () => {
     traceAudioLifecycle('routine begin pressed', { sceneId: selectedScene });
     preloadSceneAudio(getSceneById(selectedScene).audio);
     unlockAudio();
+    setGuideOverlay(null);
     markGuideSeen(selectedScene);
-    setScreen(SCREENS.routine);
+    navigate(SCREENS.routine, 'slide-fwd');
+  };
+
+  const finishGuideScan = () => {
+    setGuideOverlay(null);
   };
 
   const finishRoutine = (result) => {
     traceAudioLifecycle('scene completion transition begins', { sceneId: result.sceneId });
     if (debugSceneId) {
       setLatestResult(null);
-      setScreen(SCREENS.landing);
+      navigate(SCREENS.landing, 'slide-back');
       return;
     }
 
@@ -222,8 +251,9 @@ export default function App() {
     } else {
       setLatestResult(null);
     }
+    setIsCelebratingCompletion(dailyPlan.isComplete);
     setProgressRevision((value) => value + 1);
-    setScreen(SCREENS.theme);
+    navigate(SCREENS.theme, 'quiet');
   };
 
   const openDailyResult = () => {
@@ -231,6 +261,7 @@ export default function App() {
 
     if (!dailyPlan.isComplete) return;
 
+    setIsCelebratingCompletion(false);
     setLatestResult((current) => ({
       ...dailyPlan,
       snapshots: current?.programDay === dailyPlan.programDay
@@ -239,19 +270,31 @@ export default function App() {
           ? sessionSnapshotsRef.current.snapshots
           : [],
     }));
-    setScreen(SCREENS.result);
+    navigate(SCREENS.result, 'paper');
   };
 
+  useEffect(() => {
+    if (!isCelebratingCompletion || screen !== SCREENS.theme) return undefined;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      openDailyResult();
+      return undefined;
+    }
+
+    const timer = window.setTimeout(openDailyResult, 1240);
+    return () => window.clearTimeout(timer);
+  }, [isCelebratingCompletion, progressRevision, screen]);
+
   const restartRoutine = () => {
-    setScreen(SCREENS.theme);
+    navigate(SCREENS.theme, 'slide-back');
   };
 
   const resetToLanding = () => {
-    setScreen(SCREENS.landing);
+    navigate(SCREENS.landing, 'slide-back');
   };
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${screenTransition ? `screen-transition-${screenTransition}` : ''}`}>
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
@@ -265,13 +308,13 @@ export default function App() {
 
       {screen === SCREENS.permission && (
         <CameraPermission
-          cameraError={cameraError}
           autoStart={autoStartCamera}
+          isOverlay
           onCameraReady={handleCameraReady}
           onCameraError={handleCameraError}
           onBack={() => {
             setAutoStartCamera(false);
-            setScreen(SCREENS.theme);
+            navigate(SCREENS.theme, 'slide-back');
           }}
         />
       )}
@@ -280,8 +323,9 @@ export default function App() {
         <MirrorScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
+          isOverlay
           onBegin={beginSelectedScene}
-          onBack={() => setScreen(SCREENS.theme)}
+          onBack={() => navigate(SCREENS.theme, 'slide-back')}
         />
       )}
 
@@ -303,7 +347,35 @@ export default function App() {
           stream={cameraStream}
           isDemoMode={isDemoMode}
           onBegin={beginRoutine}
-          onBack={() => setScreen(SCREENS.theme)}
+          onBack={() => navigate(SCREENS.theme, 'slide-back')}
+        />
+      )}
+
+      {screen === SCREENS.practice && guideOverlay === 'permission' && (
+        <CameraPermission
+          cameraError={cameraError}
+          autoStart={autoStartCamera}
+          isOverlay
+          onCameraReady={handleCameraReady}
+          onCameraError={handleCameraError}
+          onBack={() => {
+            setAutoStartCamera(false);
+            setGuideOverlay(null);
+            navigate(SCREENS.theme, 'slide-back');
+          }}
+        />
+      )}
+
+      {screen === SCREENS.practice && guideOverlay === 'scan' && (
+        <MirrorScreen
+          stream={cameraStream}
+          isDemoMode={isDemoMode}
+          isOverlay
+          onBegin={finishGuideScan}
+          onBack={() => {
+            setGuideOverlay(null);
+            navigate(SCREENS.theme, 'slide-back');
+          }}
         />
       )}
 
@@ -313,7 +385,7 @@ export default function App() {
           isDemoMode={isDemoMode}
           selectedScene={selectedScene}
           onComplete={finishRoutine}
-          onExit={() => setScreen(debugSceneId ? SCREENS.landing : SCREENS.theme)}
+          onExit={() => navigate(debugSceneId ? SCREENS.landing : SCREENS.theme, 'slide-back')}
         />
       )}
 
@@ -322,9 +394,9 @@ export default function App() {
           result={latestResult}
           habit={habit}
           onRestart={restartRoutine}
-          onTodayPlan={() => setScreen(SCREENS.theme)}
-          onPassport={() => setScreen(SCREENS.passport)}
-          onLeaderboard={() => setScreen(SCREENS.leaderboard)}
+          onTodayPlan={() => navigate(SCREENS.theme, 'slide-back')}
+          onPassport={() => navigate(SCREENS.passport, 'slide-fwd')}
+          onLeaderboard={() => navigate(SCREENS.leaderboard, 'slide-fwd')}
           onProgressChanged={() => setProgressRevision((revision) => revision + 1)}
           shouldPromptForDisplayName={!isResultPreview}
         />
@@ -333,8 +405,8 @@ export default function App() {
       {screen === SCREENS.passport && (
         <PassportScreen
           habit={habit}
-          onBack={() => setScreen(SCREENS.result)}
-          onLeaderboard={() => setScreen(SCREENS.leaderboard)}
+          onBack={() => navigate(SCREENS.result, 'slide-back')}
+          onLeaderboard={() => navigate(SCREENS.leaderboard, 'slide-fwd')}
           onRestart={restartRoutine}
         />
       )}
@@ -342,7 +414,7 @@ export default function App() {
       {screen === SCREENS.leaderboard && (
         <LeaderboardScreen
           habit={habit}
-          onBack={() => setScreen(SCREENS.result)}
+          onBack={() => navigate(SCREENS.result, 'slide-back')}
           onRestart={restartRoutine}
         />
       )}

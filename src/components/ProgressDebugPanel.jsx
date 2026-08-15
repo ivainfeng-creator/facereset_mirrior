@@ -4,6 +4,7 @@ import {
   clearTodayProgressDebug,
   loadProgressDebugSnapshot,
   seedProgressDebug,
+  seedSessionOneCompleteDebug,
 } from '../utils/progressAdapter.js';
 
 export default function ProgressDebugPanel({ onProgressChange }) {
@@ -33,6 +34,11 @@ export default function ProgressDebugPanel({ onProgressChange }) {
   const seedWeek = () => {
     seedProgressDebug(7);
     refresh('已建立 7 天測試資料');
+  };
+
+  const seedSessionOneComplete = () => {
+    seedSessionOneCompleteDebug();
+    refresh('已重現 Session 1 完成狀態');
   };
 
   return (
@@ -98,6 +104,7 @@ export default function ProgressDebugPanel({ onProgressChange }) {
           <section className="progress-debug-section">
             <h3>測試工具</h3>
             <div className="progress-debug-actions">
+              <button onClick={seedSessionOneComplete} type="button">Session 1 完成</button>
               <button onClick={seedWeek} type="button">模擬 7 天</button>
               <button onClick={clearToday} type="button">清除今天</button>
               <button onClick={clearAll} type="button">清除全部</button>

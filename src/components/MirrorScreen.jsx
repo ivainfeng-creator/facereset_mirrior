@@ -1,14 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 
-export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
+export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOverlay = false }) {
   const videoRef = useRef(null);
   const stageRef = useRef(null);
   const alignmentRef = useRef(null);
   const featuresRef = useRef(null);
-  const onBeginRef = useRef(onBegin);
   const completedRef = useRef(false);
   const [scanProgress, setScanProgress] = useState(0);
+  const [isScanComplete, setIsScanComplete] = useState(false);
+  const cameraTrack = stream?.getVideoTracks()[0];
+  const isCameraUnavailable = !isDemoMode && (
+    !stream
+    || !stream.active
+    || !cameraTrack
+    || !cameraTrack.enabled
+    || cameraTrack.readyState !== 'live'
+  );
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -26,8 +34,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
   useEffect(() => {
     alignmentRef.current = alignment;
     featuresRef.current = features;
-    onBeginRef.current = onBegin;
-  }, [alignment, features, onBegin]);
+  }, [alignment, features]);
 
   useEffect(() => {
     let lastTick = performance.now();
@@ -55,7 +62,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
 
         if (next >= 1 && !completedRef.current) {
           completedRef.current = true;
-          window.setTimeout(() => onBeginRef.current(), 220);
+          setIsScanComplete(true);
         }
 
         return next;
@@ -64,31 +71,36 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const alignmentMessage = useMemo(
-    () => getAlignmentScanMessage({ alignment, features, scanProgress }),
-    [alignment, features, scanProgress],
-  );
-
   return (
-    <section className="screen mirror-screen scan-alignment-screen">
+    <section className={`screen mirror-screen scan-alignment-screen ${isOverlay ? 'guide-flow-overlay' : ''}`}>
       <main className="scan-alignment-card" aria-label="Mirror alignment">
         <div className="scan-alignment-header">
-          <h1>Align your face</h1>
-          <button className="scan-close-button" onClick={onBack} aria-label="Back to intro" />
+          <h1>Face detection</h1>
+          <p>Center your face in the frame</p>
         </div>
+
+        <button className="scan-close-button" onClick={onBack} aria-label="Back to intro" />
 
         <div className="scan-face-zone">
-          <div className="scan-face-frame" ref={stageRef}>
-            <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} />
+          <div className={`scan-face-frame ${isCameraUnavailable ? 'is-camera-unavailable' : ''}`} ref={stageRef}>
+            <MirrorVideo videoRef={videoRef} isDemoMode={isDemoMode} showPlaceholder={isCameraUnavailable} />
             <div className="scan-face-tint" style={{ '--scan-progress': scanProgress }} />
           </div>
-          <ScanProgressRing progress={scanProgress} />
+          {!isCameraUnavailable && <ScanProgressRing progress={scanProgress} />}
         </div>
 
-        <div className="scan-copy">
-          <p>{alignmentMessage}</p>
-          <span>{formatDetectorMode(detectorMode)} · {detectorMessage}</span>
-        </div>
+        <button
+          className={`scan-primary-action ${isScanComplete ? 'is-complete' : ''}`}
+          type="button"
+          disabled={!isScanComplete}
+          onClick={onBegin}
+        >
+          {isCameraUnavailable ? 'Scan paused' : isScanComplete ? 'Next' : (
+            <span className="challenge-v3-start-preparing">
+              Scanning<span>.</span><span>.</span><span>.</span>
+            </span>
+          )}
+        </button>
 
       </main>
     </section>
@@ -96,7 +108,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack }) {
 }
 
 function ScanProgressRing({ progress }) {
-  const dots = 56;
+  const dots = 50;
   const center = 120;
   const radius = 102;
 
@@ -126,34 +138,25 @@ function ScanProgressRing({ progress }) {
   );
 }
 
-function getAlignmentScanMessage({ alignment, features, scanProgress }) {
-  if (!features) return 'Find your face';
-  if (!alignment.ready) return alignment.label || 'Center your face';
-  if (scanProgress < 0.28) return 'Great! Hold still';
-  if (scanProgress < 0.72) return 'Scanning gently';
-  if (scanProgress < 1) return 'Almost done';
-  return 'Done. Nice work';
-}
-
-function formatDetectorMode(mode) {
-  if (mode === 'real-landmark') return 'Real landmark mode';
-  if (mode === 'mock-landmark') return 'Mock landmark mode';
-  return 'Camera preview';
-}
-
-export function MirrorVideo({ videoRef, isDemoMode }) {
+export function MirrorVideo({ videoRef, isDemoMode, showPlaceholder = false }) {
   if (isDemoMode) {
-    return (
-      <div className="demo-mirror">
-        <div className="demo-face">
-          <span className="demo-eye left" />
-          <span className="demo-eye right" />
-          <span className="demo-nose" />
-          <span className="demo-mouth" />
-        </div>
-      </div>
-    );
+    return <div className="demo-mirror" />;
   }
 
-  return <video ref={videoRef} className="mirror-video" autoPlay playsInline muted />;
+  return (
+    <>
+      {showPlaceholder && <ScanCameraPlaceholder />}
+      <video ref={videoRef} className="mirror-video" autoPlay playsInline muted />
+    </>
+  );
+}
+
+function ScanCameraPlaceholder() {
+  return (
+    <span className="scan-camera-placeholder camera-permission-icon" aria-hidden="true">
+      <svg viewBox="0 -960 960 960" focusable="false">
+        <path d="M400-480Zm240 320H467q13-18 22.5-38t16.5-42h134v-480H160v131q-22 6-42 15.5T80-551v-169q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160ZM98.5-178.5Q40-237 40-320t58.5-141.5Q157-520 240-520t141.5 58.5Q440-403 440-320t-58.5 141.5Q323-120 240-120T98.5-178.5ZM240-200q8 0 14-6t6-14q0-8-6-14t-14-6q-8 0-14 6t-6 14q0 8 6 14t14 6Zm-20-80h40v-160h-40v160Z" />
+      </svg>
+    </span>
+  );
 }
