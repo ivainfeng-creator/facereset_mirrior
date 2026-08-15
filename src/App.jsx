@@ -64,6 +64,10 @@ const WELCOME_PAPER_FLIP_EFFECT = Object.freeze({
   source: '/audio/Overall/Flip-1.mp3',
   volume: 0.55,
 });
+const SESSION_COMPLETE_STAMP_EFFECT = Object.freeze({
+  source: '/audio/Overall/Stamp.mp3',
+  volume: 0.7,
+});
 
 const RESULT_PREVIEW = {
   type: 'daily-plan',
@@ -248,8 +252,9 @@ export default function App() {
     traceAudioLifecycle('scene selected', { sceneId });
     preloadSceneAudio(getSceneById(sceneId).audio);
     unlockAudio();
+    playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
     setSelectedScene(sceneId);
-    navigate(SCREENS.practice, 'zoom-step');
+    navigate(SCREENS.practice, 'paper');
 
     if (cameraStream || isDemoMode) {
       setGuideOverlay('scan');
@@ -313,6 +318,7 @@ export default function App() {
     }
     setIsCelebratingCompletion(dailyPlan.isComplete);
     setProgressRevision((value) => value + 1);
+    playSceneEffect(SESSION_COMPLETE_STAMP_EFFECT);
     navigate(SCREENS.theme, 'quiet');
   };
 

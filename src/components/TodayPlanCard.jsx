@@ -5,6 +5,10 @@ const SESSION_HOVER_EFFECT = Object.freeze({
   source: '/audio/Overall/Pops-1.m4a',
   volume: 1,
 });
+const SESSION_SELECT_EFFECT = Object.freeze({
+  source: '/audio/Overall/Ding.mp3',
+  volume: 0.7,
+});
 
 export default function TodayPlanCard({
   sceneResults,
@@ -64,7 +68,11 @@ export default function TodayPlanCard({
               key={scene.id}
               className={rowClassName}
               type="button"
-              onClick={() => canSelect && onSessionSelect(scene.id)}
+              onClick={() => {
+                if (!canSelect) return;
+                playSceneEffect(SESSION_SELECT_EFFECT);
+                onSessionSelect(scene.id);
+              }}
               onMouseEnter={() => canSelect && playSceneEffect(SESSION_HOVER_EFFECT)}
               disabled={!canSelect || Boolean(preparingSceneId)}
               aria-label={isDone ? `Replay ${scene.title}. Today's best score ${result?.score || 0}` : undefined}
@@ -97,7 +105,11 @@ export default function TodayPlanCard({
         <button
           className="challenge-v3-start"
           type="button"
-          onClick={() => onStart(dailyScenes[activeIndex].id)}
+          onClick={() => {
+            if (preparingSceneId) return;
+            playSceneEffect(SESSION_SELECT_EFFECT);
+            onStart(dailyScenes[activeIndex].id);
+          }}
           disabled={Boolean(preparingSceneId)}
         >
           {preparingSceneId ? (
