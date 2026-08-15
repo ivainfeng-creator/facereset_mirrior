@@ -32,7 +32,7 @@ export default function ThemeScreen({
           <h1>Face Reset Challenge</h1>
         </header>
 
-        <div className="challenge-v3-days" aria-label={`Program day ${currentDay}`}>
+        <div className="challenge-v3-days" aria-label={`Program day ${currentDay} progress`}>
           {Array.from({ length: 7 }, (_, index) => {
             const day = index + 1;
             const isCurrent = day === currentDay;
@@ -40,7 +40,9 @@ export default function ThemeScreen({
             return (
               <span
                 key={day}
-                className={`challenge-v3-day ${isCurrent ? 'is-current' : ''} ${isComplete ? 'is-past' : ''}`}
+                className={`challenge-v3-day ${isCurrent ? 'is-current' : ''} ${isComplete ? 'is-past' : ''} ${!isCurrent && !isComplete ? 'is-disabled' : ''}`}
+                aria-current={isCurrent ? 'step' : undefined}
+                aria-label={isCurrent ? `Current Program Day ${day}` : isComplete ? `Completed Program Day ${day}` : `Program Day ${day} locked`}
               >
                 {isCurrent ? `DAY ${day}` : day}
                 {isComplete && <i aria-hidden="true">✓</i>}

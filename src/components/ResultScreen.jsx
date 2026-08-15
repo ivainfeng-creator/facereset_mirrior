@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE, getCompletedProgramDays } from '../utils/dailyPlan.js';
+import {
+  buildDailyPlanSummary,
+  buildProgramDayPlanSummary,
+  DAILY_TOTAL_MAX_SCORE,
+  getCompletedProgramDays,
+} from '../utils/dailyPlan.js';
 import {
   fetchProgramDayLeaderboard,
   getSupabaseDisplayName,
@@ -11,7 +16,18 @@ import TodayPlanCard from './TodayPlanCard.jsx';
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
 
-export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onPassport, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
+export default function ResultScreen({
+  result,
+  habit,
+  selectedProgramDay = null,
+  onSelectedProgramDayChange,
+  onRestart,
+  onTodayPlan,
+  onPassport,
+  onLeaderboard,
+  onProgressChanged,
+  shouldPromptForDisplayName = true,
+}) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -22,23 +38,35 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
   const [isNameSaving, setIsNameSaving] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState('');
+  const currentDailyPlan = useMemo(() => buildDailyPlanSummary(habit), [habit]);
+  const currentProgramDay = Math.max(1, Number(currentDailyPlan.programDay) || 1);
+  const completedProgramDays = getCompletedProgramDays(habit);
+  const resolvedSelectedDay = Math.min(7, Math.max(1, Number(selectedProgramDay) || currentProgramDay));
+  const isSelectedDayAvailable = resolvedSelectedDay === currentProgramDay || completedProgramDays.has(resolvedSelectedDay);
+  const programDay = isSelectedDayAvailable ? resolvedSelectedDay : currentProgramDay;
+  const isHistory = programDay !== currentProgramDay;
   const dailyPlan = useMemo(() => {
-    const storedPlan = buildDailyPlanSummary(habit);
-    if (result?.type !== 'daily-plan') return storedPlan;
+    const storedPlan = buildProgramDayPlanSummary(habit, programDay);
+    const canUseCurrentResult = result?.type === 'daily-plan'
+      && !isHistory
+      && Number(result.programDay) === currentProgramDay;
+    if (!canUseCurrentResult) return storedPlan;
     return {
       ...storedPlan,
       ...result,
       sceneResults: result.sceneResults?.length ? result.sceneResults : storedPlan.sceneResults,
       radar: result.radar?.length ? result.radar : storedPlan.radar,
     };
-  }, [habit, result]);
+  }, [currentProgramDay, habit, isHistory, programDay, result]);
   const score = dailyPlan.score;
   const sceneTitle = dailyPlan.sceneTitle;
   const focusLabel = dailyPlan.area;
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
-  const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
-  const completedProgramDays = getCompletedProgramDays(habit);
+
+  useEffect(() => {
+    if (selectedProgramDay !== programDay) onSelectedProgramDayChange?.(programDay);
+  }, [onSelectedProgramDayChange, programDay, selectedProgramDay]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -62,7 +90,7 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 
   useEffect(() => {
     let isCurrent = true;
-    if (!shouldPromptForDisplayName || !dailyPlan.isComplete) {
+    if (!shouldPromptForDisplayName || isHistory || !dailyPlan.isComplete) {
       setIsNameEntryOpen(false);
       return () => { isCurrent = false; };
     }
@@ -108,6 +136,7 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
   }, [
     dailyPlan.isComplete,
     habit?.displayName,
+    isHistory,
     isLeaderboardLoading,
     leaderboard,
     onProgressChanged,
@@ -190,13 +219,24 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
       <main className="result-challenge-shell" aria-label="Face Reset challenge result">
         <header className="result-challenge-heading">
           <h1>Face Reset Challenge</h1>
-          <ol className="result-day-strip" aria-label="Seven day challenge progress">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-              <li className={`${day === programDay ? 'is-current ' : ''}${completedProgramDays.has(day) ? 'is-complete' : ''}`} key={day}>
-                {day === programDay ? `DAY ${day}` : day}
+          <ol className="result-day-strip" aria-label="Seven day challenge history">
+            {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+              const canSelectDay = day === currentProgramDay || completedProgramDays.has(day);
+              return (
+              <li className={`${day === programDay ? 'is-current ' : ''}${completedProgramDays.has(day) ? 'is-complete ' : ''}${canSelectDay ? 'is-selectable' : 'is-locked'}`} key={day}>
+                <button
+                  type="button"
+                  onClick={() => canSelectDay && onSelectedProgramDayChange?.(day)}
+                  disabled={!canSelectDay}
+                  aria-current={day === programDay ? 'step' : undefined}
+                  aria-label={day === currentProgramDay ? `Current Program Day ${day}` : completedProgramDays.has(day) ? `View Program Day ${day} history` : `Program Day ${day} locked`}
+                >
+                  {day === programDay ? `DAY ${day}` : day}
+                </button>
                 {completedProgramDays.has(day) && <span aria-hidden="true">✓</span>}
               </li>
-            ))}
+              );
+            })}
           </ol>
         </header>
 
@@ -246,8 +286,9 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
               className="result-focus-card"
               sceneResults={dailyPlan.sceneResults}
               programDay={programDay}
-              onSessionSelect={onRestart}
-              showCompletion
+              onSessionSelect={isHistory ? undefined : onRestart}
+              showCompletion={!isHistory}
+              isHistory={isHistory}
             />
 
             <ResultLeaderboard

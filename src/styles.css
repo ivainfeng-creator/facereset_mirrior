@@ -12378,6 +12378,26 @@ h1 {
   font-size: 10px;
 }
 
+.result-day-strip button {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.result-day-strip li.is-selectable button {
+  cursor: pointer;
+}
+
+.result-day-strip li.is-locked button {
+  cursor: not-allowed;
+}
+
 .result-challenge-grid {
   display: grid;
   width: 100%;
@@ -13384,6 +13404,26 @@ h1 {
   background: #00a650;
   font-size: 0.52rem;
   font-style: normal;
+}
+
+.challenge-v3-day.is-clickable {
+  cursor: pointer;
+}
+
+.challenge-v3-day.is-selected:not(.is-current) {
+  border: 2px solid #f7d734;
+  box-shadow: 0 0 0 2px rgba(6, 122, 187, 0.16);
+}
+
+.challenge-v3-day.is-current {
+  border: 0;
+  color: #1a1a1a;
+  background: #f7d734;
+}
+
+.challenge-v3-day.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .challenge-v3-plan {
