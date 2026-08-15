@@ -9,6 +9,7 @@ import {
   markGuideSeen,
   saveResult,
   seedDemoProgress,
+  seedSessionOneCompleteProgress,
 } from './storage.js';
 
 export const localProgressAdapter = {
@@ -69,6 +70,9 @@ export const localProgressAdapter = {
     },
     seed({ days = 7 } = {}) {
       return seedDemoProgress({ days });
+    },
+    seedSessionOneComplete() {
+      return seedSessionOneCompleteProgress();
     },
   },
 };

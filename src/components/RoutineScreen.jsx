@@ -260,6 +260,10 @@ const SCENE_RENDERERS = {
 
 export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream, isDemoMode, onComplete, onExit }) {
   const scene = getSceneById(selectedScene);
+  const practiceGuide = scene.practice || {
+    description: scene.subtitle,
+    tips: ['Keep your face centered.', `Follow the ${scene.action.toLowerCase()} cue.`, 'Move gently and steadily.'],
+  };
   const activeSceneId = scene.id;
   const whaleAttemptRef = useRef(null);
   const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
@@ -286,6 +290,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const [stageScores, setStageScores] = useState({});
   const [interaction, setInteraction] = useState(() => createBaseInteraction(selectedScene));
   const [tuningRevision, setTuningRevision] = useState(0);
+  const [isQuitOpen, setIsQuitOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
@@ -385,6 +391,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   });
 
   useEffect(() => {
+    if (isQuitOpen) return undefined;
     const timer = window.setInterval(() => {
       setElapsed((current) => {
         const next = Math.min(activeTotalSeconds, current + 1);
@@ -392,7 +399,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [activeTotalSeconds]);
+  }, [activeTotalSeconds, isQuitOpen]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);
@@ -685,29 +692,109 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
           <SceneRenderer interaction={interaction} targets={templeTargets} />
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
-          <CameraPreview
-            detectorMode={detectorMode}
-            handMode={scene.interaction === 'mouthOpening' ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
-            isDemoMode={isDemoMode}
-            previewVideoRef={previewVideoRef}
-            stream={stream}
-          />
 
-          <button className="play-close-button" onClick={handleExit} aria-label="Close routine" />
+          <header className="play-hud play-hud-top">
+            <CameraPreview
+              detectorMode={detectorMode}
+              handMode={scene.interaction === 'mouthOpening' ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
+              isDemoMode={isDemoMode}
+              previewVideoRef={previewVideoRef}
+              stream={stream}
+            />
+            <div className="play-hud-actions">
+              <div
+                className={`play-timer ${secondsLeft <= 5 ? 'is-urgent' : ''}`}
+                aria-label={`${formatTime(secondsLeft)} remaining`}
+              >
+                <span>{formatTime(secondsLeft)}</span>
+              </div>
+              <span className="play-toolbar-divider" aria-hidden="true" />
+              <button
+                className="play-guide-toggle"
+                type="button"
+                onClick={() => setIsGuideOpen((value) => !value)}
+                aria-expanded={isGuideOpen}
+                aria-controls="routine-guide"
+                aria-label="How to play"
+                title="How to play"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 10v6" />
+                  <path d="M12 7h.01" />
+                </svg>
+              </button>
+              <button
+                className="play-exit-button"
+                type="button"
+                onClick={() => setIsQuitOpen(true)}
+                aria-label="Quit routine"
+                title="Exit"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h8" />
+                  <path d="M16 16l4-4-4-4" />
+                  <path d="M20 12h-9" />
+                </svg>
+              </button>
+            </div>
+          </header>
 
-          <div className="play-score">
-            <span>Score</span>
-            <strong>{displayScore}</strong>
-          </div>
-
-          <div className="play-timer timer-ring" style={{ '--progress': `${globalProgress * 360}deg` }}>
-            <span>{formatTime(secondsLeft)}</span>
-            <small>~~~</small>
-          </div>
-
-          <div className="play-feedback">
+          <div className="play-action-prompt" aria-live="polite">
             {interaction.feedback || feedback.label}
           </div>
+
+          <div
+            className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
+            aria-hidden={isDemoMode || hasLandmarks}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7.6v5.2" />
+              <path d="M12 16.6h.01" />
+            </svg>
+            Face not detected. Move back into view.
+          </div>
+
+          <footer className="play-hud play-hud-bottom">
+            <div className="play-score">
+              <strong>{displayScore}</strong>
+              <span><small>POINTS</small>{scene.title}</span>
+            </div>
+          </footer>
+
+          {isGuideOpen && (
+            <div className="play-guide-backdrop" role="presentation">
+              <section className="play-guide-modal" id="routine-guide" role="dialog" aria-modal="true" aria-labelledby="routine-guide-title">
+                <h2 id="routine-guide-title">{scene.title}</h2>
+                <p>{practiceGuide.description}</p>
+                <div className="practice-steps play-guide-steps">
+                  <ol>
+                    {practiceGuide.tips.map((tip, index) => (
+                      <li key={tip} className={`practice-tip practice-tip-${index + 1}`}>
+                        <span className="practice-step-number" aria-hidden="true">Step {index + 1}</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <button type="button" onClick={() => setIsGuideOpen(false)}>Got it!</button>
+              </section>
+            </div>
+          )}
+
+          {isQuitOpen && (
+            <div className="play-quit-backdrop" role="presentation">
+              <section className="play-quit-modal" role="dialog" aria-modal="true" aria-labelledby="quit-routine-title">
+                <h2 id="quit-routine-title">Leave &quot;{scene.title}&quot;?</h2>
+                <span>Your progress won&apos;t be saved.</span>
+                <div>
+                  <button className="play-quit-leave" type="button" onClick={handleExit}>Leave</button>
+                  <button className="play-quit-stay" type="button" onClick={() => setIsQuitOpen(false)}>Stay</button>
+                </div>
+              </section>
+            </div>
+          )}
 
           {debugEnabled ? (
             <InteractionDebugPanel
@@ -767,6 +854,178 @@ function createBaseInteraction(sceneId) {
     ...interaction,
     contract: createSceneInteractionContract({ sceneId, interaction }),
   };
+}
+
+export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
+  const scene = getSceneById(selectedScene);
+  const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
+  const previewFrameRef = useRef(null);
+  const [previewFrame, setPreviewFrame] = useState({ width: 0, height: 0 });
+  const [sourceViewport, setSourceViewport] = useState(() => getPreviewSourceViewport());
+  const previewDemo = usePracticePreviewDemo(scene.practice?.previewDemo);
+  const interaction = useMemo(
+    () => createPracticePreviewInteraction(scene, previewDemo),
+    [scene, previewDemo],
+  );
+  const previewScale = previewFrame.width && previewFrame.height
+    ? Math.min(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
+    : 0;
+
+  useEffect(() => {
+    const syncPreviewFrame = () => {
+      const bounds = previewFrameRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setPreviewFrame((current) => {
+        const next = { width: Math.round(bounds.width), height: Math.round(bounds.height) };
+        return current.width === next.width && current.height === next.height ? current : next;
+      });
+      setSourceViewport((current) => {
+        const next = getPreviewSourceViewport();
+        return current.width === next.width && current.height === next.height ? current : next;
+      });
+    };
+
+    syncPreviewFrame();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncPreviewFrame);
+    if (previewFrameRef.current) observer?.observe(previewFrameRef.current);
+    window.addEventListener('resize', syncPreviewFrame);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', syncPreviewFrame);
+    };
+  }, []);
+
+  return (
+    <div ref={previewFrameRef} className="routine-scene-preview" aria-hidden="true">
+      <PreviewSceneBackground scene={scene} />
+      <div
+        className={`routine-scene-preview-canvas ${scene.layout?.className || ''}`}
+        style={{
+          width: `${sourceViewport.width}px`,
+          height: `${sourceViewport.height}px`,
+          opacity: previewScale ? 1 : 0,
+          transform: `translate(-50%, -50%) scale(${previewScale || 1})`,
+        }}
+      >
+        <SceneRenderer interaction={interaction} previewForegroundOnly />
+      </div>
+    </div>
+  );
+}
+
+function PreviewSceneBackground({ scene }) {
+  if (scene.id === 'flowerCollector') {
+    return (
+      <div className="routine-scene-preview-background preview-popcorn-environment">
+        <img className="preview-popcorn-background" src={popcornCollectorBackgroundAsset} alt="" />
+        <img className="preview-popcorn-foreground" src={popcornCollectorForegroundAsset} alt="" />
+        <img className="preview-popcorn-bucket" src={popcornCollectorBucketAsset} alt="" />
+      </div>
+    );
+  }
+
+  const backgroundAsset = scene.id === 'templeGarden' ? cloudGardenBackgroundAsset : null;
+
+  return (
+    <div
+      className={`routine-scene-preview-background preview-background-${scene.renderer}`}
+      style={backgroundAsset ? { backgroundImage: `url(${backgroundAsset})` } : undefined}
+    />
+  );
+}
+
+function getPreviewSourceViewport() {
+  if (typeof window === 'undefined') return { width: 1280, height: 720 };
+  return {
+    width: Math.max(1, window.innerWidth),
+    height: Math.max(1, window.innerHeight),
+  };
+}
+
+function usePracticePreviewDemo(demoConfig) {
+  const effect = demoConfig?.effect || null;
+  const cycleMs = demoConfig?.cycleMs || 0;
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!effect || !cycleMs || typeof window === 'undefined') {
+      setProgress(0);
+      return undefined;
+    }
+
+    const startedAt = performance.now();
+    let timer = null;
+    const updateProgress = () => {
+      setProgress(((performance.now() - startedAt) % cycleMs) / cycleMs);
+      timer = window.setTimeout(updateProgress, 100);
+    };
+
+    updateProgress();
+    return () => window.clearTimeout(timer);
+  }, [cycleMs, effect]);
+
+  return { effect, progress };
+}
+
+function createPracticePreviewInteraction(scene, previewDemo) {
+  const interaction = {
+    ...createBaseInteraction(scene.id),
+    mouthOpen: scene.interaction === 'mouthOpening' ? 0.24 : 0,
+    isOpen: scene.interaction === 'mouthOpening',
+    fishCount: scene.interaction === 'mouthOpening' ? 6 : 0,
+    leftRain: scene.interaction === 'templePress' ? 0.26 : 0,
+    rightRain: scene.interaction === 'templePress' ? 0.26 : 0,
+    growth: scene.interaction === 'templePress' ? 0.2 : 0,
+    sniff: scene.interaction === 'noseSniff' ? 0.22 : 0,
+    puff: scene.interaction === 'cheekPuff' ? 0.24 : 0,
+    bubbleSize: scene.interaction === 'cheekPuff' ? 0.28 : 0.07,
+    squeeze: scene.interaction === 'lemonSqueeze' ? 0.2 : 0,
+  };
+
+  if (!previewDemo.effect) return interaction;
+
+  const activation = getPracticePreviewActivation(previewDemo.progress);
+  const isActive = activation > 0.12;
+  if (previewDemo.effect === 'mouthFlow') {
+    return {
+      ...interaction,
+      mouthOpen: 0.05 + activation * 0.44,
+      isOpen: isActive,
+      flow: activation,
+      fishCount: Math.round(activation * 14),
+    };
+  }
+
+  if (previewDemo.effect === 'rainGrowth') {
+    return {
+      ...interaction,
+      leftRain: activation,
+      rightRain: activation * 0.92,
+      rain: activation,
+      growth: 0.04 + activation * 0.56,
+      ripple: activation,
+      isPressing: isActive,
+    };
+  }
+
+  if (previewDemo.effect === 'popcornGather') {
+    return {
+      ...interaction,
+      sniff: activation,
+      isSniffing: isActive,
+      flow: activation,
+      flowerCount: Math.round(activation * 46),
+    };
+  }
+
+  return interaction;
+}
+
+function getPracticePreviewActivation(progress) {
+  const enter = clamp((progress - 0.16) / 0.16, 0, 1);
+  const exit = clamp((0.84 - progress) / 0.16, 0, 1);
+  const eased = Math.min(enter, exit);
+  return eased * eased * (3 - 2 * eased);
 }
 
 function InteractionDebugPanel({ contract, onChange, onFinish, onReset, overrides, tuning }) {
@@ -1115,7 +1374,7 @@ function parseTuningValue(value, previousValue) {
   return Number.isInteger(previousValue) ? Math.round(nextValue) : nextValue;
 }
 
-function TempleGardenScene({ interaction }) {
+function TempleGardenScene({ interaction, previewForegroundOnly = false }) {
   const leftRain = clamp(interaction.leftRain || 0, 0, 1);
   const rightRain = clamp(interaction.rightRain || 0, 0, 1);
   const rain = Math.max(leftRain, rightRain);
@@ -1147,7 +1406,7 @@ function TempleGardenScene({ interaction }) {
 
   return (
     <div
-      className={`temple-garden-scene ${rain > 0.06 ? 'is-pressing' : ''}`}
+      className={`temple-garden-scene ${rain > 0.06 ? 'is-pressing' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--rain': rain,
         '--left-rain': leftRain,
@@ -1158,11 +1417,6 @@ function TempleGardenScene({ interaction }) {
       aria-hidden="true"
     >
       <img className="garden-art-background" src={cloudGardenBackgroundAsset} alt="" />
-      <div className="temple-copy">
-        <h1>Cloud Garden</h1>
-        <p>Press both temples and let the garden breathe</p>
-      </div>
-
       <div className="garden-cloud garden-cloud-left">
         <span />
         <span />
@@ -1245,7 +1499,6 @@ function TempleGardenScene({ interaction }) {
 function LemonSqueezeScene({ interaction }) {
   const squeeze = clamp(interaction.squeeze || 0, 0, 1);
   const sodaLevel = clamp(interaction.sodaLevel || 0.16, 0.1, 0.94);
-  const sip = clamp(interaction.sip || 0, 0, 1);
   const ingredientStage = interaction.ingredientStage || 0;
   const bubbles = useMemo(
     () =>
@@ -1278,63 +1531,11 @@ function LemonSqueezeScene({ interaction }) {
         '--left-squeeze': clamp(interaction.leftPress || 0, 0, 1),
         '--right-squeeze': clamp(interaction.rightPress || 0, 0, 1),
         '--soda-level': sodaLevel,
-        '--sip': sip,
         '--combo': interaction.combo || 0,
       }}
       aria-hidden="true"
     >
-      <div className="lemon-copy">
-        <h1>Lemon Squeeze</h1>
-        <p>Press both sides and make a tiny summer soda</p>
-      </div>
-
-      <div className="lemon-sun" />
-      <div className="lemon-arc one" />
-      <div className="lemon-arc two" />
-
-      <div className="lemon-half left">
-        <span className="lemon-face" />
-      </div>
-      <div className="lemon-half right">
-        <span className="lemon-face" />
-      </div>
-
-      <div className="juice-stream left">
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="juice-stream right">
-        <span />
-        <span />
-        <span />
-      </div>
-
-      <div className="soda-glass">
-        <div className="soda-liquid">
-          <span className="soda-surface" />
-          {bubbles.map((bubble) => (
-            <span
-              key={bubble.id}
-              className="soda-bubble"
-              style={{
-                '--bubble-x': `${bubble.x}%`,
-                '--bubble-y': `${bubble.y}%`,
-                '--bubble-size': `${bubble.size}px`,
-                '--bubble-delay': `${bubble.delay}s`,
-                '--bubble-duration': `${bubble.duration}s`,
-              }}
-            />
-          ))}
-        </div>
-        <span className={`soda-ice one ${ingredientStage >= 1 ? 'is-visible' : ''}`} />
-        <span className={`soda-ice two ${ingredientStage >= 2 ? 'is-visible' : ''}`} />
-        <span className={`soda-slice ${ingredientStage >= 3 ? 'is-visible' : ''}`} />
-        <span className={`soda-mint ${ingredientStage >= 4 ? 'is-visible' : ''}`} />
-        <span className="soda-straw" />
-      </div>
-
-      <div className="lemon-fizz-layer">
+      <div className="lemon-sky-specks">
         {fizz.map((spark) => (
           <span
             key={spark.id}
@@ -1346,18 +1547,73 @@ function LemonSqueezeScene({ interaction }) {
           />
         ))}
       </div>
-
-      <div className="soda-sipper">
-        <span className="sipper-ear left" />
-        <span className="sipper-ear right" />
-        <span className="sipper-face" />
+      <div className="lemon-horizon" />
+      <div className="lemon-shore" />
+      <div className="lemon-press-board">
+        <span className="lemon-board-grip left" />
+        <LemonPressHalf side="left" />
+        <LemonPressHalf side="right" />
+        <span className="lemon-board-grip right" />
       </div>
 
+      <LemonFriend position="far-left" />
+      <LemonFriend position="left" />
+      <LemonFriend position="right" />
+      <LemonFriend position="far-right" />
+
+      <div className="lemon-juice-fall">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div className="lemon-soda-glass">
+        <div className="lemon-soda-liquid">
+          <span className="lemon-soda-surface" />
+          {bubbles.map((bubble) => (
+            <span
+              key={bubble.id}
+              className="lemon-soda-bubble"
+              style={{
+                '--bubble-x': `${bubble.x}%`,
+                '--bubble-y': `${bubble.y}%`,
+                '--bubble-size': `${bubble.size}px`,
+                '--bubble-delay': `${bubble.delay}s`,
+                '--bubble-duration': `${bubble.duration}s`,
+              }}
+            />
+          ))}
+        </div>
+        <span className={`lemon-soda-ice one ${ingredientStage >= 1 ? 'is-visible' : ''}`} />
+        <span className={`lemon-soda-ice two ${ingredientStage >= 2 ? 'is-visible' : ''}`} />
+        <span className={`lemon-soda-slice ${ingredientStage >= 3 ? 'is-visible' : ''}`} />
+        <span className="lemon-soda-straw" />
+      </div>
     </div>
   );
 }
 
-function WhaleDreamScene({ interaction }) {
+function LemonPressHalf({ side }) {
+  return (
+    <div className={`lemon-press-half ${side}`}>
+      {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
+    </div>
+  );
+}
+
+function LemonFriend({ position }) {
+  return (
+    <div className={`lemon-friend ${position}`}>
+      <span className="lemon-leaf" />
+      <span className="lemon-friend-eye left" />
+      <span className="lemon-friend-eye right" />
+      <span className="lemon-friend-leg left" />
+      <span className="lemon-friend-leg right" />
+    </div>
+  );
+}
+
+function WhaleDreamScene({ interaction, previewForegroundOnly = false }) {
   const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
   const fishCount = interaction.fishCount || 0;
   const fishWave = fishCount % 18;
@@ -1521,7 +1777,7 @@ function WhaleDreamScene({ interaction }) {
   return (
     <div
       ref={sceneRef}
-      className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''}`}
+      className={`whale-dream-scene ${interaction.isOpen ? 'is-open' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--mouth-open': mouthVisualOpen,
         '--flow': interaction.flow || 0,
@@ -1548,11 +1804,6 @@ function WhaleDreamScene({ interaction }) {
           />
         ))}
       </div>
-      <div className="whale-copy">
-        <h1>Whale Mouth</h1>
-        <p>Open wide and guide little fish in</p>
-      </div>
-      <div className="whale-open-instruction">OPEN WIDE!</div>
       <div
         className={`whale-svg whale-art ${interaction.isOpen ? 'is-open' : ''}`}
         style={{ '--whale-scale': whaleLayout.scale }}
@@ -1562,15 +1813,6 @@ function WhaleDreamScene({ interaction }) {
         <img className="whale-art-state whale-art-closed" src={whaleClosedAsset} alt="" />
         <img className="whale-art-state whale-art-open" src={whaleOpenAsset} alt="" />
         <span ref={mouthAnchorRef} className="whale-image-mouth-anchor" />
-      </div>
-      <div className="whale-mouth-guide">
-        <svg className="whale-mouth-guide-art" viewBox="0 0 180 116" aria-hidden="true">
-          <path className="guide-arrow" d="M 25 82 C 11 75 10 56 25 45 M 16 47 L 25 45 L 24 55" />
-          <path className="guide-arrow guide-arrow-right" d="M 155 82 C 169 75 170 56 155 45 M 164 47 L 155 45 L 156 55" />
-          <path className="guide-mouth" d="M 45 27 C 66 16 114 16 135 27 C 146 37 144 78 123 94 C 104 109 76 109 57 94 C 36 78 34 37 45 27 Z" />
-          <path className="guide-teeth" d="M 61 31 V 48 M 75 27 V 48 M 90 25 V 48 M 105 27 V 48 M 119 31 V 48" />
-        </svg>
-        <strong>HOLD OPEN</strong>
       </div>
       <div className="whale-seabed" aria-hidden="true">
         <svg viewBox="0 0 1200 180" preserveAspectRatio="none">
@@ -1708,7 +1950,7 @@ function WhaleDream2Scene({ interaction }) {
   );
 }
 
-function FlowerCollectorScene({ interaction }) {
+function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
   const sniff = clamp(interaction.sniff || 0, 0, 1);
   const collectedCount = interaction.flowerCount || 0;
   const isSniffing = Boolean(interaction.isSniffing);
@@ -1921,7 +2163,7 @@ function FlowerCollectorScene({ interaction }) {
 
   return (
     <div
-      className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''}`}
+      className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--sniff': sniff,
         '--popcorn-count': collectedCount,
@@ -1930,21 +2172,6 @@ function FlowerCollectorScene({ interaction }) {
     >
       <img className="popcorn-background" src={popcornCollectorBackgroundAsset} alt="" />
       <div className="popcorn-warm-glow" />
-      <div className="popcorn-copy">
-        <h1>Popcorn Collector</h1>
-        <p>Inhale and gather the popcorn</p>
-      </div>
-      <div
-        className="popcorn-nose-cue"
-        style={{
-          left: `${cameraFrame.left - cameraRimPadding}px`,
-          top: `${cameraFrame.top - cameraRimPadding}px`,
-          '--preview-frame-width': `${cameraFrame.width + cameraRimPadding * 2}px`,
-          '--preview-frame-height': `${cameraFrame.height + cameraRimPadding * 2}px`,
-        }}
-      >
-        <span className="popcorn-nose-cue-ring" />
-      </div>
       <div className="popcorn-field">
         {popcornPieces.map((piece) => {
           const { collected, travel, isAirborne, point } = getPieceMotion(piece);
@@ -2124,11 +2351,6 @@ function BubbleGumBunnyScene({ interaction }) {
       }}
       aria-hidden="true"
     >
-      <div className="bunny-copy">
-        <h1>Bubble Gum Bunny</h1>
-        <p>Puff, relax, and grow the bubble</p>
-      </div>
-
       <div className="bunny-sparkles">
         {sparkles.map((sparkle) => (
           <span
@@ -2244,6 +2466,7 @@ function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, st
         ) : (
           <video ref={previewVideoRef} className="preview-video" autoPlay playsInline muted />
         )}
+        {!isDemoMode && !stream && <span className="preview-camera-off">CAMERA OFF</span>}
       </div>
       <div className="preview-status">
         {formatDetectorMode(detectorMode)} face · {formatDetectorMode(handMode)} hand
