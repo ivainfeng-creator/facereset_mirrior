@@ -13,7 +13,15 @@ import { DEFAULT_SCENE_ID, dailyScenes, getSceneById } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
-import { preloadSceneAudio, traceAudioLifecycle, unlockAudio } from './utils/audioManager.js';
+import {
+  playSceneEffect,
+  preloadAudioSources,
+  preloadSceneAudio,
+  startSceneBackground,
+  stopSceneBackground,
+  traceAudioLifecycle,
+  unlockAudio,
+} from './utils/audioManager.js';
 import {
   hasSeenGuide,
   initializeProgressSync,
@@ -41,6 +49,21 @@ const isResultPreview = import.meta.env.DEV
 const debugSceneId = getActiveDebugSceneId();
 const WELCOME_TRANSITION_MS = 1020;
 const NAVIGATION_TRANSITION_MS = 420;
+const OVERALL_BACKGROUND = Object.freeze({
+  id: 'overall-background',
+  source: '/audio/Overall/Background.mp3',
+  volume: 0.21,
+  fadeInMs: 1000,
+  fadeOutMs: 1000,
+});
+const WELCOME_START_EFFECT = Object.freeze({
+  source: '/audio/Overall/Star-1.mp3',
+  volume: 0.55,
+});
+const WELCOME_PAPER_FLIP_EFFECT = Object.freeze({
+  source: '/audio/Overall/Flip-1.mp3',
+  volume: 0.55,
+});
 
 const RESULT_PREVIEW = {
   type: 'daily-plan',
@@ -84,10 +107,31 @@ export default function App() {
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
+  const welcomeEffectTimerRef = useRef(null);
   const sessionSnapshotsRef = useRef({ programDay: null, snapshots: [] });
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
+  const isRoutineScreen = screen === SCREENS.routine;
 
-  useEffect(() => () => window.clearTimeout(transitionTimerRef.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(transitionTimerRef.current);
+    window.clearTimeout(welcomeEffectTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    preloadAudioSources([
+      WELCOME_START_EFFECT.source,
+      WELCOME_PAPER_FLIP_EFFECT.source,
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (isRoutineScreen) return undefined;
+
+    startSceneBackground(OVERALL_BACKGROUND);
+    return () => {
+      stopSceneBackground(OVERALL_BACKGROUND, { fadeOutMs: OVERALL_BACKGROUND.fadeOutMs });
+    };
+  }, [isRoutineScreen]);
 
   useEffect(() => {
     let isMounted = true;
@@ -118,6 +162,15 @@ export default function App() {
 
     traceAudioLifecycle('START pressed');
     unlockAudio();
+    playSceneEffect(WELCOME_START_EFFECT);
+
+    if (buildDailyPlanSummary(loadHabitProgress()).isComplete) {
+      welcomeEffectTimerRef.current = window.setTimeout(() => {
+        playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
+      }, 140);
+      openDailyResult();
+      return;
+    }
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setScreen(SCREENS.theme);
@@ -125,11 +178,18 @@ export default function App() {
     }
 
     setScreenTransition('welcome-to-plan');
+    welcomeEffectTimerRef.current = window.setTimeout(() => {
+      playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
+    }, 140);
     transitionTimerRef.current = window.setTimeout(() => {
       traceAudioLifecycle('Day 1 screen opened');
       setScreen(SCREENS.theme);
       setScreenTransition(null);
     }, WELCOME_TRANSITION_MS);
+  };
+
+  const startWelcomeBackground = () => {
+    if (screen === SCREENS.landing) startSceneBackground(OVERALL_BACKGROUND);
   };
 
   const navigate = (nextScreen, type = 'quiet') => {
@@ -301,6 +361,7 @@ export default function App() {
       {screen === SCREENS.landing && (
         <LandingScreen
           onStart={startTodayPlan}
+          onInteract={startWelcomeBackground}
           habit={habit}
           isExiting={screenTransition === 'welcome-to-plan'}
         />

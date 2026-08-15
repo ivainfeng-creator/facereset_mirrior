@@ -13284,15 +13284,20 @@ h1 {
   min-width: 62px;
   padding-inline: 14px;
   border: 0;
-  color: #1a1a1a;
-  background: #f7d734;
+  color: var(--fr-text);
+  background: var(--fr-yellow);
   letter-spacing: 0.04em;
 }
 
 .challenge-v3-day.is-past {
   border: 0;
   color: #ffffff;
-  background: #067abb;
+  background: var(--fr-blue);
+}
+
+.challenge-v3-day.is-current.is-past {
+  color: var(--fr-text);
+  background: var(--fr-yellow);
 }
 
 .challenge-v3-day i {

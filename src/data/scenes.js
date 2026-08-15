@@ -43,7 +43,7 @@ const sceneDefinitions = [
     audio: {
       background: {
         source: '/audio/whale_mouth/whale_BG.mp3',
-        volume: 0.34,
+        volume: 0.26,
         fadeInMs: 1000,
         fadeOutMs: 1000,
       },
@@ -109,7 +109,7 @@ const sceneDefinitions = [
     audio: {
       background: {
         source: '/audio/garden/garden_BGM.mp3',
-        volume: 0.32,
+        volume: 0.24,
         fadeInMs: 1000,
         fadeOutMs: 1000,
       },
@@ -152,7 +152,7 @@ const sceneDefinitions = [
     audio: {
       background: {
         source: '/audio/popcorn/popcorn_BGM.mp3',
-        volume: 0.32,
+        volume: 0.24,
         fadeInMs: 1000,
         fadeOutMs: 1000,
       },

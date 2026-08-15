@@ -1,4 +1,10 @@
 import { dailyScenes } from '../data/scenes.js';
+import { playSceneEffect } from '../utils/audioManager.js';
+
+const SESSION_HOVER_EFFECT = Object.freeze({
+  source: '/audio/Overall/Pops-1.m4a',
+  volume: 1,
+});
 
 export default function TodayPlanCard({
   sceneResults,
@@ -59,6 +65,7 @@ export default function TodayPlanCard({
               className={rowClassName}
               type="button"
               onClick={() => canSelect && onSessionSelect(scene.id)}
+              onMouseEnter={() => canSelect && playSceneEffect(SESSION_HOVER_EFFECT)}
               disabled={!canSelect || Boolean(preparingSceneId)}
               aria-label={isDone ? `Replay ${scene.title}. Today's best score ${result?.score || 0}` : undefined}
             >

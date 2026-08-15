@@ -52,6 +52,25 @@ const dateDiffDays = (fromDate, toDate) => {
   return Math.round((to - from) / 86400000);
 };
 
+function assignCurrentProgramDay(habit) {
+  const date = todayKey();
+  const existingDay = getProgramDayForDate({
+    programDayByDate: habit?.programDayByDate,
+    date,
+    fallback: null,
+  });
+  if (isValidProgramDay(existingDay)) {
+    return { programDayByDate: habit.programDayByDate, didAssignProgramDay: false };
+  }
+
+  const assigned = assignProgramDayForActivity({
+    programDayByDate: habit?.programDayByDate,
+    history: habit?.history,
+    date,
+  });
+  return { ...assigned, didAssignProgramDay: true };
+}
+
 function getDeviceId() {
   try {
     const existing = localStorage.getItem(DEVICE_KEY);
@@ -78,15 +97,20 @@ export function loadHabit() {
       history: parsed.history || [],
       areaCounts: parsed.areaCounts || {},
     }, { needsScoreMigration, needsProgramDayMigration });
-    if (needsScoreMigration || needsProgramDayMigration) {
-      persistHabit(habit);
+    const { programDayByDate, didAssignProgramDay } = assignCurrentProgramDay(habit);
+    const habitWithCurrentDay = didAssignProgramDay
+      ? { ...habit, programDayByDate }
+      : habit;
+
+    if (needsScoreMigration || needsProgramDayMigration || didAssignProgramDay) {
+      persistHabit(habitWithCurrentDay);
       migrateQueuedSessions({
         needsScoreMigration,
         needsProgramDayMigration,
-        programDayByDate: habit.programDayByDate,
+        programDayByDate: habitWithCurrentDay.programDayByDate,
       });
     }
-    return habit;
+    return habitWithCurrentDay;
   } catch {
     return {
       ...defaultHabit,

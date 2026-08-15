@@ -1,6 +1,9 @@
-export default function LandingScreen({ onStart, isExiting = false }) {
+export default function LandingScreen({ onStart, onInteract, isExiting = false }) {
   return (
-    <section className={`screen landing-screen welcome-v3 ${isExiting ? 'is-paper-under' : ''}`}>
+    <section
+      className={`screen landing-screen welcome-v3 ${isExiting ? 'is-paper-under' : ''}`}
+      onPointerDown={onInteract}
+    >
       <main className="welcome-v3-stage" aria-label="Face Reset introduction">
         <header className="welcome-v3-heading">
           <h1>

@@ -187,6 +187,10 @@ export function startSceneBackground({ id, source, volume = 0.35, fadeInMs = 100
   const entry = getAudioEntry(source);
   if (!entry) return;
 
+  if (activeBackground?.id === id && activeBackground.source === source && !entry.audio.paused) {
+    return;
+  }
+
   if (activeBackground) stopSceneBackground(activeBackground, { fadeOutMs: 0 });
 
   cancelFade(entry);
