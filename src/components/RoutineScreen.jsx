@@ -56,8 +56,10 @@ import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
 import { preloadSceneAssets, preloadUpcomingScenes } from '../utils/scenePreload.js';
 import {
   getSceneBackgroundDiagnostics,
+  pauseSceneBackground,
   playSceneEffect,
   resetSceneBackground,
+  resumeSceneBackground,
   startSceneBackground,
   stopSceneBackground,
   stopSceneEffect,
@@ -70,6 +72,18 @@ const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
 const POPCORN_SFX_COOLDOWN_MS = 280;
 const POPCORN_FLIGHT_DURATION_MS = 760;
+const ROUTINE_TOOLBAR_HOVER_EFFECT = Object.freeze({
+  source: '/audio/Overall/Pops-1.m4a',
+  volume: 0.55,
+});
+const ROUTINE_TOOLBAR_CLICK_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
+const ROUTINE_GUIDE_CLOSE_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-2.mp3',
+  volume: 0.7,
+});
 let whaleAttemptSequence = 0;
 let previousRoutineSceneIdForDiagnostics = null;
 const WHALE_FISH_ASSETS = [
@@ -382,6 +396,19 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
       stopSceneBackground(backgroundConfig, { fadeOutMs: background.fadeOutMs });
     };
   }, [activeSceneId, scene.audio]);
+
+  useEffect(() => {
+    const background = scene.audio?.background;
+    if (!background) return;
+
+    const backgroundConfig = { id: activeSceneId, ...background };
+    if (isGuideOpen || isQuitOpen) {
+      pauseSceneBackground(backgroundConfig);
+      return;
+    }
+
+    resumeSceneBackground(backgroundConfig);
+  }, [activeSceneId, isGuideOpen, isQuitOpen, scene.audio]);
 
   const { containerSize, detectorMode, displayRect, features, hasLandmarks } = useFaceLandmarks({
     videoRef,
@@ -712,7 +739,11 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
               <button
                 className="play-guide-toggle"
                 type="button"
-                onClick={() => setIsGuideOpen((value) => !value)}
+                onMouseEnter={() => playSceneEffect(ROUTINE_TOOLBAR_HOVER_EFFECT)}
+                onClick={() => {
+                  playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
+                  setIsGuideOpen((value) => !value);
+                }}
                 aria-expanded={isGuideOpen}
                 aria-controls="routine-guide"
                 aria-label="How to play"
@@ -727,7 +758,11 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
               <button
                 className="play-exit-button"
                 type="button"
-                onClick={() => setIsQuitOpen(true)}
+                onMouseEnter={() => playSceneEffect(ROUTINE_TOOLBAR_HOVER_EFFECT)}
+                onClick={() => {
+                  playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
+                  setIsQuitOpen(true);
+                }}
                 aria-label="Quit routine"
                 title="Exit"
               >
@@ -778,7 +813,15 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
                     ))}
                   </ol>
                 </div>
-                <button type="button" onClick={() => setIsGuideOpen(false)}>Got it!</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSceneEffect(ROUTINE_GUIDE_CLOSE_EFFECT);
+                    setIsGuideOpen(false);
+                  }}
+                >
+                  Got it!
+                </button>
               </section>
             </div>
           )}
@@ -789,8 +832,26 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
                 <h2 id="quit-routine-title">Leave &quot;{scene.title}&quot;?</h2>
                 <span>Your progress won&apos;t be saved.</span>
                 <div>
-                  <button className="play-quit-leave" type="button" onClick={handleExit}>Leave</button>
-                  <button className="play-quit-stay" type="button" onClick={() => setIsQuitOpen(false)}>Stay</button>
+                  <button
+                    className="play-quit-leave"
+                    type="button"
+                    onClick={() => {
+                      playSceneEffect(ROUTINE_GUIDE_CLOSE_EFFECT);
+                      handleExit();
+                    }}
+                  >
+                    Leave
+                  </button>
+                  <button
+                    className="play-quit-stay"
+                    type="button"
+                    onClick={() => {
+                      playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
+                      setIsQuitOpen(false);
+                    }}
+                  >
+                    Stay
+                  </button>
                 </div>
               </section>
             </div>

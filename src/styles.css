@@ -5004,10 +5004,15 @@ h1 {
   width: clamp(34px, 3.4vw, 41px);
   height: clamp(34px, 3.4vw, 41px);
   min-height: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 50%;
   color: #171717;
   background: transparent;
+  font-size: 0;
   cursor: pointer;
 }
 
@@ -5021,10 +5026,6 @@ h1 {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.2;
-}
-
-.play-exit-button svg {
-  transform: translateX(2px);
 }
 
 .play-guide-toggle:hover,

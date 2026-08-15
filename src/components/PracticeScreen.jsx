@@ -1,7 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { getSceneById } from '../data/scenes.js';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
+import { playSceneEffect } from '../utils/audioManager.js';
 import { RoutineScenePreview } from './RoutineScreen.jsx';
+
+const PRACTICE_BACK_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-2.mp3',
+  volume: 0.7,
+});
+const PRACTICE_BEGIN_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
+const PRACTICE_HOVER_EFFECT = Object.freeze({
+  source: '/audio/Overall/Pops-1.m4a',
+  volume: 0.55,
+});
 
 export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBegin, onBack }) {
   const scene = getSceneById(selectedScene);
@@ -47,8 +61,24 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
             </ol>
           </div>
           <div className="practice-actions">
-            <button className="practice-back" onClick={onBack}>Back</button>
-            <button className="practice-got-it" onClick={onBegin}>
+            <button
+              className="practice-back"
+              onMouseEnter={() => playSceneEffect(PRACTICE_HOVER_EFFECT)}
+              onClick={() => {
+                playSceneEffect(PRACTICE_BACK_EFFECT);
+                onBack();
+              }}
+            >
+              Back
+            </button>
+            <button
+              className="practice-got-it"
+              onMouseEnter={() => playSceneEffect(PRACTICE_HOVER_EFFECT)}
+              onClick={() => {
+                playSceneEffect(PRACTICE_BEGIN_EFFECT);
+                onBegin();
+              }}
+            >
               I&apos;m ready <span aria-hidden="true">→</span>
             </button>
           </div>
