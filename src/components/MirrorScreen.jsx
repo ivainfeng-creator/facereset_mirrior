@@ -1,17 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
-import {
-  pauseSceneEffect,
-  playSceneEffect,
-  resumeSceneEffect,
-  stopSceneEffect,
-} from '../utils/audioManager.js';
+import { playSceneEffect } from '../utils/audioManager.js';
 
-const SCAN_POPUP_EFFECT = Object.freeze({
-  source: '/audio/Overall/Scanning-1.mp3',
-  volume: 0.7,
-  loop: true,
-});
 const SCAN_COMPLETE_EFFECT = Object.freeze({
   source: '/audio/Overall/Scanning.mp3',
   volume: 0.7,
@@ -31,7 +21,6 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
   const alignmentRef = useRef(null);
   const featuresRef = useRef(null);
   const completedRef = useRef(false);
-  const scanEffectStartedRef = useRef(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [isScanComplete, setIsScanComplete] = useState(false);
   const cameraTrack = stream?.getVideoTracks()[0];
@@ -70,28 +59,6 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
     alignmentRef.current = alignment;
     featuresRef.current = features;
   }, [alignment, features]);
-
-  useEffect(() => {
-    if (isScanComplete) {
-      stopSceneEffect(SCAN_POPUP_EFFECT);
-      return;
-    }
-
-    if (!features || isCameraUnavailable || isScanStalled) {
-      if (scanEffectStartedRef.current) pauseSceneEffect(SCAN_POPUP_EFFECT);
-      return;
-    }
-
-    if (!scanEffectStartedRef.current) {
-      scanEffectStartedRef.current = true;
-      playSceneEffect(SCAN_POPUP_EFFECT);
-      return;
-    }
-
-    resumeSceneEffect(SCAN_POPUP_EFFECT);
-  }, [features, isCameraUnavailable, isScanComplete, isScanStalled]);
-
-  useEffect(() => () => stopSceneEffect(SCAN_POPUP_EFFECT), []);
 
   useEffect(() => {
     let lastTick = performance.now();
