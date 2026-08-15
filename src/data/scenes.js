@@ -160,6 +160,7 @@ const sceneDefinitions = [
         popcornGather: {
           source: '/audio/popcorn/popcorn_SFX2.mp3',
           volume: 0.48,
+          loop: true,
         },
       },
     },

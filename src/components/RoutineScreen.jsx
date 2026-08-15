@@ -68,7 +68,6 @@ import { MirrorVideo } from './MirrorScreen.jsx';
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
-const POPCORN_SFX_COOLDOWN_MS = 280;
 const POPCORN_FLIGHT_DURATION_MS = 760;
 let whaleAttemptSequence = 0;
 let previousRoutineSceneIdForDiagnostics = null;
@@ -281,7 +280,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   });
   const snapshotCandidateRef = useRef(null);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
-  const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
+  const popcornSfxRef = useRef(false);
   const gardenRainSfxRef = useRef(false);
   const routineFinishedRef = useRef(false);
   const backgroundFadeStartedRef = useRef(false);
@@ -519,24 +518,22 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   useEffect(() => {
     if (activeSceneId !== 'flowerCollector') return;
 
-    const eventSequence = interaction.suctionEventSequence || 0;
-    const previousSequence = popcornSfxRef.current.eventSequence;
-    popcornSfxRef.current.eventSequence = eventSequence;
+    const isSniffing = Boolean(interaction.isSniffing);
+    const wasSniffing = popcornSfxRef.current;
+    popcornSfxRef.current = isSniffing;
 
-    if (!interaction.isSniffing || eventSequence <= previousSequence) return;
-
-    const now = performance.now();
-    if (now - popcornSfxRef.current.lastPlayedAt < POPCORN_SFX_COOLDOWN_MS) return;
-
-    popcornSfxRef.current.lastPlayedAt = now;
-    playSceneEffect(scene.audio?.effects?.popcornGather);
-  }, [activeSceneId, interaction.isSniffing, interaction.suctionEventSequence, scene.audio]);
+    if (isSniffing && !wasSniffing) playSceneEffect(scene.audio?.effects?.popcornGather);
+    if (!isSniffing && wasSniffing) stopSceneEffect(scene.audio?.effects?.popcornGather);
+  }, [activeSceneId, interaction.isSniffing, scene.audio]);
 
   useEffect(() => {
     if (activeSceneId !== 'flowerCollector') return undefined;
 
     const popcornEffect = scene.audio?.effects?.popcornGather;
-    return () => stopSceneEffect(popcornEffect);
+    return () => {
+      popcornSfxRef.current = false;
+      stopSceneEffect(popcornEffect);
+    };
   }, [activeSceneId, scene.audio]);
 
   useEffect(() => {
