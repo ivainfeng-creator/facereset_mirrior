@@ -68,6 +68,8 @@ import { MirrorVideo } from './MirrorScreen.jsx';
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
+const POPCORN_SFX_COOLDOWN_MS = 280;
+const POPCORN_FLIGHT_DURATION_MS = 760;
 let whaleAttemptSequence = 0;
 let previousRoutineSceneIdForDiagnostics = null;
 const WHALE_FISH_ASSETS = [
@@ -275,6 +277,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   });
   const snapshotCandidateRef = useRef(null);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
+  const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
+  const gardenRainSfxRef = useRef(false);
   const routineFinishedRef = useRef(false);
   const backgroundFadeStartedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
@@ -504,6 +508,59 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
     const mouthEffect = scene.audio?.effects?.mouthOpen;
     return () => stopSceneEffect(mouthEffect);
   }, [activeSceneId, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'flowerCollector') return;
+
+    const eventSequence = interaction.suctionEventSequence || 0;
+    const previousSequence = popcornSfxRef.current.eventSequence;
+    popcornSfxRef.current.eventSequence = eventSequence;
+
+    if (!interaction.isSniffing || eventSequence <= previousSequence) return;
+
+    const now = performance.now();
+    if (now - popcornSfxRef.current.lastPlayedAt < POPCORN_SFX_COOLDOWN_MS) return;
+
+    popcornSfxRef.current.lastPlayedAt = now;
+    playSceneEffect(scene.audio?.effects?.popcornGather);
+  }, [activeSceneId, interaction.isSniffing, interaction.suctionEventSequence, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'flowerCollector') return undefined;
+
+    const popcornEffect = scene.audio?.effects?.popcornGather;
+    return () => stopSceneEffect(popcornEffect);
+  }, [activeSceneId, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'templeGarden') return;
+
+    const gardenEffect = scene.audio?.effects?.gardenRain;
+    const isRaining = (interaction.rain || 0) > 0.06;
+
+    if (isRaining && !gardenRainSfxRef.current) {
+      gardenRainSfxRef.current = true;
+      playSceneEffect(gardenEffect);
+      return;
+    }
+
+    if (!isRaining && gardenRainSfxRef.current) {
+      gardenRainSfxRef.current = false;
+      stopSceneEffect(gardenEffect);
+    }
+  }, [activeSceneId, interaction.rain, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'templeGarden') return undefined;
+
+    gardenRainSfxRef.current = false;
+    const gardenEffect = scene.audio?.effects?.gardenRain;
+    return () => {
+      gardenRainSfxRef.current = false;
+      stopSceneEffect(gardenEffect);
+    };
+  }, [activeSceneId, scene.audio]);
+
 
   useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
@@ -1662,6 +1719,8 @@ function FlowerCollectorScene({ interaction }) {
   const [release, setRelease] = useState({ version: 0, total: 0, retained: 0, lost: 0 });
   const previousSniffingRef = useRef(isSniffing);
   const releaseTimerRef = useRef(null);
+  const flightSequenceRef = useRef(0);
+  const [flights, setFlights] = useState([]);
   const popcornPieces = useMemo(
     () =>
       Array.from({ length: POPCORN_SOURCE_COUNT }, (_, index) => {
@@ -1836,6 +1895,30 @@ function FlowerCollectorScene({ interaction }) {
     };
   };
 
+  useEffect(() => {
+    const eventCount = interaction.suctionEvents || 0;
+    if (!isSniffing || eventCount <= 0) return undefined;
+
+    const startedAt = performance.now();
+    const nextFlights = Array.from({ length: eventCount }, (_, index) => {
+      const piece = popcornPieces[(flightSequenceRef.current + index) % popcornPieces.length];
+      flightSequenceRef.current += 1;
+      return {
+        id: `${interaction.suctionEventSequence}-${index}-${flightSequenceRef.current}`,
+        piece,
+        startedAt,
+      };
+    });
+
+    setFlights((current) => [...current, ...nextFlights].slice(-18));
+    const timer = window.setTimeout(() => {
+      const completedIds = new Set(nextFlights.map((flight) => flight.id));
+      setFlights((current) => current.filter((flight) => !completedIds.has(flight.id)));
+    }, POPCORN_FLIGHT_DURATION_MS + 80);
+
+    return () => window.clearTimeout(timer);
+  }, [interaction.suctionEventSequence, interaction.suctionEvents, isSniffing, popcornPieces]);
+
   return (
     <div
       className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''}`}
@@ -1879,7 +1962,38 @@ function FlowerCollectorScene({ interaction }) {
                 '--piece-pull': travel,
                 '--piece-current-x': `${point.x}px`,
                 '--piece-current-y': `${point.y}px`,
-                opacity: isAirborne && collected < 0.96 ? 0.62 + sniff * 0.28 : 0,
+                opacity: isSniffing && isAirborne && collected < 0.96 ? 0.62 + sniff * 0.28 : 0,
+              }}
+            >
+              <img src={piece.asset} alt="" />
+            </div>
+          );
+        })}
+        {flights.map(({ id, piece }) => {
+          const start = {
+            x: (piece.x / 100) * viewport.width,
+            y: (piece.y / 100) * viewport.height,
+          };
+          const target = getCameraRimPoint(piece.targetAngle);
+          const control = {
+            x: (start.x + target.x) / 2 + piece.arcX,
+            y: (start.y + target.y) / 2 + piece.arcY,
+          };
+          return (
+            <div
+              key={id}
+              className="collector-popcorn is-event-flight"
+              style={{
+                '--piece-size': piece.size,
+                '--piece-rotation': `${piece.rotation}deg`,
+                '--piece-phase': `${piece.phase}s`,
+                '--flight-start-x': `${start.x}px`,
+                '--flight-start-y': `${start.y}px`,
+                '--flight-control-x': `${control.x}px`,
+                '--flight-control-y': `${control.y}px`,
+                '--flight-target-x': `${target.x}px`,
+                '--flight-target-y': `${target.y}px`,
+                '--flight-duration': `${POPCORN_FLIGHT_DURATION_MS}ms`,
               }}
             >
               <img src={piece.asset} alt="" />
@@ -2664,20 +2778,27 @@ function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo
 
 function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tuning }) {
   const scoring = tuning.scoring;
-  const ratio = features?.nose?.sniffRatio;
-  const rawSniff = Number.isFinite(ratio) ? clamp((ratio - tuning.input.baseline) / tuning.input.range, 0, 1) : null;
+  const noseDiagnostics = features?.nose?.diagnostics || null;
+  // Use MediaPipe expression blendshapes only. The 2D landmark fallback changes
+  // with head pitch, so it must never start a Popcorn interaction on its own.
+  const blendshapeSignal = noseDiagnostics?.blendshapeSignal;
+  const rawSniff = Number.isFinite(blendshapeSignal) && blendshapeSignal > tuning.input.minimumBlendshapeSignal
+    ? clamp((blendshapeSignal - tuning.input.baseline) / tuning.input.range, 0, 1)
+    : 0;
   const signal = updateInteractionSignal(rawSniff, timestamp, progressState.signal, tuning.signal);
   const sniff = signal.value;
   const isSniffing = signal.active;
   const isStrong = sniff > tuning.input.strongThreshold;
   const isControlled = signal.phase === 'holding';
   const elapsedSeconds = signal.deltaSeconds;
+  let collected = 0;
 
   if (isSniffing) {
     progressState.flow = clamp(progressState.flow + elapsedSeconds * (scoring.flowBase + sniff * scoring.flowByValue), 0, 1);
-    const collected = consumeTimedEvents(progressState, 'flower', scoring.eventBase + sniff * scoring.eventByValue + (isStrong ? scoring.strongEventBonus : 0), elapsedSeconds);
+    collected = consumeTimedEvents(progressState, 'flower', scoring.eventBase + sniff * scoring.eventByValue + (isStrong ? scoring.strongEventBonus : 0), elapsedSeconds);
     if (collected > 0) {
       progressState.flowerCount += collected;
+      progressState.suctionEventSequence += collected;
       const special = Math.floor(progressState.flowerCount / scoring.specialEvery) - progressState.specialFlowers;
       progressState.specialFlowers += Math.max(0, special);
       progressState.score += collected + Math.max(0, special) * scoring.specialScore;
@@ -2698,7 +2819,12 @@ function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tun
     feedback: getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }),
     isOnTrack: isSniffing && isControlled,
     sniff,
+    rawNoseMetric: blendshapeSignal ?? null,
+    noseDiagnostics,
+    relativeNoseMetric: rawSniff,
     flowerCount: progressState.flowerCount,
+    suctionEvents: collected || 0,
+    suctionEventSequence: progressState.suctionEventSequence,
     flow: progressState.flow,
     isSniffing,
     combo: progressState.combo,
@@ -2822,6 +2948,7 @@ function createNoseProgress() {
     specialFlowers: 0,
     combo: 0,
     flowerAccumulator: 0,
+    suctionEventSequence: 0,
     signal: createInteractionSignalState(),
   };
 }

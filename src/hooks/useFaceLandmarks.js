@@ -10,6 +10,9 @@ import {
 } from '../utils/faceLandmarks.js';
 
 const INITIAL_SIZE = { width: 0, height: 0 };
+const FALLBACK_VIDEO_SIZE = { width: 720, height: 960 };
+const DEFAULT_VIDEO_SIZE = { width: 1280, height: 720 };
+const LANDMARK_COMMIT_INTERVAL_MS = 50;
 // Calibration only needs a brief run of valid landmarks. Scene interactions
 // retain their own precise per-frame tracking requirements.
 const CALIBRATION_CONFIRM_MS = 180;
@@ -26,6 +29,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   const [landmarkStability, setLandmarkStability] = useState({ stable: false, stabilityMs: 0 });
   const landmarkerRef = useRef(null);
   const lastVideoTimeRef = useRef(-1);
+  const lastLandmarkCommitRef = useRef(0);
   const stabilityRef = useRef({
     lastCenter: null,
     lastScale: null,
@@ -42,10 +46,12 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
 
     const updateSize = () => {
       const rect = element.getBoundingClientRect();
-      setContainerSize({
-        width: rect.width,
-        height: rect.height,
-      });
+      const nextSize = { width: Math.round(rect.width), height: Math.round(rect.height) };
+      setContainerSize((current) => (
+        current.width === nextSize.width && current.height === nextSize.height
+          ? current
+          : nextSize
+      ));
     };
 
     updateSize();
@@ -59,10 +65,15 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
     if (!video || isDemoMode) return undefined;
 
     const updateVideoSize = () => {
-      setVideoSize({
+      const nextSize = {
         width: video.videoWidth || 1280,
         height: video.videoHeight || 720,
-      });
+      };
+      setVideoSize((current) => (
+        current.width === nextSize.width && current.height === nextSize.height
+          ? current
+          : nextSize
+      ));
     };
 
     video.addEventListener('loadedmetadata', updateVideoSize);
@@ -73,11 +84,18 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   useEffect(() => {
     let isCancelled = false;
     let animationFrame = 0;
+    lastLandmarkCommitRef.current = 0;
+
+    const commitLandmarkData = (nextData, timestamp = performance.now()) => {
+      if (nextData && timestamp - lastLandmarkCommitRef.current < LANDMARK_COMMIT_INTERVAL_MS) return;
+      lastLandmarkCommitRef.current = timestamp;
+      setLandmarkData(nextData);
+    };
 
     const tickMock = () => {
       if (isCancelled) return;
       const now = performance.now();
-      setLandmarkData(createMockLandmarkData(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock, now));
+      commitLandmarkData(createMockLandmarkData(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock, now), now);
       animationFrame = requestAnimationFrame(tickMock);
     };
 
@@ -92,7 +110,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
           const result = landmarker.detectForVideo(video, performance.now());
           const normalized = normalizeLandmarkData(result, LANDMARK_MODES.real);
           if (normalized) {
-            setLandmarkData(normalized);
+            commitLandmarkData(normalized, normalized.detectedAt);
             setDetectorMode(LANDMARK_MODES.real);
             setDetectorMessage('Real landmark mode');
           } else {
@@ -153,9 +171,9 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
 
   const effectiveVideoSize = useMemo(() => {
     if (isDemoMode || !stream) {
-      return { width: 720, height: 960 };
+      return FALLBACK_VIDEO_SIZE;
     }
-    return videoSize.width && videoSize.height ? videoSize : { width: 1280, height: 720 };
+    return videoSize.width && videoSize.height ? videoSize : DEFAULT_VIDEO_SIZE;
   }, [isDemoMode, stream, videoSize]);
 
   const displayRect = useMemo(
@@ -184,13 +202,21 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
             lastTime: null,
             stabilityMs: 0,
           };
-          setLandmarkStability({ stable: false, stabilityMs: 0 });
+          setLandmarkStability((current) => (
+            !current.stable && current.stabilityMs === 0
+              ? current
+              : { stable: false, stabilityMs: 0 }
+          ));
         }, TRACKING_LOSS_GRACE_MS - age);
         return;
       }
 
       stabilityRef.current = { lastCenter: null, lastScale: null, lastTime: null, stabilityMs: 0 };
-      setLandmarkStability({ stable: false, stabilityMs: 0 });
+      setLandmarkStability((current) => (
+        !current.stable && current.stabilityMs === 0
+          ? current
+          : { stable: false, stabilityMs: 0 }
+      ));
       return;
     }
 
@@ -205,10 +231,15 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
       lastTime: now,
       stabilityMs,
     };
-    setLandmarkStability({
+    const nextStability = {
       stable: stabilityMs >= CALIBRATION_CONFIRM_MS,
       stabilityMs,
-    });
+    };
+    setLandmarkStability((current) => (
+      current.stable === nextStability.stable && current.stabilityMs === nextStability.stabilityMs
+        ? current
+        : nextStability
+    ));
   }, [features]);
 
   const alignment = useMemo(

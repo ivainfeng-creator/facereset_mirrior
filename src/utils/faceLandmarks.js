@@ -250,6 +250,12 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
   const faceOval = FACE_OVAL_INDEXES.map(getIndexPoint).filter(isPoint);
   const bounds = getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval });
   const faceScale = Math.max(bounds.width, bounds.height);
+  const noseDiagnostics = getNoseSniffDiagnostics({
+    blendshapes: landmarkData.blendshapes || {},
+    face,
+    mouth,
+    faceScale,
+  });
 
   return {
     mode: landmarkData.mode,
@@ -262,13 +268,10 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     blendshapes: landmarkData.blendshapes || {},
     nose: {
       center: face.noseCenter,
-      sniffRatio: getNoseSniffRatio({
-        blendshapes: landmarkData.blendshapes || {},
-        face,
-        mouth,
-        faceScale,
-      }),
+      sniffRatio: noseDiagnostics.confidence,
+      diagnostics: noseDiagnostics,
     },
+    headPose: getVerticalHeadPoseProxy({ face, leftEye, rightEye, jaw }),
     cheeks: {
       puffRatio: getCheekPuffRatio({
         blendshapes: landmarkData.blendshapes || {},
@@ -294,20 +297,65 @@ function normalizeBlendshapes(faceBlendshape) {
   }, {});
 }
 
-function getNoseSniffRatio({ blendshapes, face, mouth, faceScale }) {
+function getNoseSniffDiagnostics({ blendshapes, face, mouth, faceScale }) {
+  const noseSneerLeft = clamp(blendshapes.noseSneerLeft || 0, 0, 1);
+  const noseSneerRight = clamp(blendshapes.noseSneerRight || 0, 0, 1);
+  const upperLipRaiseLeft = clamp(blendshapes.mouthUpperUpLeft || 0, 0, 1);
+  const upperLipRaiseRight = clamp(blendshapes.mouthUpperUpRight || 0, 0, 1);
+  const eyeSquintLeft = clamp(blendshapes.eyeSquintLeft || 0, 0, 1);
+  const eyeSquintRight = clamp(blendshapes.eyeSquintRight || 0, 0, 1);
+  const upperLipRaise = (upperLipRaiseLeft + upperLipRaiseRight) / 2;
+  const strongerSneer = Math.max(noseSneerLeft, noseSneerRight);
+  const bilateralSneer = Math.min(noseSneerLeft, noseSneerRight);
+  const noseSneerSymmetry = strongerSneer > 0.001
+    ? 1 - Math.abs(noseSneerLeft - noseSneerRight) / strongerSneer
+    : 1;
   const blendshapeSignal = Math.max(
-    blendshapes.noseSneerLeft || 0,
-    blendshapes.noseSneerRight || 0,
-    ((blendshapes.mouthUpperUpLeft || 0) + (blendshapes.mouthUpperUpRight || 0)) * 0.62,
+    strongerSneer,
+    (upperLipRaiseLeft + upperLipRaiseRight) * 0.62,
   );
-
-  if (blendshapeSignal > 0.03) {
-    return clamp(blendshapeSignal / 0.72, 0, 1);
-  }
-
   const noseToMouth = distance(face.noseCenter, mouth.upper);
   const normalized = faceScale ? noseToMouth / faceScale : 0.16;
-  return clamp((0.18 - normalized) / 0.07, 0, 1);
+  const fallbackConfidence = clamp((0.18 - normalized) / 0.07, 0, 1);
+  const usesBlendshapes = blendshapeSignal > 0.03;
+
+  return {
+    noseSneerLeft,
+    noseSneerRight,
+    bilateralSneer,
+    noseSneerSymmetry: clamp(noseSneerSymmetry, 0, 1),
+    upperLipRaiseLeft,
+    upperLipRaiseRight,
+    upperLipRaise,
+    eyeSquintLeft,
+    eyeSquintRight,
+    eyeSquint: (eyeSquintLeft + eyeSquintRight) / 2,
+    blendshapeSignal,
+    fallbackNoseToUpperLipRatio: normalized,
+    fallbackConfidence,
+    source: usesBlendshapes ? 'blendshapes' : 'landmark-fallback',
+    confidence: usesBlendshapes ? clamp(blendshapeSignal / 0.72, 0, 1) : fallbackConfidence,
+  };
+}
+
+function getVerticalHeadPoseProxy({ face, leftEye, rightEye, jaw }) {
+  const eyeCenter = midpoint(leftEye.center, rightEye.center);
+  const eyeToChin = jaw.chin.y - eyeCenter.y;
+  const faceHeight = face.chin.y - face.top.y;
+  const eyeDepth = (leftEye.center.z + rightEye.center.z) / 2;
+
+  return {
+    // No 3D facial transformation matrix is enabled, so this is intentionally
+    // a diagnostic proxy rather than a calibrated head-pitch angle.
+    reliablePitchDegrees: false,
+    noseBelowEyesRatio: Math.abs(eyeToChin) > 0.001
+      ? (face.noseCenter.y - eyeCenter.y) / eyeToChin
+      : null,
+    noseWithinFaceHeight: Math.abs(faceHeight) > 0.001
+      ? (face.noseCenter.y - face.top.y) / faceHeight
+      : null,
+    noseDepthVsEyes: face.noseCenter.z - eyeDepth,
+  };
 }
 
 function getCheekPuffRatio({ blendshapes, mouth, faceScale }) {

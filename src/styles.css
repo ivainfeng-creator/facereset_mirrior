@@ -12894,6 +12894,18 @@ h1 {
   transition: top 115ms linear, left 115ms linear, opacity 140ms ease;
 }
 
+.collector-popcorn.is-event-flight {
+  z-index: 7;
+  top: var(--flight-start-y);
+  left: var(--flight-start-x);
+  opacity: 0;
+  animation: popcornSuctionFlight var(--flight-duration) cubic-bezier(0.2, 0.72, 0.22, 1) both;
+}
+
+.collector-popcorn.is-event-flight img {
+  animation: popcornFlightFlow 760ms ease-in-out both;
+}
+
 .collector-popcorn.is-cluster {
   z-index: 8;
   width: clamp(30px, 4.2vw, 72px);
@@ -13077,6 +13089,30 @@ h1 {
   100% {
     translate: -2px -1px;
     rotate: -1deg;
+  }
+}
+
+@keyframes popcornSuctionFlight {
+  0% {
+    top: var(--flight-start-y);
+    left: var(--flight-start-x);
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 0.92;
+  }
+
+  54% {
+    top: var(--flight-control-y);
+    left: var(--flight-control-x);
+    opacity: 1;
+  }
+
+  100% {
+    top: var(--flight-target-y);
+    left: var(--flight-target-x);
+    opacity: 0.14;
   }
 }
 

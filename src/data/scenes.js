@@ -105,6 +105,21 @@ const sceneDefinitions = [
     renderer: 'templeGarden',
     interaction: 'templePress',
     handTracking: 'temple',
+    audio: {
+      background: {
+        source: '/audio/garden/garden_BGM.mp3',
+        volume: 0.32,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        gardenRain: {
+          source: '/audio/garden/garden_SFX.wav',
+          volume: 0.48,
+          loop: true,
+        },
+      },
+    },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine cloud-garden-viewport-routine' },
     planPhase: 'Activate',
     planArt: '/assets/design-v3/challenge-step2.png',
@@ -132,6 +147,20 @@ const sceneDefinitions = [
     renderer: 'popcornCollector',
     interaction: 'noseSniff',
     handTracking: 'none',
+    audio: {
+      background: {
+        source: '/audio/popcorn/popcorn_BGM.mp3',
+        volume: 0.32,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        popcornGather: {
+          source: '/audio/popcorn/popcorn_SFX2.mp3',
+          volume: 0.48,
+        },
+      },
+    },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine popcorn-viewport-routine' },
     planPhase: 'Unwind',
     planArt: '/assets/design-v3/challenge-step3.png',

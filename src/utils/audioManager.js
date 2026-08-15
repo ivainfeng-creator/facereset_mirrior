@@ -312,7 +312,7 @@ export function playSceneEffect(effect) {
 
   cancelFade(entry);
   claim(entry);
-  entry.audio.loop = false;
+  entry.audio.loop = Boolean(effect.loop);
   entry.audio.muted = false;
   entry.audio.volume = effect.volume ?? 0.55;
   entry.audio.currentTime = 0;
