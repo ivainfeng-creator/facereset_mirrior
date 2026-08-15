@@ -8,6 +8,7 @@ export default function TodayPlanCard({
   onStart,
   onSessionSelect,
   showCompletion = false,
+  isHistory = false,
   className = '',
 }) {
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
@@ -19,10 +20,10 @@ export default function TodayPlanCard({
   const isAllDone = completedCount >= dailyScenes.length;
 
   return (
-    <section className={`challenge-v3-plan ${className}`.trim()} aria-label="Today’s focus">
+    <section className={`challenge-v3-plan ${isHistory ? 'is-history' : ''} ${className}`.trim()} aria-label={isHistory ? `Program Day ${programDay} history` : 'Today’s focus'}>
       <div className="challenge-v3-plan-header">
         <div>
-          <p>TODAY’S FOCUS</p>
+          <p>{isHistory ? `DAY ${programDay} HISTORY` : 'TODAY’S FOCUS'}</p>
           <h2>FACIAL WARM-UP</h2>
         </div>
         <div className="challenge-v3-progress" aria-label={`${completedCount} of ${dailyScenes.length} complete`}>
@@ -43,7 +44,7 @@ export default function TodayPlanCard({
           const isActive = activeIndex === index;
           const isLocked = !isAllDone && activeIndex !== -1 && index > activeIndex;
           const isPreparing = preparingSceneId === scene.id;
-          const canSelect = Boolean(onSessionSelect) && (isDone || isActive);
+          const canSelect = !isHistory && Boolean(onSessionSelect) && (isDone || isActive);
           const rowClassName = [
             'challenge-v3-session',
             selectedScene === scene.id ? 'is-selected' : '',
@@ -60,7 +61,7 @@ export default function TodayPlanCard({
               type="button"
               onClick={() => canSelect && onSessionSelect(scene.id)}
               disabled={!canSelect || Boolean(preparingSceneId)}
-              aria-label={isDone ? `Replay ${scene.title}. Today's best score ${result?.score || 0}` : undefined}
+              aria-label={isDone ? `${isHistory ? 'Completed' : 'Replay'} ${scene.title}. Score ${result?.score || 0}` : undefined}
             >
               <span className="challenge-v3-art-wrap">
                 <img src={scene.planArt} alt="" className="challenge-v3-art" />
@@ -77,10 +78,10 @@ export default function TodayPlanCard({
               {isDone && (
                 <span className="challenge-v3-done-actions">
                   <span className="challenge-v3-done">DONE | {result?.score || 0}</span>
-                  <span className="challenge-v3-replay" aria-hidden="true">↻</span>
+                  {!isHistory && <span className="challenge-v3-replay" aria-hidden="true">↻</span>}
                 </span>
               )}
-              {!isDone && <span className="challenge-v3-arrow" aria-hidden="true">→</span>}
+              {!isDone && !isHistory && <span className="challenge-v3-arrow" aria-hidden="true">→</span>}
             </button>
           );
         })}

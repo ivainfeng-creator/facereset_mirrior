@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { loadPassportProgress } from '../utils/progressAdapter.js';
-import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
+import { buildDailyPlanSummary, buildProgramDayPlanSummary } from '../utils/dailyPlan.js';
 import { fetchProgramDayLeaderboard } from '../utils/supabaseProgressAdapter.js';
 
-export default function LeaderboardScreen({ habit, onBack, onRestart }) {
+export default function LeaderboardScreen({ habit, onBack, onRestart, programDay: selectedProgramDay = null }) {
   const passport = loadPassportProgress(habit);
-  const programDay = buildDailyPlanSummary(habit).programDay;
+  const currentProgramDay = buildDailyPlanSummary(habit).programDay;
+  const programDay = Number.isInteger(Number(selectedProgramDay)) && Number(selectedProgramDay) > 0
+    ? Number(selectedProgramDay)
+    : currentProgramDay;
+  const dailyPlan = buildProgramDayPlanSummary(habit, programDay);
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -45,7 +49,7 @@ export default function LeaderboardScreen({ habit, onBack, onRestart }) {
           </div>
           <div>
             <span>Daily score</span>
-            <strong>{buildDailyPlanSummary(habit).score}</strong>
+            <strong>{dailyPlan.score}</strong>
           </div>
           <div>
             <span>Streak</span>

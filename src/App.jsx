@@ -11,6 +11,7 @@ import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { DEFAULT_SCENE_ID, dailyScenes, getSceneById } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
+import { isDebugHistoryEnabled, withDebugHistory } from './utils/debugHistory.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
 import { preloadSceneAudio, traceAudioLifecycle, unlockAudio } from './utils/audioManager.js';
@@ -78,6 +79,7 @@ export default function App() {
   const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
   const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
+  const [selectedProgramDay, setSelectedProgramDay] = useState(null);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [guideOverlay, setGuideOverlay] = useState(null);
   const [isCelebratingCompletion, setIsCelebratingCompletion] = useState(false);
@@ -86,6 +88,8 @@ export default function App() {
   const transitionTimerRef = useRef(null);
   const sessionSnapshotsRef = useRef({ programDay: null, snapshots: [] });
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
+  const challengeHabit = useMemo(() => withDebugHistory(habit), [habit]);
+  const isDebugHistory = isDebugHistoryEnabled();
 
   useEffect(() => () => window.clearTimeout(transitionTimerRef.current), []);
 
@@ -261,6 +265,7 @@ export default function App() {
 
     if (!dailyPlan.isComplete) return;
 
+    setSelectedProgramDay(null);
     setIsCelebratingCompletion(false);
     setLatestResult((current) => ({
       ...dailyPlan,
@@ -336,7 +341,7 @@ export default function App() {
           onGuide={openGuide}
           onBack={resetToLanding}
           onContinue={openDailyResult}
-          habit={habit}
+          habit={challengeHabit}
           isEntering={screenTransition === 'welcome-to-plan'}
         />
       )}
@@ -391,8 +396,10 @@ export default function App() {
 
       {screen === SCREENS.result && (
         <ResultScreen
-          result={latestResult}
-          habit={habit}
+          result={isDebugHistory ? null : latestResult}
+          habit={challengeHabit}
+          selectedProgramDay={selectedProgramDay}
+          onSelectedProgramDayChange={setSelectedProgramDay}
           onRestart={restartRoutine}
           onTodayPlan={() => navigate(SCREENS.theme, 'slide-back')}
           onPassport={() => navigate(SCREENS.passport, 'slide-fwd')}
@@ -413,7 +420,8 @@ export default function App() {
 
       {screen === SCREENS.leaderboard && (
         <LeaderboardScreen
-          habit={habit}
+          habit={challengeHabit}
+          programDay={selectedProgramDay}
           onBack={() => navigate(SCREENS.result, 'slide-back')}
           onRestart={restartRoutine}
         />
