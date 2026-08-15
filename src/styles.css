@@ -4547,6 +4547,303 @@ h1 {
   content: '';
 }
 
+/* Lemon Squeeze follows the playful seaside composition in Scene-lemon.html. */
+.lemon-squeeze-scene {
+  background: linear-gradient(180deg, #81d6f1 0%, #b4e9f4 48%, #65b9e6 49%, #f6eed8 75%);
+  color: #234f43;
+}
+
+.lemon-squeeze-scene::before,
+.lemon-squeeze-scene::after {
+  display: none;
+}
+
+.lemon-horizon,
+.lemon-shore {
+  position: absolute;
+  right: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.lemon-horizon {
+  top: 47%;
+  height: 7%;
+  background: rgba(68, 163, 215, 0.38);
+}
+
+.lemon-shore {
+  top: 54%;
+  bottom: 0;
+  background: radial-gradient(ellipse at 50% 5%, rgba(255, 255, 255, 0.7), transparent 32%), #f6eed8;
+}
+
+.lemon-sky-specks {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.lemon-sky-specks span {
+  position: absolute;
+  top: var(--fizz-y);
+  left: var(--fizz-x);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  animation: lemonFizzTwinkle 1.8s ease-in-out infinite;
+  animation-delay: var(--fizz-delay);
+}
+
+.lemon-squeeze-prompt {
+  position: absolute;
+  top: 20.5%;
+  left: 50%;
+  z-index: 7;
+  padding: 11px 28px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 8px 18px rgba(45, 111, 137, 0.16);
+  color: #4b7042;
+  font-size: clamp(0.85rem, 1.5vw, 1.25rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  transform: translateX(-50%) scale(calc(1 + var(--squeeze) * 0.07));
+}
+
+.lemon-press-board {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(36vw, 540px);
+  min-width: 280px;
+  aspect-ratio: 2.1 / 1;
+  border: 5px solid rgba(255, 255, 255, 0.88);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.77);
+  box-shadow: 0 16px 30px rgba(48, 115, 143, 0.18);
+  transform: translateX(-50%);
+}
+
+.lemon-board-grip {
+  position: absolute;
+  top: 13%;
+  bottom: 13%;
+  width: 5.5%;
+  border-radius: 7px;
+  background: #a5bd92;
+}
+
+.lemon-board-grip.left { left: 0; }
+.lemon-board-grip.right { right: 0; }
+
+.lemon-press-half {
+  position: relative;
+  width: 37%;
+  aspect-ratio: 1;
+  border: clamp(5px, 0.55vw, 9px) solid #ffe463;
+  border-radius: 50%;
+  background: #fff7a7;
+  box-shadow: inset 0 0 0 clamp(4px, 0.42vw, 7px) rgba(255, 255, 255, 0.86);
+  transition: transform 120ms ease-out;
+}
+
+.lemon-press-half.left {
+  margin-right: 4%;
+  transform: translateX(calc(var(--left-squeeze) * 24%)) scale(calc(1 - var(--left-squeeze) * 0.14));
+}
+
+.lemon-press-half.right {
+  transform: translateX(calc(var(--right-squeeze) * -24%)) scale(calc(1 - var(--right-squeeze) * 0.14));
+}
+
+.lemon-press-half span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 42%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.92);
+  transform-origin: 0 50%;
+}
+
+.lemon-press-half span:nth-child(1) { transform: rotate(0deg); }
+.lemon-press-half span:nth-child(2) { transform: rotate(45deg); }
+.lemon-press-half span:nth-child(3) { transform: rotate(90deg); }
+.lemon-press-half span:nth-child(4) { transform: rotate(135deg); }
+.lemon-press-half span:nth-child(5) { transform: rotate(180deg); }
+.lemon-press-half span:nth-child(6) { transform: rotate(225deg); }
+.lemon-press-half span:nth-child(7) { transform: rotate(270deg); }
+.lemon-press-half span:nth-child(8) { transform: rotate(315deg); }
+
+.lemon-friend {
+  position: absolute;
+  top: 28%;
+  z-index: 4;
+  width: clamp(58px, 8vw, 122px);
+  aspect-ratio: 0.9;
+  border-radius: 48% 52% 46% 44%;
+  background: #ffe166;
+  filter: drop-shadow(0 8px 5px rgba(66, 127, 107, 0.12));
+  transform: rotate(-4deg);
+}
+
+.lemon-friend.far-left { left: 2%; }
+.lemon-friend.left { left: 16%; top: 29%; transform: rotate(4deg) scale(0.82); }
+.lemon-friend.right { right: 16%; top: 29%; transform: rotate(-4deg) scale(0.82); }
+.lemon-friend.far-right { right: 2%; transform: rotate(4deg); }
+
+.lemon-leaf {
+  position: absolute;
+  top: -18%;
+  right: 5%;
+  width: 32%;
+  height: 28%;
+  border-radius: 100% 0 100% 0;
+  background: #69ba64;
+  transform: rotate(14deg);
+}
+
+.lemon-friend-eye {
+  position: absolute;
+  top: 37%;
+  width: 19%;
+  height: 26%;
+  border-radius: 50%;
+  background: #161c19;
+}
+
+.lemon-friend-eye.left { left: 31%; }
+.lemon-friend-eye.right { right: 20%; }
+
+.lemon-friend-leg {
+  position: absolute;
+  top: 92%;
+  width: 8%;
+  height: 34%;
+  border-radius: 999px;
+  background: #17221d;
+}
+
+.lemon-friend-leg.left { left: 35%; transform: rotate(12deg); }
+.lemon-friend-leg.right { right: 28%; transform: rotate(-10deg); }
+
+.lemon-juice-fall {
+  position: absolute;
+  top: 39%;
+  left: 50%;
+  z-index: 5;
+  width: 72px;
+  height: 15%;
+  opacity: var(--squeeze);
+  transform: translateX(-50%);
+}
+
+.lemon-juice-fall span {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 30px;
+  border-radius: 999px;
+  background: #ffe665;
+  box-shadow: 0 0 9px rgba(255, 221, 70, 0.74);
+  animation: juiceDrop 0.76s linear infinite;
+}
+
+.lemon-juice-fall span:nth-child(1) { left: 12%; }
+.lemon-juice-fall span:nth-child(2) { left: 47%; animation-delay: 0.18s; }
+.lemon-juice-fall span:nth-child(3) { right: 8%; animation-delay: 0.36s; }
+
+.lemon-soda-glass {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  z-index: 5;
+  width: min(20vw, 295px);
+  min-width: 164px;
+  height: 33%;
+  overflow: hidden;
+  border: clamp(4px, 0.45vw, 7px) solid rgba(255, 255, 255, 0.94);
+  border-radius: 18% 18% 25% 25%;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 12px 0 15px rgba(255, 255, 255, 0.25), 0 14px 24px rgba(64, 130, 154, 0.12);
+  transform: translateX(-50%);
+}
+
+.lemon-soda-liquid {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(var(--soda-level) * 100%);
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(248, 242, 121, 0.83), rgba(114, 200, 224, 0.52));
+  transition: height 160ms ease-out;
+}
+
+.lemon-soda-surface {
+  position: absolute;
+  top: -9px;
+  left: -5%;
+  width: 110%;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.76);
+  animation: sodaSurfaceBob 1.9s ease-in-out infinite;
+}
+
+.lemon-soda-bubble {
+  position: absolute;
+  bottom: -18px;
+  left: var(--bubble-x);
+  width: var(--bubble-size);
+  height: var(--bubble-size);
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  opacity: calc(0.2 + var(--squeeze) * 0.8);
+  animation: sodaBubbleRise var(--bubble-duration) ease-in infinite;
+  animation-delay: var(--bubble-delay);
+}
+
+.lemon-soda-straw {
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  width: 7px;
+  height: 117%;
+  border-radius: 999px;
+  background: #4c88cc;
+  transform: rotate(13deg);
+}
+
+.lemon-soda-ice,
+.lemon-soda-slice {
+  position: absolute;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 160ms ease-out, transform 200ms ease-out;
+}
+
+.lemon-soda-ice {
+  width: 23px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 5px;
+  background: rgba(232, 255, 255, 0.4);
+  transform: translateY(-16px) rotate(18deg);
+}
+
+.lemon-soda-ice.one { right: 28%; bottom: 31%; }
+.lemon-soda-ice.two { left: 25%; bottom: 19%; transform: translateY(-16px) rotate(-14deg); }
+.lemon-soda-slice { right: 19%; bottom: 48%; width: 34px; height: 34px; border: 6px solid #ffe463; border-radius: 50%; transform: translateY(-18px); }
+.lemon-soda-ice.is-visible,
+.lemon-soda-slice.is-visible { opacity: 1; transform: translateY(0) rotate(0deg); }
+
 .play-routine-mirror .camera-preview {
   top: 30px;
   left: 30px;

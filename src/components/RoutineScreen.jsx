@@ -1136,7 +1136,6 @@ function TempleGardenScene({ interaction }) {
 function LemonSqueezeScene({ interaction }) {
   const squeeze = clamp(interaction.squeeze || 0, 0, 1);
   const sodaLevel = clamp(interaction.sodaLevel || 0.16, 0.1, 0.94);
-  const sip = clamp(interaction.sip || 0, 0, 1);
   const ingredientStage = interaction.ingredientStage || 0;
   const bubbles = useMemo(
     () =>
@@ -1169,63 +1168,11 @@ function LemonSqueezeScene({ interaction }) {
         '--left-squeeze': clamp(interaction.leftPress || 0, 0, 1),
         '--right-squeeze': clamp(interaction.rightPress || 0, 0, 1),
         '--soda-level': sodaLevel,
-        '--sip': sip,
         '--combo': interaction.combo || 0,
       }}
       aria-hidden="true"
     >
-      <div className="lemon-copy">
-        <h1>Lemon Squeeze</h1>
-        <p>Press both sides and make a tiny summer soda</p>
-      </div>
-
-      <div className="lemon-sun" />
-      <div className="lemon-arc one" />
-      <div className="lemon-arc two" />
-
-      <div className="lemon-half left">
-        <span className="lemon-face" />
-      </div>
-      <div className="lemon-half right">
-        <span className="lemon-face" />
-      </div>
-
-      <div className="juice-stream left">
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="juice-stream right">
-        <span />
-        <span />
-        <span />
-      </div>
-
-      <div className="soda-glass">
-        <div className="soda-liquid">
-          <span className="soda-surface" />
-          {bubbles.map((bubble) => (
-            <span
-              key={bubble.id}
-              className="soda-bubble"
-              style={{
-                '--bubble-x': `${bubble.x}%`,
-                '--bubble-y': `${bubble.y}%`,
-                '--bubble-size': `${bubble.size}px`,
-                '--bubble-delay': `${bubble.delay}s`,
-                '--bubble-duration': `${bubble.duration}s`,
-              }}
-            />
-          ))}
-        </div>
-        <span className={`soda-ice one ${ingredientStage >= 1 ? 'is-visible' : ''}`} />
-        <span className={`soda-ice two ${ingredientStage >= 2 ? 'is-visible' : ''}`} />
-        <span className={`soda-slice ${ingredientStage >= 3 ? 'is-visible' : ''}`} />
-        <span className={`soda-mint ${ingredientStage >= 4 ? 'is-visible' : ''}`} />
-        <span className="soda-straw" />
-      </div>
-
-      <div className="lemon-fizz-layer">
+      <div className="lemon-sky-specks">
         {fizz.map((spark) => (
           <span
             key={spark.id}
@@ -1237,13 +1184,70 @@ function LemonSqueezeScene({ interaction }) {
           />
         ))}
       </div>
+      <div className="lemon-horizon" />
+      <div className="lemon-shore" />
 
-      <div className="soda-sipper">
-        <span className="sipper-ear left" />
-        <span className="sipper-ear right" />
-        <span className="sipper-face" />
+      <div className="lemon-squeeze-prompt">SQUEEZE!</div>
+      <div className="lemon-press-board">
+        <span className="lemon-board-grip left" />
+        <LemonPressHalf side="left" />
+        <LemonPressHalf side="right" />
+        <span className="lemon-board-grip right" />
       </div>
 
+      <LemonFriend position="far-left" />
+      <LemonFriend position="left" />
+      <LemonFriend position="right" />
+      <LemonFriend position="far-right" />
+
+      <div className="lemon-juice-fall">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div className="lemon-soda-glass">
+        <div className="lemon-soda-liquid">
+          <span className="lemon-soda-surface" />
+          {bubbles.map((bubble) => (
+            <span
+              key={bubble.id}
+              className="lemon-soda-bubble"
+              style={{
+                '--bubble-x': `${bubble.x}%`,
+                '--bubble-y': `${bubble.y}%`,
+                '--bubble-size': `${bubble.size}px`,
+                '--bubble-delay': `${bubble.delay}s`,
+                '--bubble-duration': `${bubble.duration}s`,
+              }}
+            />
+          ))}
+        </div>
+        <span className={`lemon-soda-ice one ${ingredientStage >= 1 ? 'is-visible' : ''}`} />
+        <span className={`lemon-soda-ice two ${ingredientStage >= 2 ? 'is-visible' : ''}`} />
+        <span className={`lemon-soda-slice ${ingredientStage >= 3 ? 'is-visible' : ''}`} />
+        <span className="lemon-soda-straw" />
+      </div>
+    </div>
+  );
+}
+
+function LemonPressHalf({ side }) {
+  return (
+    <div className={`lemon-press-half ${side}`}>
+      {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
+    </div>
+  );
+}
+
+function LemonFriend({ position }) {
+  return (
+    <div className={`lemon-friend ${position}`}>
+      <span className="lemon-leaf" />
+      <span className="lemon-friend-eye left" />
+      <span className="lemon-friend-eye right" />
+      <span className="lemon-friend-leg left" />
+      <span className="lemon-friend-leg right" />
     </div>
   );
 }
