@@ -247,6 +247,10 @@ const SCENE_RENDERERS = {
 
 export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream, isDemoMode, onComplete, onExit }) {
   const scene = getSceneById(selectedScene);
+  const practiceGuide = scene.practice || {
+    description: scene.subtitle,
+    tips: ['Keep your face centered.', `Follow the ${scene.action.toLowerCase()} cue.`, 'Move gently and steadily.'],
+  };
   const activeSceneId = scene.id;
   const SceneRenderer = SCENE_RENDERERS[scene.renderer] || WhaleDreamScene;
   const videoRef = useRef(null);
@@ -268,8 +272,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const [stageScores, setStageScores] = useState({});
   const [interaction, setInteraction] = useState(() => createBaseInteraction(selectedScene));
   const [tuningRevision, setTuningRevision] = useState(0);
-  const [isSoundOn, setIsSoundOn] = useState(true);
   const [isQuitOpen, setIsQuitOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
@@ -468,54 +472,105 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
         <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
           <SceneRenderer interaction={interaction} targets={templeTargets} />
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
-          <CameraPreview
-            detectorMode={detectorMode}
-            handMode={scene.interaction === 'mouthOpening' ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
-            isDemoMode={isDemoMode}
-            previewVideoRef={previewVideoRef}
-            stream={stream}
-          />
 
-          <button
-            className={`play-sound-toggle ${isSoundOn ? 'is-on' : 'is-off'}`}
-            type="button"
-            onClick={() => setIsSoundOn((value) => !value)}
-            aria-label={isSoundOn ? 'Mute sound' : 'Turn sound on'}
-            aria-pressed={isSoundOn}
-          >
-            <span aria-hidden="true" />
-          </button>
+          <header className="play-hud play-hud-top">
+            <CameraPreview
+              detectorMode={detectorMode}
+              handMode={scene.interaction === 'mouthOpening' ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
+              isDemoMode={isDemoMode}
+              previewVideoRef={previewVideoRef}
+              stream={stream}
+            />
+            <div className="play-hud-actions">
+              <div
+                className={`play-timer ${secondsLeft <= 5 ? 'is-urgent' : ''}`}
+                aria-label={`${formatTime(secondsLeft)} remaining`}
+              >
+                <span>{formatTime(secondsLeft)}</span>
+              </div>
+              <span className="play-toolbar-divider" aria-hidden="true" />
+              <button
+                className="play-guide-toggle"
+                type="button"
+                onClick={() => setIsGuideOpen((value) => !value)}
+                aria-expanded={isGuideOpen}
+                aria-controls="routine-guide"
+                aria-label="How to play"
+                title="How to play"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 10v6" />
+                  <path d="M12 7h.01" />
+                </svg>
+              </button>
+              <button
+                className="play-exit-button"
+                type="button"
+                onClick={() => setIsQuitOpen(true)}
+                aria-label="Quit routine"
+                title="Exit"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h8" />
+                  <path d="M16 16l4-4-4-4" />
+                  <path d="M20 12h-9" />
+                </svg>
+              </button>
+            </div>
+          </header>
 
-          <button
-            className="play-close-button"
-            type="button"
-            onClick={() => setIsQuitOpen(true)}
-            aria-label="Quit routine"
-          />
-
-          <div className="play-score">
-            <span>Score</span>
-            <strong>{displayScore}</strong>
-          </div>
-
-          <div className="play-timer timer-ring" style={{ '--progress': `${globalProgress * 360}deg` }}>
-            <span>{formatTime(secondsLeft)}</span>
-            <small>~~~</small>
-          </div>
-
-          <div className="play-feedback">
+          <div className="play-action-prompt" aria-live="polite">
             {interaction.feedback || feedback.label}
           </div>
+
+          <div
+            className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
+            aria-hidden={isDemoMode || hasLandmarks}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7.6v5.2" />
+              <path d="M12 16.6h.01" />
+            </svg>
+            Face not detected. Move back into view.
+          </div>
+
+          <footer className="play-hud play-hud-bottom">
+            <div className="play-score">
+              <strong>{displayScore}</strong>
+              <span><small>POINTS</small>{scene.title}</span>
+            </div>
+          </footer>
+
+          {isGuideOpen && (
+            <div className="play-guide-backdrop" role="presentation">
+              <section className="play-guide-modal" id="routine-guide" role="dialog" aria-modal="true" aria-labelledby="routine-guide-title">
+                <h2 id="routine-guide-title">{scene.title}</h2>
+                <p>{practiceGuide.description}</p>
+                <div className="practice-steps play-guide-steps">
+                  <ol>
+                    {practiceGuide.tips.map((tip, index) => (
+                      <li key={tip} className={`practice-tip practice-tip-${index + 1}`}>
+                        <span className="practice-step-number" aria-hidden="true">Step {index + 1}</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <button type="button" onClick={() => setIsGuideOpen(false)}>Got it!</button>
+              </section>
+            </div>
+          )}
 
           {isQuitOpen && (
             <div className="play-quit-backdrop" role="presentation">
               <section className="play-quit-modal" role="dialog" aria-modal="true" aria-labelledby="quit-routine-title">
-                <p>SESSION IN PROGRESS</p>
-                <h2 id="quit-routine-title">Quit this reset?</h2>
-                <span>Your score for this session will not be saved.</span>
+                <h2 id="quit-routine-title">Leave &quot;{scene.title}&quot;?</h2>
+                <span>Your progress won&apos;t be saved.</span>
                 <div>
-                  <button type="button" onClick={() => setIsQuitOpen(false)}>KEEP GOING</button>
-                  <button type="button" onClick={onExit}>QUIT</button>
+                  <button className="play-quit-leave" type="button" onClick={onExit}>Leave</button>
+                  <button className="play-quit-stay" type="button" onClick={() => setIsQuitOpen(false)}>Stay</button>
                 </div>
               </section>
             </div>
@@ -2023,6 +2078,7 @@ function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, st
         ) : (
           <video ref={previewVideoRef} className="preview-video" autoPlay playsInline muted />
         )}
+        {!isDemoMode && !stream && <span className="preview-camera-off">CAMERA OFF</span>}
       </div>
       <div className="preview-status">
         {formatDetectorMode(detectorMode)} face · {formatDetectorMode(handMode)} hand

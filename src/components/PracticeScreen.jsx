@@ -1,8 +1,18 @@
+import { useEffect, useRef } from 'react';
 import { getSceneById } from '../data/scenes.js';
+import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { RoutineScenePreview } from './RoutineScreen.jsx';
 
-export default function PracticeScreen({ selectedScene, onBegin, onBack }) {
+export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBegin, onBack }) {
   const scene = getSceneById(selectedScene);
+  const stageRef = useRef(null);
+  const trackingVideoRef = useRef(null);
+  const { hasLandmarks } = useFaceLandmarks({
+    videoRef: trackingVideoRef,
+    stageRef,
+    stream,
+    isDemoMode,
+  });
   const guide = scene.practice || {
     renderer: 'default',
     title: `How to Play ${scene.title}`,
@@ -11,6 +21,12 @@ export default function PracticeScreen({ selectedScene, onBegin, onBack }) {
     effectTitle: scene.title,
     effectDescription: scene.subtitle,
   };
+
+  useEffect(() => {
+    if (trackingVideoRef.current && stream) {
+      trackingVideoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
   return (
     <section className={`screen practice-screen practice-screen-${guide.renderer}`}>
@@ -38,7 +54,8 @@ export default function PracticeScreen({ selectedScene, onBegin, onBack }) {
           </div>
         </section>
 
-        <div className="practice-stage" aria-label="Scene preview">
+        <div className="practice-stage" ref={stageRef} aria-label="Scene preview">
+          <video ref={trackingVideoRef} className="practice-tracking-video" autoPlay playsInline muted />
           <div className="practice-stage-toolbar" aria-hidden="true">
             <span className="practice-camera-status"><i />camera off</span>
             <span className="practice-stage-timer">0:30</span>
@@ -49,6 +66,17 @@ export default function PracticeScreen({ selectedScene, onBegin, onBack }) {
           <div className="practice-stage-footer" aria-hidden="true">
             <strong>0</strong>
             <span><small>POINTS</small>{scene.title}</span>
+          </div>
+          <div
+            className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
+            aria-hidden={isDemoMode || hasLandmarks}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7.6v5.2" />
+              <path d="M12 16.6h.01" />
+            </svg>
+            Face not detected. Move back into view.
           </div>
         </div>
       </main>
