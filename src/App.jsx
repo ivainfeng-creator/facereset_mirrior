@@ -70,6 +70,7 @@ const SESSION_COMPLETE_STAMP_EFFECT = Object.freeze({
   source: '/audio/Overall/Stamp.mp3',
   volume: 0.7,
 });
+const DAILY_COMPLETION_RESULT_DELAY_MS = 1240;
 
 const RESULT_PREVIEW = {
   type: 'daily-plan',
@@ -108,12 +109,14 @@ export default function App() {
   const [progressRevision, setProgressRevision] = useState(0);
   const [newlyCompletedSceneId, setNewlyCompletedSceneId] = useState(null);
   const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
+  const [routineReturnScreen, setRoutineReturnScreen] = useState(SCREENS.theme);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [guideOverlay, setGuideOverlay] = useState(null);
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
   const welcomeEffectTimerRef = useRef(null);
+  const completionResultTimerRef = useRef(null);
   const sessionSnapshotsRef = useRef({ programDay: null, snapshots: [] });
   const habit = useMemo(() => loadHabitProgress(), [latestResult, progressRevision]);
   const isRoutineScreen = screen === SCREENS.routine;
@@ -121,6 +124,7 @@ export default function App() {
   useEffect(() => () => {
     window.clearTimeout(transitionTimerRef.current);
     window.clearTimeout(welcomeEffectTimerRef.current);
+    window.clearTimeout(completionResultTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -285,6 +289,7 @@ export default function App() {
     preloadSceneAudio(getSceneById(selectedScene).audio);
     unlockAudio();
     setGuideOverlay(null);
+    setRoutineReturnScreen(SCREENS.theme);
     markGuideSeen(selectedScene);
     navigate(SCREENS.routine, 'slide-fwd');
   };
@@ -328,7 +333,14 @@ export default function App() {
     setProgressRevision((value) => value + 1);
     setNewlyCompletedSceneId(result.sceneId);
     playSceneEffect(SESSION_COMPLETE_STAMP_EFFECT);
-    if (dailyPlan.isComplete) playSceneEffect(WELCOME_START_EFFECT);
+    if (dailyPlan.isComplete) {
+      playSceneEffect(WELCOME_START_EFFECT);
+      navigate(SCREENS.theme, 'quiet');
+      completionResultTimerRef.current = window.setTimeout(() => {
+        navigate(SCREENS.result, 'paper');
+      }, DAILY_COMPLETION_RESULT_DELAY_MS);
+      return;
+    }
     navigate(SCREENS.theme, 'quiet');
   };
 
@@ -350,6 +362,15 @@ export default function App() {
 
   const restartRoutine = () => {
     navigate(SCREENS.theme, 'slide-back');
+  };
+
+  const replayResultSession = (sceneId) => {
+    traceAudioLifecycle('result session replay', { sceneId });
+    preloadSceneAudio(getSceneById(sceneId).audio);
+    unlockAudio();
+    setSelectedScene(sceneId);
+    setRoutineReturnScreen(SCREENS.result);
+    navigate(SCREENS.routine, 'slide-fwd');
   };
 
   const resetToLanding = () => {
@@ -453,7 +474,7 @@ export default function App() {
           isDemoMode={isDemoMode}
           selectedScene={selectedScene}
           onComplete={finishRoutine}
-          onExit={() => navigate(debugSceneId ? SCREENS.landing : SCREENS.theme, 'slide-back')}
+          onExit={() => navigate(debugSceneId ? SCREENS.landing : routineReturnScreen, 'slide-back')}
         />
       )}
 
@@ -461,7 +482,7 @@ export default function App() {
         <ResultScreen
           result={latestResult}
           habit={habit}
-          onRestart={restartRoutine}
+          onRestart={replayResultSession}
           onTodayPlan={() => navigate(SCREENS.theme, 'slide-back')}
           onPassport={() => navigate(SCREENS.passport, 'slide-fwd')}
           onLeaderboard={() => navigate(SCREENS.leaderboard, 'slide-fwd')}

@@ -65,7 +65,6 @@ import {
   stopSceneEffect,
   traceAudioLifecycle,
 } from '../utils/audioManager.js';
-import { MirrorVideo } from './MirrorScreen.jsx';
 
 const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
@@ -284,6 +283,14 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
+  const cameraTrack = stream?.getVideoTracks()[0];
+  const isCameraUnavailable = (
+    !stream
+    || !stream.active
+    || !cameraTrack
+    || !cameraTrack.enabled
+    || cameraTrack.readyState !== 'live'
+  );
   const interactionProgressRefs = useRef(Object.fromEntries(
     Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [key, createProgress()]),
   ));
@@ -725,8 +732,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
               detectorMode={detectorMode}
               handMode={scene.interaction === 'mouthOpening' ? interaction.isOpen ? 'good-flow' : 'mouth-ready' : handMode}
               isDemoMode={isDemoMode}
+              isCameraUnavailable={isCameraUnavailable}
               previewVideoRef={previewVideoRef}
-              stream={stream}
             />
             <div className="play-hud-actions">
               <div
@@ -780,8 +787,8 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
           </div>
 
           <div
-            className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-            aria-hidden={isDemoMode || hasLandmarks}
+            className={`face-tracking-toast ${!isCameraUnavailable && !isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
+            aria-hidden={isCameraUnavailable || isDemoMode || hasLandmarks}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
@@ -2514,7 +2521,7 @@ function TrackingVideo({ videoRef, isDemoMode }) {
   return <video ref={videoRef} className="tracking-video" autoPlay playsInline muted />;
 }
 
-function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, stream }) {
+function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnavailable, previewVideoRef }) {
   return (
     <div className="camera-preview" aria-label="Front camera preview">
       <div className="preview-header">
@@ -2522,12 +2529,17 @@ function CameraPreview({ detectorMode, handMode, isDemoMode, previewVideoRef, st
         <span>Front camera</span>
       </div>
       <div className="preview-video-shell">
-        {isDemoMode || !stream ? (
-          <MirrorVideo videoRef={previewVideoRef} isDemoMode />
+        {isCameraUnavailable ? (
+          <span className="scene-camera-off" aria-hidden="true">
+            <svg viewBox="0 -960 960 960" focusable="false">
+              <path d="M400-480Zm240 320H467q13-18 22.5-38t16.5-42h134v-480H160v131q-22 6-42 15.5T80-551v-169q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160ZM98.5-178.5Q40-237 40-320t58.5-141.5Q157-520 240-520t141.5 58.5Q440-403 440-320t-58.5 141.5Q323-120 240-120T98.5-178.5ZM240-200q8 0 14-6t6-14q0-8-6-14t-14-6q-8 0-14 6t-6 14q0 8 6 14t14 6Zm-20-80h40v-160h-40v160Z" />
+            </svg>
+          </span>
+        ) : isDemoMode ? (
+          <div className="demo-mirror" />
         ) : (
           <video ref={previewVideoRef} className="preview-video" autoPlay playsInline muted />
         )}
-        {!isDemoMode && !stream && <span className="preview-camera-off">CAMERA OFF</span>}
       </div>
       <div className="preview-status">
         {formatDetectorMode(detectorMode)} face · {formatDetectorMode(handMode)} hand

@@ -2131,19 +2131,19 @@ h1 {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.preview-camera-off {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(30, 50, 60, 0.6);
-  background: rgba(255, 255, 255, 0.6);
-  font-family: ui-monospace, monospace;
-  font-size: 9px;
-  letter-spacing: 0.3px;
-  line-height: 1.3;
-  text-align: center;
+.preview-video-shell .scan-camera-placeholder.camera-permission-icon {
+  width: 64px;
+  height: 64px;
+  background: #101010;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.14),
+    0 0 0 4px #ffffff;
+}
+
+.preview-video-shell .scan-camera-placeholder.camera-permission-icon svg {
+  width: 32px;
+  height: 32px;
+  fill: #ffffff;
 }
 
 .preview-video,
@@ -5081,7 +5081,7 @@ h1 {
 
 .play-quit-modal {
   display: grid;
-  width: min(100%, 360px);
+  width: min(375px, calc(100vw - 48px));
   gap: 12px;
   border-radius: var(--fr-radius-card);
   padding: 28px 24px 24px;
@@ -5322,7 +5322,7 @@ h1 {
 
 .play-guide-modal {
   display: grid;
-  width: min(100%, 360px);
+  width: min(375px, calc(100vw - 48px));
   gap: 14px;
   padding: 28px 24px 24px;
   border-radius: var(--fr-radius-card);
@@ -5379,7 +5379,7 @@ h1 {
 }
 
 .play-guide-modal button {
-  width: 132px;
+  width: min(100%, 240px);
   justify-self: center;
   border: 0;
   border-radius: 26px;
@@ -5401,15 +5401,7 @@ h1 {
 }
 
 @media (max-width: 599px) {
-  .play-guide-backdrop {
-    padding:
-      max(18px, env(safe-area-inset-top))
-      18px
-      max(18px, env(safe-area-inset-bottom));
-  }
-
   .play-guide-modal {
-    width: min(100%, 360px);
     max-height: 100%;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     overflow: auto;
@@ -11966,7 +11958,7 @@ h1 {
 .result-name-entry-modal {
   position: relative;
   display: grid;
-  width: min(100%, 360px);
+  width: min(375px, calc(100vw - 48px));
   gap: 13px;
   border-radius: 20px;
   padding: 30px 28px 26px;
@@ -12022,8 +12014,8 @@ h1 {
   position: absolute;
   top: 12px;
   right: 14px;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 0;
   padding: 0;
   color: #aaa7a2;
@@ -12034,6 +12026,8 @@ h1 {
 }
 
 .result-name-entry-submit {
+  width: min(100%, 240px);
+  justify-self: center;
   min-height: 46px;
   border: 0;
   border-radius: 999px;
@@ -15316,7 +15310,7 @@ h1 {
   min-height: 100svh !important;
   margin: 0 !important;
   place-items: center;
-  padding: 20px !important;
+  padding: 24px !important;
   background: rgba(10, 10, 10, 0.54) !important;
   backdrop-filter: blur(3px);
 }
@@ -15371,7 +15365,7 @@ h1 {
 }
 
 .guide-flow-overlay .scan-alignment-card {
-  width: min(100%, 375px);
+  width: min(375px, calc(100vw - 48px));
   min-height: 0;
   border-radius: var(--fr-radius-card);
   box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
@@ -15387,7 +15381,7 @@ h1 {
 
 .guide-flow-overlay .camera-permission-card {
   position: relative;
-  width: min(100%, 375px);
+  width: min(375px, calc(100vw - 48px));
   gap: 20px;
   padding: 26px 24px 28px;
   border-radius: var(--fr-radius-card);
@@ -15448,7 +15442,7 @@ h1 {
 }
 
 .guide-flow-overlay .camera-retry-button {
-  width: min(100%, 309px);
+  width: min(100%, 240px);
   min-height: 52px;
   color: #ffffff;
   background: var(--fr-blue);
@@ -15542,7 +15536,7 @@ h1 {
 
 .guide-flow-overlay .scan-primary-action {
   display: inline-grid;
-  width: min(100%, 309px);
+  width: min(100%, 240px);
   min-height: 52px;
   place-items: center;
   justify-self: center;
@@ -15573,15 +15567,9 @@ h1 {
 }
 
 @media (max-width: 460px) {
-  .guide-flow-overlay {
-    padding: 0 !important;
-  }
-
   .guide-flow-overlay .scan-alignment-card,
   .guide-flow-overlay .camera-permission-card {
-    width: 100%;
-    min-height: 100svh;
-    border-radius: 0;
+    min-height: 0;
   }
 }
 
@@ -16473,6 +16461,24 @@ h1 {
   border: 2px solid currentColor;
   border-radius: 50%;
   opacity: 0.9;
+}
+
+.scene-camera-off {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.scene-camera-off svg {
+  width: 32px;
+  height: 32px;
+  fill: #ffffff;
 }
 
 .practice-stage-timer {

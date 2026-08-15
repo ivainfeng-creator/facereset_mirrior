@@ -5,11 +5,16 @@ import {
   getSupabaseDisplayName,
   saveSupabaseDisplayName,
 } from '../utils/supabaseProgressAdapter.js';
+import { playSceneEffect } from '../utils/audioManager.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 import TodayPlanCard from './TodayPlanCard.jsx';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
+const LEADERBOARD_SUBMIT_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
 
 export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onPassport, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
   const [exportMessage, setExportMessage] = useState('');
@@ -117,6 +122,7 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
 
   const saveName = async (event) => {
     event.preventDefault();
+    playSceneEffect(LEADERBOARD_SUBMIT_EFFECT);
     const displayName = normalizeDisplayName(nameDraft);
     if (!displayName) {
       setNameError('Enter a display name to join the leaderboard.');

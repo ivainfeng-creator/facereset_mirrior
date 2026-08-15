@@ -188,7 +188,7 @@ export function MirrorVideo({ videoRef, isDemoMode, showPlaceholder = false }) {
   );
 }
 
-function ScanCameraPlaceholder() {
+export function ScanCameraPlaceholder() {
   return (
     <span className="scan-camera-placeholder camera-permission-icon" aria-hidden="true">
       <svg viewBox="0 -960 960 960" focusable="false">
