@@ -7,6 +7,8 @@ export default function ThemeScreen({
   selectedScene,
   onSelect,
   isEntering = false,
+  newlyCompletedSceneId = null,
+  onCompletionStampAnimationEnd,
 }) {
   const [preparingSceneId, setPreparingSceneId] = useState(null);
   const preparingTimerRef = useRef(null);
@@ -57,6 +59,8 @@ export default function ThemeScreen({
           onStart={startSession}
           onSessionSelect={startSession}
           showCompletion
+          newlyCompletedSceneId={newlyCompletedSceneId}
+          onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}
         />
       </main>
     </section>

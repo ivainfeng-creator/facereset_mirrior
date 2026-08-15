@@ -418,7 +418,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   });
 
   useEffect(() => {
-    if (isQuitOpen) return undefined;
+    if (isGuideOpen || isQuitOpen) return undefined;
     const timer = window.setInterval(() => {
       setElapsed((current) => {
         const next = Math.min(activeTotalSeconds, current + 1);
@@ -426,7 +426,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [activeTotalSeconds, isQuitOpen]);
+  }, [activeTotalSeconds, isGuideOpen, isQuitOpen]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);

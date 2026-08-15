@@ -106,10 +106,10 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
   const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
+  const [newlyCompletedSceneId, setNewlyCompletedSceneId] = useState(null);
   const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [guideOverlay, setGuideOverlay] = useState(null);
-  const [isCelebratingCompletion, setIsCelebratingCompletion] = useState(false);
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
@@ -325,9 +325,10 @@ export default function App() {
     } else {
       setLatestResult(null);
     }
-    setIsCelebratingCompletion(dailyPlan.isComplete);
     setProgressRevision((value) => value + 1);
+    setNewlyCompletedSceneId(result.sceneId);
     playSceneEffect(SESSION_COMPLETE_STAMP_EFFECT);
+    if (dailyPlan.isComplete) playSceneEffect(WELCOME_START_EFFECT);
     navigate(SCREENS.theme, 'quiet');
   };
 
@@ -336,7 +337,6 @@ export default function App() {
 
     if (!dailyPlan.isComplete) return;
 
-    setIsCelebratingCompletion(false);
     setLatestResult((current) => ({
       ...dailyPlan,
       snapshots: current?.programDay === dailyPlan.programDay
@@ -347,18 +347,6 @@ export default function App() {
     }));
     navigate(SCREENS.result, 'paper');
   };
-
-  useEffect(() => {
-    if (!isCelebratingCompletion || screen !== SCREENS.theme) return undefined;
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      openDailyResult();
-      return undefined;
-    }
-
-    const timer = window.setTimeout(openDailyResult, 1240);
-    return () => window.clearTimeout(timer);
-  }, [isCelebratingCompletion, progressRevision, screen]);
 
   const restartRoutine = () => {
     navigate(SCREENS.theme, 'slide-back');
@@ -412,8 +400,12 @@ export default function App() {
           onGuide={openGuide}
           onBack={resetToLanding}
           onContinue={openDailyResult}
+          onViewReport={openDailyResult}
+          onViewLeaderboard={() => navigate(SCREENS.leaderboard, 'slide-fwd')}
           habit={habit}
           isEntering={screenTransition === 'welcome-to-plan'}
+          newlyCompletedSceneId={newlyCompletedSceneId}
+          onCompletionStampAnimationEnd={() => setNewlyCompletedSceneId(null)}
         />
       )}
 

@@ -18,6 +18,8 @@ export default function TodayPlanCard({
   onStart,
   onSessionSelect,
   showCompletion = false,
+  newlyCompletedSceneId = null,
+  onCompletionStampAnimationEnd,
   className = '',
 }) {
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
@@ -53,6 +55,7 @@ export default function TodayPlanCard({
           const isActive = activeIndex === index;
           const isLocked = !isAllDone && activeIndex !== -1 && index > activeIndex;
           const isPreparing = preparingSceneId === scene.id;
+          const isNewlyCompleted = newlyCompletedSceneId === scene.id;
           const canSelect = Boolean(onSessionSelect) && (isDone || isActive);
           const rowClassName = [
             'challenge-v3-session',
@@ -61,6 +64,7 @@ export default function TodayPlanCard({
             isActive ? 'is-active' : '',
             isLocked ? 'is-locked' : '',
             isPreparing ? 'is-preparing' : '',
+            isNewlyCompleted ? 'is-newly-completed' : '',
           ].filter(Boolean).join(' ');
 
           return (
@@ -91,7 +95,12 @@ export default function TodayPlanCard({
 
               {isDone && (
                 <span className="challenge-v3-done-actions">
-                  <span className="challenge-v3-done">DONE | {result?.score || 0}</span>
+                  <span
+                    className="challenge-v3-done"
+                    onAnimationEnd={isNewlyCompleted ? onCompletionStampAnimationEnd : undefined}
+                  >
+                    DONE | {result?.score || 0}
+                  </span>
                   <span className="challenge-v3-replay" aria-hidden="true">↻</span>
                 </span>
               )}
