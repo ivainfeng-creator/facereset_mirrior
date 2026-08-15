@@ -14,9 +14,11 @@ import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
 import {
+  pauseSceneBackground,
   playSceneEffect,
   preloadAudioSources,
   preloadSceneAudio,
+  resumeSceneBackground,
   startSceneBackground,
   stopSceneBackground,
   traceAudioLifecycle,
@@ -136,6 +138,13 @@ export default function App() {
       stopSceneBackground(OVERALL_BACKGROUND, { fadeOutMs: OVERALL_BACKGROUND.fadeOutMs });
     };
   }, [isRoutineScreen]);
+
+  useEffect(() => {
+    if (!guideOverlay || isRoutineScreen) return undefined;
+
+    pauseSceneBackground(OVERALL_BACKGROUND);
+    return () => resumeSceneBackground(OVERALL_BACKGROUND);
+  }, [guideOverlay, isRoutineScreen]);
 
   useEffect(() => {
     let isMounted = true;
