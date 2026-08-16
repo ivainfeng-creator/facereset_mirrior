@@ -3,9 +3,11 @@ import {
   clearAllProgress,
   clearTodayProgressDebug,
   loadProgressDebugSnapshot,
+  seedDayOneCompleteDebug,
   seedProgressDebug,
   seedSessionOneCompleteDebug,
 } from '../utils/progressAdapter.js';
+import { getActiveDebugDate, toLocalDateKey } from '../utils/effectiveDate.js';
 
 export default function ProgressDebugPanel({ onProgressChange }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,6 +15,10 @@ export default function ProgressDebugPanel({ onProgressChange }) {
   const [message, setMessage] = useState('');
   const snapshot = useMemo(() => loadProgressDebugSnapshot(), [revision]);
   const recentHistory = snapshot.history || [];
+  const activeDebugDate = getActiveDebugDate();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dayTwoDate = toLocalDateKey(tomorrow);
 
   const refresh = (nextMessage = '') => {
     setMessage(nextMessage);
@@ -39,6 +45,18 @@ export default function ProgressDebugPanel({ onProgressChange }) {
   const seedSessionOneComplete = () => {
     seedSessionOneCompleteDebug();
     refresh('已重現 Session 1 完成狀態');
+  };
+
+  const seedDayOneComplete = () => {
+    seedDayOneCompleteDebug();
+    refresh('已建立 Day 1 完成狀態');
+  };
+
+  const setDebugDay = (date) => {
+    const url = new URL(window.location.href);
+    if (date) url.searchParams.set('debugDate', date);
+    else url.searchParams.delete('debugDate');
+    window.location.assign(url);
   };
 
   return (
@@ -104,7 +122,10 @@ export default function ProgressDebugPanel({ onProgressChange }) {
           <section className="progress-debug-section">
             <h3>測試工具</h3>
             <div className="progress-debug-actions">
+              <button onClick={() => setDebugDay(null)} type="button" disabled={!activeDebugDate}>Day 1</button>
+              <button onClick={() => setDebugDay(dayTwoDate)} type="button" disabled={activeDebugDate === dayTwoDate}>Day 2</button>
               <button onClick={seedSessionOneComplete} type="button">Session 1 完成</button>
+              <button onClick={seedDayOneComplete} type="button">Day 1 完成</button>
               <button onClick={seedWeek} type="button">模擬 7 天</button>
               <button onClick={clearToday} type="button">清除今天</button>
               <button onClick={clearAll} type="button">清除全部</button>

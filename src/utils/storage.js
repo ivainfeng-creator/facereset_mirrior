@@ -425,6 +425,40 @@ export function seedSessionOneCompleteProgress() {
   });
 }
 
+export function seedDayOneCompleteProgress() {
+  const current = loadHabit();
+  const date = toLocalDateKey(new Date());
+  const history = (current.history || []).filter((entry) => entry.date !== date);
+  const completedSessions = TODAY_SCENE_IDS.map((sceneId, index) => {
+    const scene = getSceneById(sceneId);
+    const score = 96 - index * 3;
+    return {
+      id: `seed-day-one-complete-${date}-${sceneId}`,
+      sceneId,
+      sceneTitle: scene.title,
+      areaKey: scene.areaKey,
+      area: scene.area,
+      stamp: scene.stamp,
+      date,
+      programDay: 1,
+      completedAt: `${date}T${String(12 + index).padStart(2, '0')}:00:00.000Z`,
+      score,
+      holdSeconds: 30,
+      streak: 1,
+      metrics: { [sceneId]: score },
+    };
+  });
+  const nextHabit = rebuildHabitFromHistory({
+    ...current,
+    programDayByDate: {
+      ...(current.programDayByDate || {}),
+      [date]: 1,
+    },
+  }, [...completedSessions, ...history]);
+  persistHabit(nextHabit);
+  return nextHabit;
+}
+
 export function buildPassport(habit = loadHabit()) {
   const history = habit.history || [];
   const weekDays = getLastSevenDays();

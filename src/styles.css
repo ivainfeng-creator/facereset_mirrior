@@ -229,6 +229,7 @@ h1 {
 .secondary-button:hover,
 .ghost-button:hover {
   transform: translateY(-1px);
+  filter: brightness(1.1);
 }
 
 .primary-button:disabled,
@@ -570,7 +571,7 @@ h1 {
 
 .sound-toggle:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.82);
+  filter: brightness(1.1);
 }
 
 .sound-toggle.active {
@@ -5030,7 +5031,7 @@ h1 {
 
 .play-guide-toggle:hover,
 .play-exit-button:hover {
-  background: rgba(0, 0, 0, 0.06);
+  filter: brightness(1.1);
 }
 
 .play-sound-toggle span {
@@ -5136,7 +5137,7 @@ h1 {
 }
 
 .play-quit-leave:hover {
-  filter: brightness(0.96);
+  filter: brightness(1.1);
 }
 
 .play-quit-stay {
@@ -5144,7 +5145,7 @@ h1 {
 }
 
 .play-quit-stay:hover {
-  filter: brightness(0.97);
+  filter: brightness(1.1);
 }
 
 .play-quit-modal button:active {
@@ -5393,7 +5394,7 @@ h1 {
 }
 
 .play-guide-modal button:hover {
-  filter: brightness(0.97);
+  filter: brightness(1.1);
 }
 
 .play-guide-modal button:active {
@@ -6901,8 +6902,7 @@ h1 {
 }
 
 .theme-guide-button:hover {
-  color: #1f5655;
-  background: rgba(255, 255, 255, 0.96);
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -9866,6 +9866,7 @@ h1 {
 
 .practice-got-it:hover {
   background: #c94f28;
+  filter: brightness(1.1);
   transform: translateY(1px);
 }
 
@@ -10577,7 +10578,8 @@ h1 {
 }
 
 .welcome-start-button:hover {
-  filter: brightness(0.97);
+  filter: brightness(1.1);
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -10812,10 +10814,11 @@ h1 {
   text-align: center;
   transform: translateX(-50%);
   cursor: pointer;
-  transition: transform 160ms ease, filter 160ms ease;
+  transition: transform 160ms ease, color 160ms ease, background 160ms ease;
 }
 
-.welcome-v3-start:hover {
+.welcome-v3-start:hover:not(:disabled),
+.welcome-v3-start:focus-visible:not(:disabled) {
   filter: brightness(1.1);
 }
 
@@ -11387,7 +11390,7 @@ h1 {
 
 .camera-retry-button:hover,
 .camera-retry-button:focus-visible {
-  filter: brightness(0.96);
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -12078,12 +12081,20 @@ h1 {
   position: absolute;
   top: 18px;
   right: 18px;
+  width: 34px;
+  height: 34px;
   border: 0;
+  border-radius: 50%;
   color: rgba(25, 25, 24, 0.35);
   background: transparent;
   font-size: 1.25rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+.leaderboard-name-close:hover,
+.leaderboard-name-close:focus-visible {
+  background: #e8e7e3;
 }
 
 .leaderboard-name-modal h2 {
@@ -12421,6 +12432,7 @@ h1 {
 
 .result-toolbar button:hover:not(:disabled) {
   background: #eceae6;
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -13300,9 +13312,14 @@ h1 {
   box-sizing: border-box;
   color: #c9c6c0;
   background: transparent;
+  cursor: pointer;
   font-size: 0.75rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.challenge-v3-day:disabled {
+  cursor: default;
 }
 
 .challenge-v3-day.is-current {
@@ -13315,6 +13332,12 @@ h1 {
 }
 
 .challenge-v3-day.is-past {
+  border: 0;
+  color: #ffffff;
+  background: var(--fr-blue);
+}
+
+.challenge-v3-day.is-available {
   border: 0;
   color: #ffffff;
   background: var(--fr-blue);
@@ -13575,12 +13598,12 @@ h1 {
   letter-spacing: 1.4px;
   line-height: 1;
   cursor: pointer;
-  transition: filter 160ms ease, transform 160ms ease;
+  transition: transform 160ms ease, color 160ms ease, background 160ms ease;
 }
 
 .challenge-v3-start:hover:not(:disabled),
 .challenge-v3-start:focus-visible:not(:disabled) {
-  filter: brightness(0.97);
+  filter: brightness(1.1);
 }
 
 .challenge-v3-start:active:not(:disabled) {
@@ -13855,7 +13878,7 @@ h1 {
 
 .challenge-v3-continue:hover,
 .challenge-v3-continue:focus-visible {
-  background: #006fae;
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -14109,7 +14132,8 @@ h1 {
   background: rgba(6, 122, 187, 0.1);
 }
 
-.challenge-v3-session.is-active {
+.challenge-v3-session.is-active,
+.challenge-v3-session.is-done {
   color: #1a1a1a;
 }
 
@@ -15296,6 +15320,7 @@ h1 {
 
 .result-dashboard-actions button:hover,
 .result-dashboard-actions button:focus-visible {
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -15563,7 +15588,7 @@ h1 {
 
 .guide-flow-overlay .scan-primary-action.is-complete:hover,
 .guide-flow-overlay .scan-primary-action.is-complete:focus-visible {
-  filter: brightness(0.96);
+  filter: brightness(1.1);
 }
 
 @media (max-width: 460px) {
@@ -15888,7 +15913,7 @@ h1 {
 }
 
 .practice-got-it:hover {
-  background: #efc920;
+  background: #f7d734;
   transform: none;
 }
 
@@ -16064,10 +16089,12 @@ h1 {
 
 .practice-back:hover {
   background: #e4e8e5;
+  filter: brightness(1.1);
 }
 
 .practice-got-it:hover {
-  background: #efc920;
+  background: #f7d734;
+  filter: brightness(1.1);
 }
 
 @media (min-width: 600px) {
@@ -16292,11 +16319,11 @@ h1 {
 }
 
 .practice-back:hover {
-  filter: brightness(0.96);
+  filter: brightness(1.1);
 }
 
 .practice-got-it:hover {
-  filter: brightness(0.97);
+  filter: brightness(1.1);
 }
 
 .practice-back:active,

@@ -77,3 +77,8 @@ export function seedSessionOneCompleteDebug() {
   return activeAdapter.debug?.seedSessionOneComplete?.()
     ?? localProgressAdapter.debug.seedSessionOneComplete();
 }
+
+export function seedDayOneCompleteDebug() {
+  return activeAdapter.debug?.seedDayOneComplete?.()
+    ?? localProgressAdapter.debug.seedDayOneComplete();
+}

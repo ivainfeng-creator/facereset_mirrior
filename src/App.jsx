@@ -151,7 +151,8 @@ export default function App() {
       const isModalButton = button.closest(
         '.guide-flow-overlay, .play-guide-modal, .play-quit-modal, .result-name-entry-modal, .leaderboard-name-modal, [role="dialog"]',
       );
-      if (isCloseButton || isModalButton) return;
+      const isDaySelector = button.classList.contains('challenge-v3-day');
+      if (isCloseButton || isModalButton || isDaySelector) return;
 
       playSceneEffect(BUTTON_HOVER_EFFECT);
     };
@@ -379,8 +380,8 @@ export default function App() {
     navigate(SCREENS.theme, 'quiet');
   };
 
-  const openDailyResult = () => {
-    const dailyPlan = buildDailyPlanSummary(loadHabitProgress());
+  const openDailyResult = (plan) => {
+    const dailyPlan = plan || buildDailyPlanSummary(loadHabitProgress());
 
     if (!dailyPlan.isComplete) return;
 

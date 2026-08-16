@@ -17,6 +17,8 @@ export default function TodayPlanCard({
   newlyCompletedSceneId = null,
   onCompletionStampAnimationEnd,
   className = '',
+  isReadOnly = false,
+  focusLabel = 'TODAY\'S FOCUS',
 }) {
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
@@ -27,10 +29,10 @@ export default function TodayPlanCard({
   const isAllDone = completedCount >= dailyScenes.length;
 
   return (
-    <section className={`challenge-v3-plan ${className}`.trim()} aria-label="Today’s focus">
+    <section className={`challenge-v3-plan ${className}`.trim()} aria-label={focusLabel}>
       <div className="challenge-v3-plan-header">
         <div>
-          <p>TODAY’S FOCUS</p>
+          <p>{focusLabel}</p>
           <h2>FACIAL WARM-UP</h2>
         </div>
         <div className="challenge-v3-progress" aria-label={`${completedCount} of ${dailyScenes.length} complete`}>
@@ -52,7 +54,7 @@ export default function TodayPlanCard({
           const isLocked = !isAllDone && activeIndex !== -1 && index > activeIndex;
           const isPreparing = preparingSceneId === scene.id;
           const isNewlyCompleted = newlyCompletedSceneId === scene.id;
-          const canSelect = Boolean(onSessionSelect) && (isDone || isActive);
+          const canSelect = !isReadOnly && Boolean(onSessionSelect) && (isDone || isActive);
           const rowClassName = [
             'challenge-v3-session',
             selectedScene === scene.id ? 'is-selected' : '',
@@ -74,7 +76,9 @@ export default function TodayPlanCard({
                 onSessionSelect(scene.id);
               }}
               disabled={!canSelect || Boolean(preparingSceneId)}
-              aria-label={isDone ? `Replay ${scene.title}. Today's best score ${result?.score || 0}` : undefined}
+              aria-label={isDone
+                ? `${isReadOnly ? 'Completed' : 'Replay'} ${scene.title}. Best score ${result?.score || 0}`
+                : undefined}
             >
               <span className="challenge-v3-art-wrap">
                 <img src={scene.planArt} alt="" className="challenge-v3-art" />
@@ -83,7 +87,7 @@ export default function TodayPlanCard({
               </span>
 
               <span className="challenge-v3-session-copy">
-                {isActive && !isDone && <small>SESSION {index + 1}</small>}
+                <small>SESSION {index + 1}</small>
                 <strong>{scene.title}</strong>
                 <span>30 sec · {scene.planPhase}</span>
               </span>

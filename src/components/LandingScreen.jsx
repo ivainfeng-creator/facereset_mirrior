@@ -35,7 +35,7 @@ export default function LandingScreen({ onStart, onInteract, isExiting = false }
         </div>
 
         <button className="welcome-v3-start" onClick={onStart} disabled={isExiting}>
-          START
+          Let's go
         </button>
       </main>
     </section>
