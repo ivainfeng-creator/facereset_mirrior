@@ -283,22 +283,26 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
               >
                 ×
               </button>
-              <h2>You&apos;re on the leaderboard!</h2>
-              <p>Enter a display name to appear on Day {programDay}&apos;s leaderboard.</p>
-              <label htmlFor="leaderboard-display-name">Display name</label>
-              <input
-                id="leaderboard-display-name"
-                value={nameDraft}
-                maxLength={24}
-                placeholder="Enter your name"
-                onChange={(event) => {
-                  setNameDraft(event.target.value);
-                  setNameError('');
-                }}
-                autoComplete="nickname"
-                autoFocus
-              />
-              {nameError && <small className="result-name-entry-error">{nameError}</small>}
+              <header className="result-name-entry-heading">
+                <h2>You&apos;re in Top 10!</h2>
+                <p>Enter a display name to appear on leaderboard.</p>
+              </header>
+              <div className={`result-name-entry-field${nameError ? ' is-error' : ''}`}>
+                <input
+                  id="leaderboard-display-name"
+                  aria-label="Display name"
+                  value={nameDraft}
+                  maxLength={24}
+                  placeholder="Enter your name"
+                  onChange={(event) => {
+                    setNameDraft(event.target.value);
+                    setNameError('');
+                  }}
+                  autoComplete="nickname"
+                  autoFocus
+                />
+                {nameError && <small className="result-name-entry-error">{nameError}</small>}
+              </div>
               <button className="result-name-entry-submit" type="submit" disabled={isNameSaving}>
                 {isNameSaving ? 'Saving...' : 'Join the Leaderboard'}
               </button>

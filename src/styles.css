@@ -11954,54 +11954,61 @@ h1 {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(23, 23, 23, 0.52);
-  backdrop-filter: blur(3px);
+  background: rgba(247, 247, 247, 0.4);
 }
 
 .result-name-entry-modal {
   position: relative;
   display: grid;
   width: min(375px, calc(100vw - 48px));
-  gap: 13px;
-  border-radius: 20px;
-  padding: 30px 28px 26px;
-  color: #191919;
-  background: #fff;
-  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.22);
+  gap: 20px;
+  border-radius: var(--fr-radius-card);
+  padding: 26px 24px 28px;
+  color: #171716;
+  background: #f7f7f7;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
+}
+
+.result-name-entry-heading {
+  display: grid;
+  gap: 8px;
 }
 
 .result-name-entry-modal h2 {
   margin: 0;
-  padding-right: 22px;
-  font-family: var(--display-font, inherit);
-  font-size: 27px;
+  padding: 0 34px;
+  color: #171716;
+  font-family: var(--fr-font-display);
+  font-size: 32px;
+  font-weight: 400;
   line-height: 1;
   letter-spacing: 0;
+  text-align: center;
 }
 
 .result-name-entry-modal p {
   margin: 0;
-  color: #716e69;
-  font-size: 14px;
-  line-height: 1.45;
+  color: #6a6a66;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
 }
 
-.result-name-entry-modal label {
-  margin-top: 3px;
-  color: #4d4a46;
-  font-size: 12px;
-  font-weight: 900;
+.result-name-entry-field {
+  display: grid;
+  gap: 6px;
 }
 
 .result-name-entry-modal input {
   width: 100%;
-  min-height: 48px;
+  min-height: 52px;
   box-sizing: border-box;
-  border: 1px solid #e2ded8;
+  border: 1px solid #daddd9;
   border-radius: 13px;
   padding: 0 14px;
-  color: #191919;
-  background: #f6f5f3;
+  color: #171716;
+  background: #ffffff;
   font: inherit;
   font-size: 15px;
   font-weight: 700;
@@ -12009,37 +12016,48 @@ h1 {
 }
 
 .result-name-entry-modal input:focus {
-  border-color: #087bbb;
-  box-shadow: 0 0 0 3px rgba(8, 123, 187, 0.15);
+  border-color: #00a95f;
+}
+
+.result-name-entry-field.is-error input,
+.result-name-entry-field.is-error input:focus {
+  border-color: #c64b4b;
 }
 
 .result-name-entry-close {
   position: absolute;
   top: 12px;
-  right: 14px;
+  right: 12px;
   width: 34px;
   height: 34px;
   border: 0;
+  border-radius: 50%;
   padding: 0;
-  color: #aaa7a2;
+  color: #1b1c1d;
   background: transparent;
   cursor: pointer;
   font-size: 22px;
   line-height: 1;
 }
 
+.result-name-entry-close:hover,
+.result-name-entry-close:focus-visible {
+  background: #e8e7e3;
+}
+
 .result-name-entry-submit {
   width: min(100%, 240px);
   justify-self: center;
-  min-height: 46px;
+  min-height: 52px;
   border: 0;
   border-radius: 999px;
   color: #fff;
-  background: #087bbb;
+  background: #00a95f;
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 .result-name-entry-submit:disabled {
@@ -12048,11 +12066,13 @@ h1 {
 }
 
 .result-name-entry-error {
-  margin-top: -4px;
+  margin: 0;
+  padding-left: 8px;
   color: #c64b4b;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.4;
+  text-align: left;
 }
 
 .leaderboard-name-backdrop {
@@ -12079,8 +12099,8 @@ h1 {
 
 .leaderboard-name-close {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 12px;
+  right: 12px;
   width: 34px;
   height: 34px;
   border: 0;
@@ -15494,16 +15514,16 @@ h1 {
 
 .guide-flow-overlay .scan-close-button {
   position: absolute;
-  top: 26px;
-  right: 24px;
+  top: 12px;
+  right: 12px;
   border-radius: 50%;
   background: transparent;
 }
 
 .guide-flow-overlay .camera-close-button {
   position: absolute;
-  top: 26px;
-  right: 24px;
+  top: 12px;
+  right: 12px;
   width: 34px;
   height: 34px;
   border: 0;
