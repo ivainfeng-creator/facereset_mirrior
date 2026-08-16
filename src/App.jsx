@@ -47,6 +47,7 @@ const isProgressDebug = new URLSearchParams(window.location.search).get('debug')
 const isResultPreview = import.meta.env.DEV
   && new URLSearchParams(window.location.search).get('result') === '1';
 const debugSceneId = getActiveDebugSceneId();
+const SKIP_FACE_SCAN_STORAGE_KEY = 'face-reset-mirror-skip-face-scan';
 const WELCOME_TRANSITION_MS = 1020;
 const NAVIGATION_TRANSITION_MS = 420;
 const OVERALL_BACKGROUND = Object.freeze({
@@ -111,6 +112,9 @@ export default function App() {
   const [progressRevision, setProgressRevision] = useState(0);
   const [newlyCompletedSceneId, setNewlyCompletedSceneId] = useState(null);
   const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
+  const [sessionDate, setSessionDate] = useState(null);
+  const [selectedChallengeDate, setSelectedChallengeDate] = useState(null);
+  const [skipFaceScan, setSkipFaceScan] = useState(loadSkipFaceScanPreference);
   const [challengeView, setChallengeView] = useState(isResultPreview ? 'result' : 'plan');
   const [routineReturnView, setRoutineReturnView] = useState('plan');
   const [shouldAnimateResultCards, setShouldAnimateResultCards] = useState(false);
@@ -171,6 +175,30 @@ export default function App() {
   }, [guideOverlay, isRoutineScreen]);
 
   useEffect(() => {
+    if (skipFaceScan) setGuideOverlay(null);
+  }, [skipFaceScan]);
+
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key !== SKIP_FACE_SCAN_STORAGE_KEY) return;
+      setSkipFaceScan(event.newValue === 'true');
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const updateSkipFaceScan = (enabled) => {
+    const nextValue = Boolean(enabled);
+    setSkipFaceScan(nextValue);
+    try {
+      window.localStorage.setItem(SKIP_FACE_SCAN_STORAGE_KEY, String(nextValue));
+    } catch {
+      // The current page still uses the selected setting when storage is unavailable.
+    }
+  };
+
+  useEffect(() => {
     let isMounted = true;
     void initializeProgressSync({
       onMerged: () => {
@@ -197,6 +225,7 @@ export default function App() {
   const startTodayPlan = () => {
     if (screenTransition) return;
 
+    setSelectedChallengeDate(null);
     traceAudioLifecycle('START pressed');
     unlockAudio();
     playSceneEffect(WELCOME_START_EFFECT);
@@ -257,7 +286,7 @@ export default function App() {
     setAutoStartCamera(false);
     setIsDemoMode(false);
     if (guideOverlay === 'permission') {
-      setGuideOverlay('scan');
+      setGuideOverlay(skipFaceScan ? null : 'scan');
       return;
     }
     setScreen(debugSceneId ? SCREENS.routine : SCREENS.mirror);
@@ -289,13 +318,14 @@ export default function App() {
     setScreen(SCREENS.practice);
   };
 
-  const selectTheme = (sceneId) => {
+  const selectTheme = (sceneId, selectedDate = null) => {
     traceAudioLifecycle('scene selected', { sceneId });
     preloadSceneAudio(getSceneById(sceneId).audio);
     unlockAudio();
     setSelectedScene(sceneId);
+    setSessionDate(selectedDate);
 
-    const isCompletedSession = buildDailyPlanSummary(habit).sceneResults
+    const isCompletedSession = buildDailyPlanSummary(habit, selectedDate ? { date: selectedDate } : undefined).sceneResults
       .some((result) => result.sceneId === sceneId && result.completed);
     if (isCompletedSession) {
       setRoutineReturnView('plan');
@@ -305,6 +335,13 @@ export default function App() {
 
     playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
     navigate(SCREENS.practice, 'paper');
+
+    if (skipFaceScan) {
+      setAutoStartCamera(false);
+      setIsDemoMode(true);
+      setGuideOverlay(null);
+      return;
+    }
 
     if (cameraStream || isDemoMode) {
       setGuideOverlay('scan');
@@ -344,18 +381,19 @@ export default function App() {
     }
 
     const { snapshots: sceneSnapshots = [], ...persistableResult } = result;
-    saveSessionResult(persistableResult, {
+    const { saved } = saveSessionResult(persistableResult, {
       onMerged: () => setProgressRevision((value) => value + 1),
     });
     const updatedHabit = loadHabitProgress();
-    const dailyPlan = buildDailyPlanSummary(updatedHabit);
+    const dailyPlan = buildDailyPlanSummary(updatedHabit, { date: saved.date });
+    setSelectedChallengeDate(saved.date);
     const sessionSnapshots = mergeSessionSnapshots({
       current: sessionSnapshotsRef.current,
       incoming: sceneSnapshots,
-      programDay: dailyPlan.programDay,
+      programDay: saved.programDay,
     });
     sessionSnapshotsRef.current = {
-      programDay: dailyPlan.programDay,
+      programDay: saved.programDay,
       snapshots: sessionSnapshots,
     };
 
@@ -387,6 +425,7 @@ export default function App() {
 
     if (!dailyPlan.isComplete) return;
 
+    setSelectedChallengeDate(dailyPlan.date);
     setLatestResult((current) => ({
       ...dailyPlan,
       snapshots: current?.programDay === dailyPlan.programDay
@@ -398,8 +437,40 @@ export default function App() {
     navigateChallenge('result');
   };
 
+  const openDailyResultWithAnimation = () => {
+    const dailyPlan = buildDailyPlanSummary(loadHabitProgress());
+
+    if (!dailyPlan.isComplete) return;
+
+    setSelectedChallengeDate(dailyPlan.date);
+    setLatestResult((current) => ({
+      ...dailyPlan,
+      snapshots: current?.programDay === dailyPlan.programDay
+        ? current.snapshots || []
+        : sessionSnapshotsRef.current.programDay === dailyPlan.programDay
+          ? sessionSnapshotsRef.current.snapshots
+          : [],
+    }));
+    playSceneEffect(WELCOME_START_EFFECT);
+    navigateChallenge('plan', 'quiet');
+    completionResultTimerRef.current = window.setTimeout(() => {
+      setResultAnimationKey((key) => key + 1);
+      navigateChallenge('result', 'quiet', { animateResultCards: true });
+    }, DAILY_COMPLETION_RESULT_DELAY_MS);
+  };
+
   const restartRoutine = () => {
+    setSelectedChallengeDate(null);
     navigateChallenge('plan', 'slide-back');
+  };
+
+  const selectChallengeDay = (plan) => {
+    setSelectedChallengeDate(plan.date);
+    if (plan.isComplete) {
+      openDailyResult(plan);
+      return;
+    }
+    navigateChallenge('plan');
   };
 
   const replayResultSession = (sceneId) => {
@@ -407,6 +478,7 @@ export default function App() {
     preloadSceneAudio(getSceneById(sceneId).audio);
     unlockAudio();
     setSelectedScene(sceneId);
+    setSessionDate(latestResult?.date || null);
     setRoutineReturnView('result');
     navigate(SCREENS.routine, 'slide-fwd');
   };
@@ -457,14 +529,18 @@ export default function App() {
           view={screenTransition === 'welcome-to-plan' ? 'plan' : challengeView}
           selectedScene={selectedScene}
           onSelect={selectTheme}
-          onViewReport={openDailyResult}
+          selectedDate={selectedChallengeDate}
+          onSelectDay={selectChallengeDay}
           habit={habit}
           isEntering={screenTransition === 'welcome-to-plan'}
           newlyCompletedSceneId={newlyCompletedSceneId}
           onCompletionStampAnimationEnd={() => setNewlyCompletedSceneId(null)}
           result={latestResult}
           onRestart={replayResultSession}
-          onTodayPlan={() => navigateChallenge('plan', 'slide-back')}
+          onTodayPlan={() => {
+            setSelectedChallengeDate(null);
+            navigateChallenge('plan', 'slide-back');
+          }}
           onPassport={() => navigate(SCREENS.passport, 'slide-fwd')}
           onLeaderboard={() => navigate(SCREENS.leaderboard, 'slide-fwd')}
           onProgressChanged={() => setProgressRevision((revision) => revision + 1)}
@@ -479,6 +555,7 @@ export default function App() {
           selectedScene={selectedScene}
           stream={cameraStream}
           isDemoMode={isDemoMode}
+          skipFaceScan={skipFaceScan}
           onBegin={beginRoutine}
           onBack={() => navigateChallenge('plan', 'slide-back')}
         />
@@ -499,7 +576,7 @@ export default function App() {
         />
       )}
 
-      {screen === SCREENS.practice && guideOverlay === 'scan' && (
+      {screen === SCREENS.practice && guideOverlay === 'scan' && !skipFaceScan && (
         <MirrorScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
@@ -516,7 +593,9 @@ export default function App() {
         <RoutineScreen
           stream={cameraStream}
           isDemoMode={isDemoMode}
+          skipFaceScan={skipFaceScan}
           selectedScene={selectedScene}
+          sessionDate={sessionDate}
           onComplete={finishRoutine}
           onExit={() => {
             if (debugSceneId) {
@@ -548,11 +627,21 @@ export default function App() {
       {isProgressDebug && (
         <ProgressDebugPanel
           onProgressChange={() => setProgressRevision((value) => value + 1)}
-          onDayOneComplete={openDailyResult}
+          onDayOneComplete={openDailyResultWithAnimation}
+          skipFaceScan={skipFaceScan}
+          onSkipFaceScanChange={updateSkipFaceScan}
         />
       )}
     </main>
   );
+}
+
+function loadSkipFaceScanPreference() {
+  try {
+    return window.localStorage.getItem(SKIP_FACE_SCAN_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
 }
 
 function mergeSessionSnapshots({ current, incoming, programDay }) {

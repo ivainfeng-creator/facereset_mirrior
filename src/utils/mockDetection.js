@@ -29,7 +29,7 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
   };
 }
 
-export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.templeGarden) {
+export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.templeGarden, date = null) {
   const rawSceneScore = stageScores[sceneId] ?? stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 820;
   const score = toFinalSceneScore(rawSceneScore);
   const radarScore = normalizeScoreForRadar(score);
@@ -44,6 +44,7 @@ export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.tem
     },
     radar,
     snapshots,
+    date,
     comment: getSceneComment(sceneId),
   };
 }

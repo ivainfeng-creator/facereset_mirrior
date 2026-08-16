@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE, getCompletedProgramDays } from '../utils/dailyPlan.js';
+import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
 import {
   fetchProgramDayLeaderboard,
   getSupabaseDisplayName,
@@ -27,6 +27,7 @@ export default function ResultScreen({
   shouldPromptForDisplayName = true,
   shouldAnimateCardLayout = false,
   cardLayoutAnimationKey = 0,
+  daySelector,
 }) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
@@ -39,7 +40,7 @@ export default function ResultScreen({
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState('');
   const dailyPlan = useMemo(() => {
-    const storedPlan = buildDailyPlanSummary(habit);
+    const storedPlan = buildDailyPlanSummary(habit, result?.date ? { date: result.date } : undefined);
     if (result?.type !== 'daily-plan') return storedPlan;
     return {
       ...storedPlan,
@@ -54,7 +55,6 @@ export default function ResultScreen({
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
-  const completedProgramDays = getCompletedProgramDays(habit);
 
   useEffect(() => {
     let isCurrent = true;
@@ -207,14 +207,7 @@ export default function ResultScreen({
       <main className="result-challenge-shell" aria-label="Face Reset challenge result">
         <header className="result-challenge-heading">
           <h1>Face Reset Challenge</h1>
-          <ol className="result-day-strip" aria-label="Seven day challenge progress">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-              <li className={`${day === programDay ? 'is-current ' : ''}${completedProgramDays.has(day) ? 'is-complete' : ''}`} key={day}>
-                {day === programDay ? `DAY ${day}` : day}
-                {completedProgramDays.has(day) && <span aria-hidden="true">✓</span>}
-              </li>
-            ))}
-          </ol>
+          {daySelector}
         </header>
 
         <div

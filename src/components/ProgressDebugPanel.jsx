@@ -1,24 +1,25 @@
 import { useMemo, useState } from 'react';
+import { TODAY_SCENE_IDS } from '../data/scenes.js';
 import {
   clearAllProgress,
   clearTodayProgressDebug,
   loadProgressDebugSnapshot,
   seedDayOneCompleteDebug,
-  seedProgressDebug,
-  seedSessionOneCompleteDebug,
+  seedNextSessionCompleteDebug,
+  seedSecondProgramDayDebug,
 } from '../utils/progressAdapter.js';
-import { getActiveDebugDate, toLocalDateKey } from '../utils/effectiveDate.js';
 
-export default function ProgressDebugPanel({ onProgressChange, onDayOneComplete }) {
+export default function ProgressDebugPanel({
+  onProgressChange,
+  onDayOneComplete,
+  skipFaceScan = false,
+  onSkipFaceScanChange,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
   const snapshot = useMemo(() => loadProgressDebugSnapshot(), [revision]);
   const recentHistory = snapshot.history || [];
-  const activeDebugDate = getActiveDebugDate();
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dayTwoDate = toLocalDateKey(tomorrow);
 
   const refresh = (nextMessage = '') => {
     setMessage(nextMessage);
@@ -37,14 +38,14 @@ export default function ProgressDebugPanel({ onProgressChange, onDayOneComplete 
     refresh('已清除本機進度，device id 會保留');
   };
 
-  const seedWeek = () => {
-    seedProgressDebug(7);
-    refresh('已建立 7 天測試資料');
-  };
-
-  const seedSessionOneComplete = () => {
-    seedSessionOneCompleteDebug();
-    refresh('已重現 Session 1 完成狀態');
+  const completeCurrentSession = () => {
+    const completedSession = seedNextSessionCompleteDebug();
+    refresh(completedSession
+      ? `已完成 ${completedSession.sceneTitle}`
+      : '當前 Day 的所有 Session 都已完成');
+    if (completedSession?.sceneId === TODAY_SCENE_IDS[TODAY_SCENE_IDS.length - 1]) {
+      onDayOneComplete?.();
+    }
   };
 
   const seedDayOneComplete = () => {
@@ -53,11 +54,20 @@ export default function ProgressDebugPanel({ onProgressChange, onDayOneComplete 
     onDayOneComplete?.();
   };
 
-  const setDebugDay = (date) => {
+  const resetToToday = () => {
     const url = new URL(window.location.href);
-    if (date) url.searchParams.set('debugDate', date);
-    else url.searchParams.delete('debugDate');
+    url.searchParams.delete('debugDate');
     window.location.assign(url);
+  };
+
+  const startDayOne = () => {
+    clearAllProgress();
+    resetToToday();
+  };
+
+  const startDayTwo = () => {
+    seedSecondProgramDayDebug();
+    resetToToday();
   };
 
   return (
@@ -122,14 +132,43 @@ export default function ProgressDebugPanel({ onProgressChange, onDayOneComplete 
 
           <section className="progress-debug-section">
             <h3>測試工具</h3>
-            <div className="progress-debug-actions">
-              <button onClick={() => setDebugDay(null)} type="button" disabled={!activeDebugDate}>Day 1</button>
-              <button onClick={() => setDebugDay(dayTwoDate)} type="button" disabled={activeDebugDate === dayTwoDate}>Day 2</button>
-              <button onClick={seedSessionOneComplete} type="button">Session 1 完成</button>
-              <button onClick={seedDayOneComplete} type="button">完成當前 Day</button>
-              <button onClick={seedWeek} type="button">模擬 7 天</button>
-              <button onClick={clearToday} type="button">清除今天</button>
-              <button onClick={clearAll} type="button">清除全部</button>
+            <div className="progress-debug-tools">
+              <div className="progress-debug-tool-group">
+                <p>日期</p>
+                <div className="progress-debug-tool-buttons">
+                  <button onClick={startDayOne} type="button">Day 1</button>
+                  <button onClick={startDayTwo} type="button">Day 2</button>
+                </div>
+              </div>
+
+              <div className="progress-debug-tool-group">
+                <p>進度 Fixture</p>
+                <div className="progress-debug-tool-buttons">
+                  <button onClick={completeCurrentSession} type="button">完成當前 Session</button>
+                  <button onClick={seedDayOneComplete} type="button">完成當前 Day</button>
+                </div>
+              </div>
+
+              <label className="progress-debug-scan-toggle">
+                <span>
+                  <strong>略過掃臉彈窗</strong>
+                  <small>直接進入練習畫面</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={skipFaceScan}
+                  onChange={(event) => onSkipFaceScanChange?.(event.target.checked)}
+                  aria-label="略過掃臉彈窗"
+                />
+              </label>
+
+              <div className="progress-debug-tool-group">
+                <p>資料清除</p>
+                <div className="progress-debug-tool-buttons">
+                  <button onClick={clearToday} type="button" className="is-danger">清除今天</button>
+                  <button onClick={clearAll} type="button" className="is-danger">清除全部</button>
+                </div>
+              </div>
             </div>
             {message && <p className="progress-debug-message">{message}</p>}
           </section>

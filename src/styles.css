@@ -225,9 +225,13 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.58);
 }
 
-.primary-button:hover,
 .secondary-button:hover,
 .ghost-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.primary-button:hover {
   transform: translateY(-1px);
   filter: brightness(1.1);
 }
@@ -5031,7 +5035,7 @@ h1 {
 
 .play-guide-toggle:hover,
 .play-exit-button:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.02);
 }
 
 .play-sound-toggle span {
@@ -5137,7 +5141,7 @@ h1 {
 }
 
 .play-quit-leave:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.02);
 }
 
 .play-quit-stay {
@@ -9343,25 +9347,134 @@ h1 {
   grid-template-columns: 70px 1fr auto;
 }
 
-.progress-debug-actions {
+.progress-debug-tools {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
-.progress-debug-actions button {
-  min-height: 34px;
-  border-radius: 999px;
-  color: #0f1a1d;
-  background: rgba(183, 255, 246, 0.86);
-  font-size: 0.7rem;
+.progress-debug-tool-group {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.progress-debug-tool-group > p {
+  margin: 0;
+  color: rgba(200, 240, 255, 0.58);
+  font-size: 0.62rem;
   font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progress-debug-tool-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.progress-debug-tool-buttons.is-three-column {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.progress-debug-tool-buttons button {
+  min-height: 34px;
+  border: 1px solid rgba(150, 242, 232, 0.2);
+  border-radius: 9px;
+  padding: 6px 7px;
+  color: #eafffc;
+  background: rgba(122, 224, 211, 0.13);
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.progress-debug-tool-buttons button:hover:not(:disabled) {
+  border-color: rgba(150, 242, 232, 0.55);
+  background: rgba(122, 224, 211, 0.24);
+}
+
+.progress-debug-tool-buttons button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.progress-debug-tool-buttons button.is-danger {
+  border-color: rgba(255, 155, 170, 0.22);
+  color: #ffe8ed;
+  background: rgba(212, 80, 110, 0.14);
+}
+
+.progress-debug-tool-buttons button.is-danger:hover:not(:disabled) {
+  border-color: rgba(255, 155, 170, 0.58);
+  background: rgba(212, 80, 110, 0.26);
+}
+
+.progress-debug-scan-toggle {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(255, 226, 125, 0.2);
+  border-radius: 14px;
+  padding: 9px 10px;
+  color: #fffdf2;
+  background: rgba(247, 215, 52, 0.08);
   cursor: pointer;
 }
 
-.progress-debug-actions button:nth-child(3) {
-  color: #ffffff;
-  background: rgba(238, 102, 132, 0.82);
+.progress-debug-scan-toggle span {
+  display: grid;
+  gap: 3px;
+}
+
+.progress-debug-scan-toggle strong {
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.progress-debug-scan-toggle small {
+  color: rgba(255, 249, 219, 0.62);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.progress-debug-scan-toggle input {
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.progress-debug-scan-toggle input::after {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 2px;
+  border-radius: 50%;
+  background: #ffffff;
+  content: '';
+  transition: transform 160ms ease;
+}
+
+.progress-debug-scan-toggle input:checked {
+  border-color: #f7d734;
+  background: #d5ae17;
+}
+
+.progress-debug-scan-toggle input:checked::after {
+  transform: translateX(16px);
 }
 
 .progress-debug-message {
@@ -9385,7 +9498,7 @@ h1 {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .progress-debug-actions {
+  .progress-debug-tool-buttons.is-three-column {
     grid-template-columns: 1fr;
   }
 
@@ -16204,8 +16317,7 @@ h1 {
 }
 
 .practice-back:hover {
-  background: #e4e8e5;
-  filter: brightness(1.1);
+  filter: brightness(1.02);
 }
 
 .practice-got-it:hover {
@@ -16435,7 +16547,7 @@ h1 {
 }
 
 .practice-back:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.02);
 }
 
 .practice-got-it:hover {

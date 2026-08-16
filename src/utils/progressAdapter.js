@@ -78,7 +78,17 @@ export function seedSessionOneCompleteDebug() {
     ?? localProgressAdapter.debug.seedSessionOneComplete();
 }
 
+export function seedNextSessionCompleteDebug() {
+  return activeAdapter.debug?.seedNextSessionComplete?.()
+    ?? localProgressAdapter.debug.seedNextSessionComplete();
+}
+
 export function seedDayOneCompleteDebug() {
   return activeAdapter.debug?.seedDayOneComplete?.()
     ?? localProgressAdapter.debug.seedDayOneComplete();
+}
+
+export function seedSecondProgramDayDebug() {
+  return activeAdapter.debug?.seedSecondProgramDay?.()
+    ?? localProgressAdapter.debug.seedSecondProgramDay();
 }

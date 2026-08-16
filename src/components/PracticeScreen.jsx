@@ -13,7 +13,7 @@ const PRACTICE_BEGIN_EFFECT = Object.freeze({
   volume: 0.7,
 });
 
-export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBegin, onBack }) {
+export default function PracticeScreen({ selectedScene, stream, isDemoMode, skipFaceScan, onBegin, onBack }) {
   const scene = getSceneById(selectedScene);
   const stageRef = useRef(null);
   const trackingVideoRef = useRef(null);
@@ -91,17 +91,19 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
             <strong>0</strong>
             <span><small>POINTS</small>{scene.title}</span>
           </div>
-          <div
-            className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-            aria-hidden={isDemoMode || hasLandmarks}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7.6v5.2" />
-              <path d="M12 16.6h.01" />
-            </svg>
-            Face not detected. Move back into view.
-          </div>
+          {!skipFaceScan && (
+            <div
+              className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
+              aria-hidden={isDemoMode || hasLandmarks}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7.6v5.2" />
+                <path d="M12 16.6h.01" />
+              </svg>
+              Face not detected. Move back into view.
+            </div>
+          )}
         </div>
       </main>
     </section>

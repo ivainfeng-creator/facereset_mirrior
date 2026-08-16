@@ -1,16 +1,19 @@
 import ResultScreen from './ResultScreen.jsx';
 import ThemeScreen from './ThemeScreen.jsx';
+import ProgramDaySelector from './ProgramDaySelector.jsx';
+import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
 
 export default function ChallengeScreen({
   view,
   selectedScene,
   habit,
   result,
+  selectedDate,
   isEntering,
   newlyCompletedSceneId,
   onCompletionStampAnimationEnd,
   onSelect,
-  onViewReport,
+  onSelectDay,
   onRestart,
   onTodayPlan,
   onPassport,
@@ -20,6 +23,19 @@ export default function ChallengeScreen({
   shouldAnimateResultCards,
   resultAnimationKey,
 }) {
+  const currentPlan = buildDailyPlanSummary(habit);
+  const dailyPlan = selectedDate
+    ? buildDailyPlanSummary(habit, { date: selectedDate })
+    : currentPlan;
+  const selectedDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
+  const daySelector = (
+    <ProgramDaySelector
+      habit={habit}
+      selectedDay={selectedDay}
+      onSelectDay={(date) => onSelectDay(buildDailyPlanSummary(habit, { date }))}
+    />
+  );
+
   if (view === 'result') {
     return (
       <ResultScreen
@@ -33,6 +49,7 @@ export default function ChallengeScreen({
         shouldPromptForDisplayName={shouldPromptForDisplayName}
         shouldAnimateCardLayout={shouldAnimateResultCards}
         cardLayoutAnimationKey={resultAnimationKey}
+        daySelector={daySelector}
       />
     );
   }
@@ -40,9 +57,10 @@ export default function ChallengeScreen({
   return (
     <ThemeScreen
       selectedScene={selectedScene}
-      onSelect={onSelect}
-      onViewReport={onViewReport}
       habit={habit}
+      dailyPlan={dailyPlan}
+      daySelector={daySelector}
+      onSelect={onSelect}
       isEntering={isEntering}
       newlyCompletedSceneId={newlyCompletedSceneId}
       onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}

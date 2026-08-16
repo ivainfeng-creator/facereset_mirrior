@@ -1,6 +1,6 @@
 import { getSceneById, SCENE_IDS, TODAY_SCENE_IDS } from '../data/scenes.js';
 import { clampSceneScore, migrateLegacyRawSceneScore } from './scoring.js';
-import { getEffectiveLocalDateKey, toLocalDateKey as formatLocalDateKey } from './effectiveDate.js';
+import { getEffectiveLocalDateKey, isValidLocalDateKey, toLocalDateKey as formatLocalDateKey } from './effectiveDate.js';
 import {
   assignProgramDayForActivity,
   getProgramDayForDate,
@@ -141,7 +141,7 @@ export function saveDisplayName(value) {
 
 export function saveResult(result) {
   const current = loadHabit();
-  const date = todayKey();
+  const date = isValidLocalDateKey(result?.date) ? result.date : todayKey();
   const completedDates = new Set(current.completedDates || []);
   const previousDate = current.latestDate;
   const hasCheckedInToday = completedDates.has(date);
@@ -425,6 +425,26 @@ export function seedSessionOneCompleteProgress() {
   });
 }
 
+export function seedNextSessionCompleteProgress() {
+  const current = loadHabit();
+  const date = todayKey();
+  const completedSceneIds = new Set(
+    (current.history || [])
+      .filter((entry) => entry.date === date)
+      .map((entry) => entry.sceneId),
+  );
+  const sceneId = TODAY_SCENE_IDS.find((candidate) => !completedSceneIds.has(candidate));
+
+  if (!sceneId) return null;
+
+  return saveResult({
+    sceneId,
+    score: 92,
+    holdSeconds: 30,
+    metrics: { [sceneId]: 92 },
+  });
+}
+
 export function seedDayOneCompleteProgress() {
   const current = loadHabit();
   const date = todayKey();
@@ -459,6 +479,36 @@ export function seedDayOneCompleteProgress() {
       [date]: programDay,
     },
   }, [...completedSessions, ...history]);
+  persistHabit(nextHabit);
+  return nextHabit;
+}
+
+export function seedSecondProgramDayProgress(today = toLocalDateKey(new Date())) {
+  const current = clearHabitProgress();
+  const yesterday = new Date(`${today}T12:00:00`);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = toLocalDateKey(yesterday);
+  const sceneId = TODAY_SCENE_IDS[0];
+  const scene = getSceneById(sceneId);
+  const entry = {
+    id: `seed-day-two-${yesterdayKey}-${sceneId}`,
+    sceneId,
+    sceneTitle: scene.title,
+    areaKey: scene.areaKey,
+    area: scene.area,
+    stamp: scene.stamp,
+    date: yesterdayKey,
+    programDay: 1,
+    completedAt: `${yesterdayKey}T12:00:00.000Z`,
+    score: 92,
+    holdSeconds: 30,
+    streak: 1,
+    metrics: { [sceneId]: 92 },
+  };
+  const nextHabit = rebuildHabitFromHistory({
+    ...current,
+    programDayByDate: { [yesterdayKey]: 1 },
+  }, [entry]);
   persistHabit(nextHabit);
   return nextHabit;
 }

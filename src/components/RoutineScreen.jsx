@@ -46,6 +46,7 @@ import {
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { useHandTracking } from '../hooks/useHandTracking.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
+import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
   consumeTimedEvents,
   createInteractionSignalState,
@@ -267,7 +268,15 @@ const SCENE_RENDERERS = {
   lemonSqueeze: LemonSqueezeScene,
 };
 
-export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream, isDemoMode, onComplete, onExit }) {
+export default function RoutineScreen({
+  selectedScene = DEFAULT_SCENE_ID,
+  sessionDate = null,
+  stream,
+  isDemoMode,
+  skipFaceScan,
+  onComplete,
+  onExit,
+}) {
   const scene = getSceneById(selectedScene);
   const practiceGuide = scene.practice || {
     description: scene.subtitle,
@@ -301,6 +310,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
   const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
   const gardenRainSfxRef = useRef(false);
   const routineFinishedRef = useRef(false);
+  const sessionDateRef = useRef(sessionDate || getEffectiveLocalDateKey());
   const backgroundFadeStartedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
   const [interactionTick, setInteractionTick] = useState(0);
@@ -657,6 +667,7 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
       },
       snapshotCandidateRef.current ? [snapshotCandidateRef.current] : [],
       activeSceneId,
+      sessionDateRef.current,
     ));
   };
 
@@ -780,17 +791,19 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
             {interaction.feedback || feedback.label}
           </div>
 
-          <div
-            className={`face-tracking-toast ${!isCameraUnavailable && !isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-            aria-hidden={isCameraUnavailable || isDemoMode || hasLandmarks}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7.6v5.2" />
-              <path d="M12 16.6h.01" />
-            </svg>
-            Face not detected. Move back into view.
-          </div>
+          {!skipFaceScan && (
+            <div
+              className={`face-tracking-toast ${!isCameraUnavailable && !isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
+              aria-hidden={isCameraUnavailable || isDemoMode || hasLandmarks}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7.6v5.2" />
+                <path d="M12 16.6h.01" />
+              </svg>
+              Face not detected. Move back into view.
+            </div>
+          )}
 
           <footer className="play-hud play-hud-bottom">
             <div className="play-score">
