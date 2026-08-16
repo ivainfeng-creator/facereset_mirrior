@@ -6,7 +6,7 @@ const SESSION_HOVER_EFFECT = Object.freeze({
   volume: 1,
 });
 const SESSION_SELECT_EFFECT = Object.freeze({
-  source: '/audio/Overall/Ding.mp3',
+  source: '/audio/Overall/Click-1.mp3',
   volume: 0.7,
 });
 

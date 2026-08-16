@@ -265,8 +265,17 @@ export default function App() {
     traceAudioLifecycle('scene selected', { sceneId });
     preloadSceneAudio(getSceneById(sceneId).audio);
     unlockAudio();
-    playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
     setSelectedScene(sceneId);
+
+    const isCompletedSession = buildDailyPlanSummary(habit).sceneResults
+      .some((result) => result.sceneId === sceneId && result.completed);
+    if (isCompletedSession) {
+      setRoutineReturnScreen(SCREENS.theme);
+      navigate(SCREENS.routine, 'slide-fwd');
+      return;
+    }
+
+    playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
     navigate(SCREENS.practice, 'paper');
 
     if (cameraStream || isDemoMode) {
