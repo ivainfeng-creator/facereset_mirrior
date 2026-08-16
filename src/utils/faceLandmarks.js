@@ -275,6 +275,9 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     cheeks: {
       puffRatio: getCheekPuffRatio({
         blendshapes: landmarkData.blendshapes || {},
+      }),
+      puckerRatio: getMouthPuckerRatio({
+        blendshapes: landmarkData.blendshapes || {},
         mouth,
         faceScale,
       }),
@@ -358,20 +361,22 @@ function getVerticalHeadPoseProxy({ face, leftEye, rightEye, jaw }) {
   };
 }
 
-function getCheekPuffRatio({ blendshapes, mouth, faceScale }) {
+function getCheekPuffRatio({ blendshapes }) {
   const blendshapeSignal = Math.max(
     blendshapes.cheekPuff || 0,
     (blendshapes.mouthPucker || 0) * 0.72,
     (blendshapes.mouthFunnel || 0) * 0.56,
   );
+  return clamp(blendshapeSignal / 0.72, 0, 1);
+}
 
-  if (blendshapeSignal > 0.03) {
-    return clamp(blendshapeSignal / 0.72, 0, 1);
-  }
+function getMouthPuckerRatio({ blendshapes, mouth, faceScale }) {
+  const pucker = clamp(blendshapes.mouthPucker || 0, 0, 1);
+  if (pucker > 0.03) return clamp(pucker / 0.72, 0, 1);
 
   const mouthOpen = mouth.openRatio || 0;
   const mouthWidthRatio = faceScale ? mouth.width / faceScale : 0.26;
-  return clamp((0.32 - mouthWidthRatio) / 0.14 + (0.12 - mouthOpen) / 0.18, 0, 1);
+  return clamp((0.28 - mouthWidthRatio) / 0.12 + (0.1 - mouthOpen) / 0.16, 0, 1);
 }
 
 export function getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval = [] }) {

@@ -12,6 +12,16 @@ import { DEFAULT_SCENE_ID, getSceneById } from '../data/scenes.js';
 import {
   cloudGardenBackgroundAsset,
   cloudGardenIslandAsset,
+  bunnyBackgroundAsset,
+  bunnyFrame1Asset,
+  bunnyFrame2Asset,
+  bunnyFrame3Asset,
+  bunnyFrame4Asset,
+  bunnyBalloonFrame1Asset,
+  bunnyBalloonFrame2Asset,
+  bunnyBalloonFrame3Asset,
+  bunnyBalloonFrame4Asset,
+  bunnyBalloonFrame5Asset,
   fishBlueAsset,
   fishGreenAsset,
   fishPinkAsset,
@@ -318,6 +328,7 @@ export default function RoutineScreen({
   const snapshotCandidateRef = useRef(null);
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
+  const bunnyBalloonSfxRef = useRef({ frame: 0 });
   const gardenRainSfxRef = useRef(false);
   const routineFinishedRef = useRef(false);
   const sessionDateRef = useRef(sessionDate || getEffectiveLocalDateKey());
@@ -625,6 +636,33 @@ export default function RoutineScreen({
     playSceneEffect(scene.audio?.effects?.lemonSqueeze);
     playSceneEffect(scene.audio?.effects?.lemonDrop);
   }, [activeSceneId, interaction.squeezeEventCount, scene.audio]);
+
+  useEffect(() => {
+    const sfxState = bunnyBalloonSfxRef.current;
+    if (activeSceneId !== 'bubbleGumBunny') {
+      sfxState.frame = 0;
+      return;
+    }
+
+    const bubbleSize = interaction.bubbleSize || 0.07;
+    const frame = Math.min(3, Math.floor(bubbleSize * 4));
+
+    if (frame > sfxState.frame) {
+      playSceneEffect(scene.audio?.effects?.balloonBlow);
+    }
+
+    if (frame < sfxState.frame && !interaction.justPopped) {
+      playSceneEffect(scene.audio?.effects?.balloonDeflate);
+    }
+
+    sfxState.frame = frame;
+    if (interaction.justPopped) playSceneEffect(scene.audio?.effects?.balloonPop);
+  }, [
+    activeSceneId,
+    interaction.bubbleSize,
+    interaction.justPopped,
+    scene.audio,
+  ]);
 
 
   useEffect(() => {
@@ -2611,6 +2649,23 @@ function BubbleGumBunnyScene({ interaction }) {
   const bubbleSize = clamp(interaction.bubbleSize || 0.07, 0.05, 1);
   const bubblePops = interaction.bubblePops || 0;
   const [isBursting, setIsBursting] = useState(false);
+  const [isPuffFrame, setIsPuffFrame] = useState(false);
+  const bunnyFrame = isBursting
+    ? bunnyFrame4Asset
+    : interaction.isPuffing
+      ? null
+      : bunnyFrame1Asset;
+  const balloonFrames = [
+    bunnyBalloonFrame1Asset,
+    bunnyBalloonFrame2Asset,
+    bunnyBalloonFrame3Asset,
+    bunnyBalloonFrame4Asset,
+  ];
+  const balloonFrame = isBursting
+    ? bunnyBalloonFrame5Asset
+    : isPuffFrame
+      ? bunnyBalloonFrame3Asset
+    : balloonFrames[Math.min(3, Math.floor(bubbleSize * 4))];
   const lastBubblePopsRef = useRef(bubblePops);
   const sparkles = useMemo(
     () =>
@@ -2645,6 +2700,16 @@ function BubbleGumBunnyScene({ interaction }) {
     return undefined;
   }, [bubblePops]);
 
+  useEffect(() => {
+    if (!interaction.isPuffing || isBursting) {
+      setIsPuffFrame(false);
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => setIsPuffFrame((current) => !current), 420);
+    return () => window.clearInterval(timer);
+  }, [interaction.isPuffing, isBursting]);
+
   return (
     <div
       className={`bubble-bunny-scene ${interaction.isPuffing ? 'is-puffing' : ''} ${interaction.justPopped ? 'is-popping' : ''} ${isBursting ? 'is-bursting' : ''}`}
@@ -2652,6 +2717,10 @@ function BubbleGumBunnyScene({ interaction }) {
         '--puff': puff,
         '--bubble-size': bubbleSize,
         '--combo': interaction.combo || 0,
+        backgroundImage: `url(${bunnyBackgroundAsset})`,
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
       }}
       aria-hidden="true"
     >
@@ -2683,17 +2752,19 @@ function BubbleGumBunnyScene({ interaction }) {
       </div>
 
       <div className="bunny-character">
-        <span className="bunny-ear left" />
-        <span className="bunny-ear right" />
-        <span className="bunny-head" />
-        <span className="bunny-cheek left" />
-        <span className="bunny-cheek right" />
-        <span className="bunny-eye left" />
-        <span className="bunny-eye right" />
-        <span className="bunny-mouth" />
-        <span className="gum-bubble" />
+        {interaction.isPuffing && !isBursting ? (
+          <>
+            <img className={`bunny-frame bunny-puff-frame ${isPuffFrame ? '' : 'is-visible'}`} src={bunnyFrame2Asset} alt="" />
+            <img className={`bunny-frame bunny-puff-frame ${isPuffFrame ? 'is-visible' : ''}`} src={bunnyFrame3Asset} alt="" />
+          </>
+        ) : (
+          <img className="bunny-frame" src={bunnyFrame} alt="" />
+        )}
+        {(interaction.isPuffing || isBursting) && (
+          <img className={`bunny-balloon ${isBursting ? 'is-bursting' : ''}`} src={balloonFrame} alt="" />
+        )}
       </div>
-      {bubblePops > 0 && (
+      {isBursting && bubblePops > 0 && (
         <div className="bubble-pop-burst" key={bubblePops}>
           <span />
           <span />

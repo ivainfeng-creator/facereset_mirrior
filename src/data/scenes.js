@@ -2,6 +2,10 @@ import { sceneAssetGroups } from './sceneAssets.js';
 import lemonBackgroundAudio from '../../references/Lemon/Lemon-bg-4.mp3';
 import lemonDropAudio from '../../references/Lemon/Drop-1.mp3';
 import lemonSqueezeAudio from '../../references/Lemon/Squeeze.mp3';
+import bunnyBackgroundAudio from '../../references/Bunny/bunny-bg-2.mp3';
+import bunnyBlowAudio from '../../references/Bunny/Below.mp3';
+import bunnyDeflateAudio from '../../references/Bunny/Deflat.mp3';
+import bunnyPopAudio from '../../references/Bunny/Balloon-pop.mp3';
 
 export const SCENE_IDS = Object.freeze({
   whaleDream: 'whaleDream',
@@ -193,6 +197,28 @@ const sceneDefinitions = [
     renderer: 'bubbleGumBunny',
     interaction: 'cheekPuff',
     handTracking: 'none',
+    audio: {
+      background: {
+        source: bunnyBackgroundAudio,
+        volume: 0.18,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        balloonBlow: {
+          source: bunnyBlowAudio,
+          volume: 0.5,
+        },
+        balloonDeflate: {
+          source: bunnyDeflateAudio,
+          volume: 0.5,
+        },
+        balloonPop: {
+          source: bunnyPopAudio,
+          volume: 0.65,
+        },
+      },
+    },
     layout: PORTRAIT_LAYOUT,
     practice: {
       renderer: 'bunny',
