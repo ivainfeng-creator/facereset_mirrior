@@ -1,4 +1,4 @@
-import { dailyScenes } from '../data/scenes.js';
+import { getSceneById } from '../data/scenes.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 
 const SESSION_SELECT_EFFECT = Object.freeze({
@@ -20,6 +20,7 @@ export default function TodayPlanCard({
   isReadOnly = false,
   focusLabel = 'TODAY\'S FOCUS',
 }) {
+  const dailyScenes = sceneResults.map((result) => getSceneById(result.sceneId));
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
     sceneResults.filter((result) => result.completed).map((result) => result.sceneId),

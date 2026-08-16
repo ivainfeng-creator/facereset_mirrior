@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getSceneById } from '../data/scenes.js';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { playSceneEffect } from '../utils/audioManager.js';
-import { RoutineScenePreview } from './RoutineScreen.jsx';
+import { CameraPreview, RoutineScenePreview } from './RoutineScreen.jsx';
 
 const PRACTICE_BACK_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-2.mp3',
@@ -17,12 +17,20 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, skip
   const scene = getSceneById(selectedScene);
   const stageRef = useRef(null);
   const trackingVideoRef = useRef(null);
-  const { hasLandmarks } = useFaceLandmarks({
+  const { detectorMode, hasLandmarks } = useFaceLandmarks({
     videoRef: trackingVideoRef,
     stageRef,
     stream,
     isDemoMode,
   });
+  const cameraTrack = stream?.getVideoTracks()[0];
+  const isCameraUnavailable = (
+    !stream
+    || !stream.active
+    || !cameraTrack
+    || !cameraTrack.enabled
+    || cameraTrack.readyState !== 'live'
+  );
   const guide = scene.practice || {
     renderer: 'default',
     title: `How to Play ${scene.title}`,
@@ -79,17 +87,16 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, skip
         </section>
 
         <div className="practice-stage" ref={stageRef} aria-label="Scene preview">
-          <video ref={trackingVideoRef} className="practice-tracking-video" autoPlay playsInline muted />
-          <div className="practice-stage-toolbar" aria-hidden="true">
-            <span className="practice-camera-status"><i />camera off</span>
-            <span className="practice-stage-timer">0:30</span>
-          </div>
+          <CameraPreview
+            compact
+            detectorMode={detectorMode}
+            handMode={detectorMode}
+            isDemoMode={isDemoMode}
+            isCameraUnavailable={isCameraUnavailable}
+            previewVideoRef={trackingVideoRef}
+          />
           <div className="practice-stage-art" aria-hidden="true">
             <RoutineScenePreview selectedScene={scene.id} />
-          </div>
-          <div className="practice-stage-footer" aria-hidden="true">
-            <strong>0</strong>
-            <span><small>POINTS</small>{scene.title}</span>
           </div>
           {!skipFaceScan && (
             <div

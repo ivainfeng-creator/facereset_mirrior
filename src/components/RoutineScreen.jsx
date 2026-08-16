@@ -962,15 +962,15 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
     [scene, previewDemo],
   );
   const previewScale = previewFrame.width && previewFrame.height
-    ? Math.min(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
+    ? Math.max(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
     : 0;
 
   useEffect(() => {
     const syncPreviewFrame = () => {
-      const bounds = previewFrameRef.current?.getBoundingClientRect();
-      if (!bounds) return;
+      const frame = previewFrameRef.current;
+      if (!frame) return;
       setPreviewFrame((current) => {
-        const next = { width: Math.round(bounds.width), height: Math.round(bounds.height) };
+        const next = { width: frame.clientWidth, height: frame.clientHeight };
         return current.width === next.width && current.height === next.height ? current : next;
       });
       setSourceViewport((current) => {
@@ -1109,6 +1109,17 @@ function createPracticePreviewInteraction(scene, previewDemo) {
       isSniffing: isActive,
       flow: activation,
       flowerCount: Math.round(activation * 46),
+    };
+  }
+
+  if (previewDemo.effect === 'lemonSqueeze') {
+    return {
+      ...interaction,
+      leftPress: activation,
+      rightPress: activation * 0.96,
+      squeeze: activation,
+      sodaLevel: 0.16 + activation * 0.68,
+      isSqueezing: isActive,
     };
   }
 
@@ -1612,7 +1623,11 @@ function LemonSqueezeScene({ interaction }) {
   const glassRef = useRef(null);
   const streamGeometryRef = useRef([]);
   const [streams, setStreams] = useState([]);
-  const flowing = Boolean(interaction.hasSqueezeMotion);
+  const flowing = Boolean(
+    interaction.hasSqueezeMotion
+    || interaction.isSqueezing
+    || lemonExtraction > 0.04,
+  );
   const fizz = useMemo(
     () =>
       Array.from({ length: 18 }, (_, index) => ({
@@ -1633,14 +1648,16 @@ function LemonSqueezeScene({ interaction }) {
       const rightLemon = lemonRefs.current.right?.getBoundingClientRect();
 
       if (field && glass && leftLemon && rightLemon) {
+        const scaleX = field.width / fieldRef.current.offsetWidth;
+        const scaleY = field.height / fieldRef.current.offsetHeight;
         const nextStreams = [
           { lemon: leftLemon, side: -1 },
           { lemon: rightLemon, side: 1 },
         ].map(({ lemon, side }) => {
-          const startX = lemon.left - field.left + lemon.width / 2;
-          const startY = lemon.top - field.top + lemon.height * 0.86;
-          const endX = glass.left - field.left + glass.width * (0.5 + side * 0.16);
-          const endY = glass.top - field.top + glass.height * juiceSurface;
+          const startX = (lemon.left - field.left + lemon.width / 2 - 12) / scaleX;
+          const startY = (lemon.bottom - field.top) / scaleY;
+          const endX = (glass.left - field.left + glass.width * (0.5 + side * 0.16)) / scaleX;
+          const endY = (glass.top - field.top + glass.height * juiceSurface) / scaleY;
           const deltaX = endX - startX;
           const deltaY = endY - startY;
 
@@ -1648,7 +1665,8 @@ function LemonSqueezeScene({ interaction }) {
             x: startX,
             y: startY,
             length: Math.hypot(deltaX, deltaY),
-            angle: -Math.atan2(deltaX, deltaY) * (180 / Math.PI),
+            angle: -Math.atan2(deltaX, deltaY) * (180 / Math.PI)
+              + (side === 1 ? 4 + clamp(interaction.rightPress || 0, 0, 1) * 2 : 0),
           };
         });
         const previousStreams = streamGeometryRef.current;
@@ -1672,7 +1690,7 @@ function LemonSqueezeScene({ interaction }) {
 
     frameId = requestAnimationFrame(measure);
     return () => cancelAnimationFrame(frameId);
-  }, [juiceSurface]);
+  }, [interaction.rightPress, juiceSurface]);
 
   useEffect(() => {
     if (replacedLemons === handledReplacementRef.current) return undefined;
@@ -1786,7 +1804,7 @@ function LemonSqueezeScene({ interaction }) {
             {[0, 1, 2, 3].map((dropIndex) => (
               <span
                 key={dropIndex}
-                style={{ '--drip-delay': `${dropIndex * 0.155 + streamIndex * 0.08}s` }}
+                style={{ '--drip-delay': `${dropIndex * 0.1 + streamIndex * 0.05}s` }}
               />
             ))}
           </div>
@@ -2739,9 +2757,9 @@ function TrackingVideo({ videoRef, isDemoMode }) {
   return <video ref={videoRef} className="tracking-video" autoPlay playsInline muted />;
 }
 
-function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnavailable, previewVideoRef }) {
+export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnavailable, previewVideoRef, compact = false }) {
   return (
-    <div className="camera-preview" aria-label="Front camera preview">
+    <div className={`camera-preview ${compact ? 'camera-preview-compact' : ''}`} aria-label="Front camera preview">
       <div className="preview-header">
         <span className="preview-dot" />
         <span>Front camera</span>

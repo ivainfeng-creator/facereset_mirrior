@@ -4626,7 +4626,7 @@ h1 {
 
 .lemon-press-board {
   position: absolute;
-  top: 30%;
+  top: calc(30% + 24px);
   left: 50%;
   z-index: 6;
   display: flex;
@@ -4877,7 +4877,7 @@ h1 {
 }
 
 .lemon-juice-streams.is-flowing .lemon-juice-stream span {
-  animation: lemonStreamDrip 620ms linear both;
+  animation: lemonStreamDrip 460ms linear infinite;
   animation-delay: var(--drip-delay);
 }
 
@@ -5076,6 +5076,10 @@ h1 {
 .lemon-soda-slice.is-visible { opacity: 1; transform: translateY(0) rotate(0deg); }
 
 @media (max-width: 599px) {
+  .lemon-queue {
+    top: calc(33% + 24px);
+  }
+
   .lemon-press-board {
     right: 0;
     left: 0;
@@ -5088,7 +5092,7 @@ h1 {
     right: 0;
     left: 0;
     margin-inline: auto;
-    transform: none;
+    transform: translateY(-56px) scale(0.8);
   }
 }
 
@@ -5556,12 +5560,31 @@ h1 {
   stroke-width: 2.2;
 }
 
-.practice-tracking-video {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+.practice-stage .camera-preview {
+  top: 24px;
+  right: auto;
+  left: 24px;
+  z-index: 2;
+  width: 102px;
+  border: 0;
+  border-radius: 8px;
+  background: #111;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.practice-stage .camera-preview-compact .preview-header,
+.practice-stage .camera-preview-compact .preview-status {
+  display: none;
+}
+
+.practice-stage .preview-video-shell {
+  aspect-ratio: 1 / 1.45;
+}
+
+.practice-stage .preview-video,
+.practice-stage .preview-video-shell .demo-mirror {
+  border-radius: 8px;
 }
 
 .practice-stage .face-tracking-toast {
@@ -16524,7 +16547,8 @@ h1 {
 
 .practice-step-number {
   display: block;
-  width: auto;
+  flex: 0 0 60px;
+  width: 60px;
   height: auto;
   border: 0;
   border-radius: 0;
@@ -16722,6 +16746,7 @@ h1 {
   font-size: clamp(0.9rem, 1.12vw, 1.18rem);
   font-weight: 750;
   line-height: 1.24;
+  text-align: left;
 }
 
 .practice-tip:last-child {
@@ -16827,7 +16852,6 @@ h1 {
   overflow: hidden;
   border-radius: clamp(28px, 3.2vw, 50px);
   background: #175698;
-  box-shadow: 0 22px 50px rgba(29, 34, 31, 0.11);
 }
 
 .practice-stage-art {
@@ -17110,8 +17134,13 @@ h1 {
     order: -1;
     justify-self: stretch;
     width: 100%;
-    aspect-ratio: 1.46;
+    min-height: 480px;
+    aspect-ratio: auto;
     border-radius: 28px;
+  }
+
+  .practice-stage .camera-preview {
+    width: 51px;
   }
 
   .practice-stage-toolbar,
@@ -17138,7 +17167,7 @@ h1 {
   }
 
   .practice-stage {
-    max-height: calc(100svh - clamp(88px, 14vh, 224px));
+    height: min(640px, calc(100svh - clamp(88px, 14vh, 224px)));
   }
 }
 

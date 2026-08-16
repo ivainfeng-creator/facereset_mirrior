@@ -1,25 +1,35 @@
-import { getSceneById, TODAY_SCENE_IDS } from '../data/scenes.js';
+import { getDailySceneIds, getSceneById } from '../data/scenes.js';
 import { SCENE_SCORE_MAX, clampSceneScore } from './scoring.js';
 import { getEffectiveLocalDateKey, toLocalDateKey } from './effectiveDate.js';
 import { getCurrentProgramDay } from './programDay.js';
 
 export const SCENE_MAX_SCORE = SCENE_SCORE_MAX;
-export const DAILY_TOTAL_MAX_SCORE = TODAY_SCENE_IDS.length * SCENE_MAX_SCORE;
+export const DAILY_TOTAL_MAX_SCORE = 3 * SCENE_MAX_SCORE;
+
+export function getDailyTotalMaxScore(programDay) {
+  return getDailySceneIds(programDay).length * SCENE_MAX_SCORE;
+}
 
 export const getLocalDateKey = toLocalDateKey;
 
 export function buildDailyPlanSummary(habit, { date = getEffectiveLocalDateKey() } = {}) {
   const bestByScene = new Map();
+  const programDay = getCurrentProgramDay({
+    programDayByDate: habit?.programDayByDate,
+    history: habit?.history,
+    date,
+  });
+  const sceneIds = getDailySceneIds(programDay);
 
   (habit?.history || []).forEach((entry) => {
-    if (entry.date !== date || !TODAY_SCENE_IDS.includes(entry.sceneId)) return;
+    if (entry.date !== date || !sceneIds.includes(entry.sceneId)) return;
     const current = bestByScene.get(entry.sceneId);
     if (!current || clampScore(entry.score) > clampScore(current.score)) {
       bestByScene.set(entry.sceneId, entry);
     }
   });
 
-  const sceneResults = TODAY_SCENE_IDS.map((sceneId) => {
+  const sceneResults = sceneIds.map((sceneId) => {
     const scene = getSceneById(sceneId);
     const entry = bestByScene.get(sceneId);
     return {
@@ -33,21 +43,15 @@ export function buildDailyPlanSummary(habit, { date = getEffectiveLocalDateKey()
   });
   const completed = sceneResults.filter((entry) => entry.completed).length;
   const score = sceneResults.reduce((total, entry) => total + entry.score, 0);
-  const programDay = getCurrentProgramDay({
-    programDayByDate: habit?.programDayByDate,
-    history: habit?.history,
-    date,
-  });
-
   return {
     type: 'daily-plan',
     date,
     programDay,
     completed,
-    total: TODAY_SCENE_IDS.length,
-    isComplete: completed === TODAY_SCENE_IDS.length,
+    total: sceneIds.length,
+    isComplete: completed === sceneIds.length,
     score,
-    maxScore: DAILY_TOTAL_MAX_SCORE,
+    maxScore: getDailyTotalMaxScore(programDay),
     holdSeconds: sceneResults.reduce(
       (total, entry) => total + Math.max(0, Number(entry.holdSeconds || entry.durationSeconds) || 0),
       0,
@@ -64,7 +68,7 @@ export function getCompletedProgramDays(habit) {
   const scenesByDate = new Map();
 
   (habit?.history || []).forEach((entry) => {
-    if (!entry?.date || !TODAY_SCENE_IDS.includes(entry.sceneId)) return;
+    if (!entry?.date) return;
     const completedScenes = scenesByDate.get(entry.date) || new Set();
     completedScenes.add(entry.sceneId);
     scenesByDate.set(entry.date, completedScenes);
@@ -72,12 +76,15 @@ export function getCompletedProgramDays(habit) {
 
   return new Set(
     [...scenesByDate.entries()]
-      .filter(([, completedScenes]) => completedScenes.size === TODAY_SCENE_IDS.length)
-      .map(([date]) => getCurrentProgramDay({
-        programDayByDate: habit?.programDayByDate,
-        history: habit?.history,
-        date,
-      })),
+      .flatMap(([date, completedScenes]) => {
+        const programDay = getCurrentProgramDay({
+          programDayByDate: habit?.programDayByDate,
+          history: habit?.history,
+          date,
+        });
+        const sceneIds = getDailySceneIds(programDay);
+        return sceneIds.every((sceneId) => completedScenes.has(sceneId)) ? [programDay] : [];
+      }),
   );
 }
 

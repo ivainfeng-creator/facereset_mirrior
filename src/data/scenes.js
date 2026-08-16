@@ -243,6 +243,7 @@ const sceneDefinitions = [
       tips: ['Keep both fingertips visible.', 'Press both sides together.', 'Slow squeeze and release makes more soda.'],
       effectTitle: 'Make lemon soda',
       effectDescription: 'Squeeze evenly and fill the glass with bubbles.',
+      previewDemo: { effect: 'lemonSqueeze', cycleMs: 3600 },
     },
   },
 ];
@@ -261,6 +262,23 @@ export const dailyScenes = Object.freeze(interactionScenes
   .sort((left, right) => left.dailyOrder - right.dailyOrder));
 
 export const TODAY_SCENE_IDS = Object.freeze(dailyScenes.map((scene) => scene.id));
+
+const PROGRAM_DAY_SCENE_IDS = Object.freeze({
+  2: Object.freeze([
+    SCENE_IDS.lemonSqueeze,
+    SCENE_IDS.templeGarden,
+    SCENE_IDS.flowerCollector,
+  ]),
+});
+
+export function getDailyScenes(programDay = 1) {
+  const sceneIds = PROGRAM_DAY_SCENE_IDS[programDay] || TODAY_SCENE_IDS;
+  return sceneIds.map((sceneId) => getSceneById(sceneId));
+}
+
+export function getDailySceneIds(programDay = 1) {
+  return getDailyScenes(programDay).map((scene) => scene.id);
+}
 
 export function getSceneById(sceneId) {
   return interactionScenes.find((scene) => scene.id === sceneId) || interactionScenes[0];

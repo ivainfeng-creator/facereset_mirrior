@@ -277,6 +277,7 @@ export default function App() {
   const navigateChallenge = (view, type = 'quiet', { animateResultCards = false } = {}) => {
     setChallengeView(view);
     setShouldAnimateResultCards(view === 'result' && animateResultCards);
+    if (screen === SCREENS.challenge && challengeView === view) return;
     navigate(SCREENS.challenge, type);
   };
 

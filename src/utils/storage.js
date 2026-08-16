@@ -1,4 +1,4 @@
-import { getSceneById, SCENE_IDS, TODAY_SCENE_IDS } from '../data/scenes.js';
+import { getDailySceneIds, getSceneById, SCENE_IDS, TODAY_SCENE_IDS } from '../data/scenes.js';
 import { clampSceneScore, migrateLegacyRawSceneScore } from './scoring.js';
 import { getEffectiveLocalDateKey, isValidLocalDateKey, toLocalDateKey as formatLocalDateKey } from './effectiveDate.js';
 import {
@@ -257,19 +257,20 @@ export function buildDailyProgressPayload(habit = loadHabit(), date = todayKey()
     }
   });
 
+  const programDay = getStoredProgramDayForDate(habit, date);
+  const sceneIds = getDailySceneIds(programDay);
   const sceneScores = Object.fromEntries(
     [...bestByScene.entries()].map(([sceneId, entry]) => [sceneId, clampScore(entry.score)]),
   );
-  const completedSessions = TODAY_SCENE_IDS.filter((sceneId) => sceneScores[sceneId] > 0).length;
-  const totalScore = TODAY_SCENE_IDS.reduce((total, sceneId) => total + (sceneScores[sceneId] || 0), 0);
-  const programDay = getStoredProgramDayForDate(habit, date);
+  const completedSessions = sceneIds.filter((sceneId) => sceneScores[sceneId] > 0).length;
+  const totalScore = sceneIds.reduce((total, sceneId) => total + (sceneScores[sceneId] || 0), 0);
 
   return {
     progress_date: date,
     program_day: programDay,
     total_score: totalScore,
     completed_sessions: completedSessions,
-    is_complete: completedSessions === TODAY_SCENE_IDS.length,
+    is_complete: completedSessions === sceneIds.length,
     scene_scores: sceneScores,
     streak_days: Math.max(0, Number(habit.streak) || 0),
   };
