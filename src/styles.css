@@ -3842,132 +3842,48 @@ h1 {
   top: 49%;
   left: 50%;
   z-index: 4;
-  width: 228px;
-  height: 276px;
-  transform: translate(-50%, -42%) scale(calc(0.96 + var(--puff) * 0.035));
-  transform-origin: center bottom;
+  width: 395px;
+  aspect-ratio: 940 / 1088;
+  transform: translate(-50%, calc(-42% + 48px));
 }
 
-.bunny-ear {
+.bunny-frame,
+.bunny-balloon {
   position: absolute;
-  top: 0;
-  width: 48px;
-  height: 132px;
-  border-radius: 999px 999px 52% 52%;
-  background:
-    radial-gradient(ellipse at 50% 44%, rgba(255, 188, 216, 0.72), transparent 48%),
-    linear-gradient(180deg, #fffdf8, #fff2ec);
-  box-shadow:
-    inset 0 -16px 0 rgba(255, 205, 224, 0.42),
-    0 16px 30px rgba(169, 95, 122, 0.12);
-  transform-origin: center bottom;
-  animation: bunnyEarWiggle 1.8s ease-in-out infinite;
+  display: block;
+  pointer-events: none;
 }
 
-.bunny-ear.left {
-  left: 45px;
-  transform: rotate(calc(-16deg - var(--puff) * 6deg));
+.bunny-frame {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: translateX(-108px);
 }
 
-.bunny-ear.right {
-  right: 45px;
-  animation-delay: 0.12s;
-  transform: rotate(calc(16deg + var(--puff) * 6deg));
+.bunny-puff-frame {
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
 }
 
-.bunny-head {
-  position: absolute;
-  top: 82px;
-  left: 16px;
-  width: 196px;
-  height: 158px;
-  border-radius: 54% 54% 47% 47%;
-  background:
-    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.96), transparent 22%),
-    linear-gradient(180deg, #fffefa, #fff3ed);
-  box-shadow:
-    inset 0 -20px 0 rgba(255, 205, 224, 0.48),
-    0 22px 48px rgba(154, 89, 117, 0.14);
+.bunny-puff-frame.is-visible {
+  opacity: 1;
 }
 
-.bunny-cheek {
-  position: absolute;
-  top: 160px;
-  z-index: 2;
-  width: 34px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(255, 170, 205, calc(0.54 + var(--puff) * 0.34));
-  filter: blur(0.2px);
-  transform: scale(calc(1 + var(--puff) * 0.22));
+.bunny-balloon {
+  top: 13px;
+  left: 154px;
+  z-index: 1;
+  width: 395px;
+  height: 395px;
+  object-fit: contain;
 }
 
-.bunny-cheek.left {
-  left: 42px;
-}
-
-.bunny-cheek.right {
-  right: 42px;
-}
-
-.bunny-eye {
-  position: absolute;
-  top: 142px;
-  z-index: 3;
-  width: 14px;
-  height: 18px;
-  border-radius: 50%;
-  background: #2d2830;
-  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.42);
-}
-
-.bunny-eye.left {
-  left: 72px;
-}
-
-.bunny-eye.right {
-  right: 72px;
-}
-
-.bunny-mouth {
-  position: absolute;
-  top: 181px;
-  left: 103px;
-  z-index: 3;
-  width: 24px;
-  height: 15px;
-  border-bottom: 3px solid rgba(86, 42, 62, 0.76);
-  border-radius: 50%;
-}
-
-.gum-bubble {
-  position: absolute;
-  top: calc(184px - var(--bubble-size) * 44px);
-  left: 50%;
-  z-index: 5;
-  width: calc(18px + var(--bubble-size) * 190px);
-  height: calc(18px + var(--bubble-size) * 190px);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.95), transparent 15%),
-    radial-gradient(circle at 68% 70%, rgba(255, 128, 193, 0.4), transparent 36%),
-    linear-gradient(135deg, rgba(255, 205, 230, 0.95), rgba(255, 139, 197, 0.9));
-  box-shadow:
-    inset -18px -22px 24px rgba(214, 67, 143, 0.2),
-    inset 12px 12px 20px rgba(255, 255, 255, 0.4),
-    0 0 calc(26px + var(--bubble-size) * 32px) rgba(255, 135, 197, 0.34);
-  opacity: 0.94;
-  transform: translate(-50%, -50%) scale(calc(0.9 + var(--puff) * 0.08));
-  transition:
-    width 140ms ease-out,
-    height 140ms ease-out,
-    top 140ms ease-out,
-    transform 140ms ease-out;
-  animation: bubbleShine 2.2s ease-in-out infinite;
-}
-
-.bubble-bunny-scene.is-bursting .gum-bubble {
-  animation: bubbleBurstDisappear 520ms ease-out both;
+.bunny-balloon.is-bursting {
+  top: 13px;
+  left: 154px;
+  animation: bubbleBurstAppear 520ms ease-out both;
 }
 
 .bunny-sparkles,
@@ -4031,8 +3947,8 @@ h1 {
 
 .bubble-pop-burst {
   position: absolute;
-  top: calc(49% - 72px);
-  left: 50%;
+  top: calc(49% + 19px);
+  left: calc(50% + 154px);
   z-index: 8;
   width: 270px;
   height: 270px;
@@ -5465,6 +5381,19 @@ h1 {
   letter-spacing: 0;
 }
 
+[data-scene-id='bubbleGumBunny'] .play-score {
+  color: #6B2B45;
+  text-shadow: none;
+}
+
+[data-scene-id='bubbleGumBunny'] .play-score strong {
+  color: #D1497C;
+}
+
+[data-scene-id='bubbleGumBunny'] .play-score small {
+  color: rgb(107 43 69 / 60%);
+}
+
 [data-scene-id='lemonSqueeze'] .play-score {
   color: #12483a;
   text-shadow: none;
@@ -6377,6 +6306,24 @@ h1 {
       translate(calc(-50% + var(--pop-x)), calc(-50% + var(--pop-y)))
       scale(0.38)
       rotate(160deg);
+  }
+}
+
+@keyframes bunnyBurstSprite {
+  0%, 24% {
+    background-position: 0 100%;
+  }
+
+  25%, 49% {
+    background-position: 33.333% 100%;
+  }
+
+  50%, 74% {
+    background-position: 66.667% 100%;
+  }
+
+  75%, 100% {
+    background-position: 100% 100%;
   }
 }
 
