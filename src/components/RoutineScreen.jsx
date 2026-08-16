@@ -71,10 +71,6 @@ const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
 const POPCORN_SFX_COOLDOWN_MS = 280;
 const POPCORN_FLIGHT_DURATION_MS = 760;
-const ROUTINE_TOOLBAR_HOVER_EFFECT = Object.freeze({
-  source: '/audio/Overall/Pops-1.m4a',
-  volume: 0.55,
-});
 const ROUTINE_TOOLBAR_CLICK_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
   volume: 0.7,
@@ -746,7 +742,6 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
               <button
                 className="play-guide-toggle"
                 type="button"
-                onMouseEnter={() => playSceneEffect(ROUTINE_TOOLBAR_HOVER_EFFECT)}
                 onClick={() => {
                   playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
                   setIsGuideOpen((value) => !value);
@@ -765,7 +760,6 @@ export default function RoutineScreen({ selectedScene = DEFAULT_SCENE_ID, stream
               <button
                 className="play-exit-button"
                 type="button"
-                onMouseEnter={() => playSceneEffect(ROUTINE_TOOLBAR_HOVER_EFFECT)}
                 onClick={() => {
                   playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
                   setIsQuitOpen(true);

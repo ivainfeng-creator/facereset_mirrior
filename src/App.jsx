@@ -66,6 +66,10 @@ const WELCOME_PAPER_FLIP_EFFECT = Object.freeze({
   source: '/audio/Overall/Flip-1.mp3',
   volume: 0.55,
 });
+const BUTTON_HOVER_EFFECT = Object.freeze({
+  source: '/audio/Overall/Pops-1.m4a',
+  volume: 0.55,
+});
 const SESSION_COMPLETE_STAMP_EFFECT = Object.freeze({
   source: '/audio/Overall/Stamp.mp3',
   volume: 0.7,
@@ -131,7 +135,29 @@ export default function App() {
     preloadAudioSources([
       WELCOME_START_EFFECT.source,
       WELCOME_PAPER_FLIP_EFFECT.source,
+      BUTTON_HOVER_EFFECT.source,
     ]);
+  }, []);
+
+  useEffect(() => {
+    const handleButtonHover = (event) => {
+      if (event.pointerType === 'touch' || !(event.target instanceof Element)) return;
+
+      const button = event.target.closest('button');
+      if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') return;
+      if (button.contains(event.relatedTarget)) return;
+      const isCloseButton = [...button.classList].some((className) => className.includes('close'))
+        || button.getAttribute('aria-label')?.toLowerCase().includes('close');
+      const isModalButton = button.closest(
+        '.guide-flow-overlay, .play-guide-modal, .play-quit-modal, .result-name-entry-modal, .leaderboard-name-modal, [role="dialog"]',
+      );
+      if (isCloseButton || isModalButton) return;
+
+      playSceneEffect(BUTTON_HOVER_EFFECT);
+    };
+
+    window.addEventListener('pointerover', handleButtonHover);
+    return () => window.removeEventListener('pointerover', handleButtonHover);
   }, []);
 
   useEffect(() => {

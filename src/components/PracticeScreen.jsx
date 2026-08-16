@@ -12,10 +12,6 @@ const PRACTICE_BEGIN_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
   volume: 0.7,
 });
-const PRACTICE_HOVER_EFFECT = Object.freeze({
-  source: '/audio/Overall/Pops-1.m4a',
-  volume: 0.55,
-});
 
 export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBegin, onBack }) {
   const scene = getSceneById(selectedScene);
@@ -63,7 +59,6 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
           <div className="practice-actions">
             <button
               className="practice-back"
-              onMouseEnter={() => playSceneEffect(PRACTICE_HOVER_EFFECT)}
               onClick={() => {
                 playSceneEffect(PRACTICE_BACK_EFFECT);
                 onBack();
@@ -73,7 +68,6 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBe
             </button>
             <button
               className="practice-got-it"
-              onMouseEnter={() => playSceneEffect(PRACTICE_HOVER_EFFECT)}
               onClick={() => {
                 playSceneEffect(PRACTICE_BEGIN_EFFECT);
                 onBegin();
