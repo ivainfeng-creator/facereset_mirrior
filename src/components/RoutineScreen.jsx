@@ -1150,6 +1150,19 @@ function createPracticePreviewInteraction(scene, previewDemo) {
     };
   }
 
+  if (previewDemo.effect === 'bubbleGrow') {
+    const isPopping = previewDemo.progress >= 0.72 && previewDemo.progress < 0.88;
+    return {
+      ...interaction,
+      puff: activation,
+      bubbleSize: isPopping ? 0.12 : 0.08 + activation * 0.82,
+      bubbleStage: isPopping ? 0 : Math.min(4, Math.floor((0.08 + activation * 0.82) * 4)),
+      bubblePops: isPopping ? 1 : 0,
+      justPopped: isPopping,
+      isPuffing: isActive && !isPopping,
+    };
+  }
+
   if (previewDemo.effect === 'lemonSqueeze') {
     return {
       ...interaction,

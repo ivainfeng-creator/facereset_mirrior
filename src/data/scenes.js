@@ -227,6 +227,7 @@ const sceneDefinitions = [
       tips: ['Keep your lips closed.', 'Hold each puff for about two seconds.', 'Steady rhythm grows the biggest bubble.'],
       effectTitle: 'Grow the bubble',
       effectDescription: 'Puff softly and keep the bubble floating.',
+      previewDemo: { effect: 'bubbleGrow', cycleMs: 3600 },
     },
   },
   {
@@ -292,7 +293,7 @@ export const TODAY_SCENE_IDS = Object.freeze(dailyScenes.map((scene) => scene.id
 const PROGRAM_DAY_SCENE_IDS = Object.freeze({
   2: Object.freeze([
     SCENE_IDS.lemonSqueeze,
-    SCENE_IDS.templeGarden,
+    SCENE_IDS.bubbleGumBunny,
     SCENE_IDS.flowerCollector,
   ]),
 });
