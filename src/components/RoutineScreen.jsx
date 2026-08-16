@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { lemonBackgroundStyle } from '../../references/Lemon/lemon-background.js';
 import {
   clearSceneTuningOverrides,
   getSceneTuning,
@@ -1700,6 +1701,7 @@ function LemonSqueezeScene({ interaction }) {
       ref={fieldRef}
       className={`lemon-squeeze-scene ${interaction.isSqueezing ? 'is-squeezing' : ''}`}
       style={{
+        ...lemonBackgroundStyle,
         '--squeeze': squeeze,
         '--left-squeeze': clamp(interaction.leftPress || 0, 0, 1),
         '--right-squeeze': clamp(interaction.rightPress || 0, 0, 1),
@@ -1798,7 +1800,10 @@ function LemonSqueezeScene({ interaction }) {
 function LemonQueue({ side, slots, replacementCount, isAdvancing }) {
   return (
     <div className={`lemon-queue lemon-queue-${side}`}>
-      <div className={`lemon-queue-track ${isAdvancing ? 'is-advancing' : ''}`}>
+      <div
+        key={replacementCount}
+        className={`lemon-queue-track ${isAdvancing ? 'is-advancing' : ''}`}
+      >
         {slots.map((slot) => {
           const lemonId = replacementCount + slot;
 

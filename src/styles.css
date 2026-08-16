@@ -4813,7 +4813,7 @@ h1 {
 }
 
 .lemon-queue-track.is-advancing {
-  animation: lemonQueueAdvance 380ms ease-out both;
+  animation: lemonQueueAdvance 380ms ease-out;
 }
 
 @keyframes lemonQueueAdvance {
