@@ -31,6 +31,8 @@ import popcornPiece03Asset from '../../references/popcorn-piece-03.png';
 import popcornPiece04Asset from '../../references/popcorn-piece-04.png';
 import popcornPiece05Asset from '../../references/popcorn-piece-05.png';
 import popcornPiece06Asset from '../../references/popcorn-piece-06.png';
+import lemonWalkFrameAAsset from '../../references/Lemon/Lemon.svg';
+import lemonWalkFrameBAsset from '../../references/Lemon/Lemon-1.svg';
 
 export {
   whaleClosedAsset,
@@ -66,6 +68,8 @@ export {
   popcornPiece04Asset,
   popcornPiece05Asset,
   popcornPiece06Asset,
+  lemonWalkFrameAAsset,
+  lemonWalkFrameBAsset,
 };
 
 export const sceneAssetGroups = Object.freeze({
@@ -110,5 +114,8 @@ export const sceneAssetGroups = Object.freeze({
     popcornPiece06Asset,
   ]),
   bubbleGumBunny: Object.freeze([]),
-  lemonSqueeze: Object.freeze([]),
+  lemonSqueeze: Object.freeze([
+    lemonWalkFrameAAsset,
+    lemonWalkFrameBAsset,
+  ]),
 });
