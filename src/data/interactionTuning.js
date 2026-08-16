@@ -206,6 +206,7 @@ export const sceneInteractionTuning = {
       sipBaseLevel: 0.8,
       sipLevelStep: 0.035,
       sipHintLevel: 0.8,
+      lemonExhaustionSeconds: 7,
     },
   },
 };

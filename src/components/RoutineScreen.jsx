@@ -101,7 +101,7 @@ const POPCORN_PIECE_ASSETS = [
   popcornPiece06Asset,
 ];
 
-const LEMON_QUEUE_CELL_COUNT = 14;
+const LEMON_QUEUE_SLOT_COUNT = 10;
 
 const POPCORN_SOURCE_COUNT = 46;
 const POPCORN_CLUSTER_LIMIT = 220;
@@ -1584,11 +1584,18 @@ function TempleGardenScene({ interaction, previewForegroundOnly = false }) {
 function LemonSqueezeScene({ interaction }) {
   const squeeze = clamp(interaction.squeeze || 0, 0, 1);
   const sodaLevel = clamp(interaction.sodaLevel || 0.16, 0.1, 0.94);
-  const queueCells = useMemo(
-    () => Array.from({ length: LEMON_QUEUE_CELL_COUNT }, (_, index) => index),
+  const lemonExtraction = clamp(interaction.lemonExtraction || 0, 0, 1);
+  const queueSlots = useMemo(
+    () => Array.from({ length: LEMON_QUEUE_SLOT_COUNT }, (_, index) => index),
     [],
   );
-  const completedCups = interaction.sipCount || 0;
+  const replacedLemons = interaction.lemonReplacementCount || 0;
+  const [lemonCycles, setLemonCycles] = useState(() => ({
+    current: replacedLemons,
+    departing: null,
+  }));
+  const handledReplacementRef = useRef(replacedLemons);
+  const replacementTimerRef = useRef(null);
   const fieldRef = useRef(null);
   const lemonRefs = useRef({ left: null, right: null });
   const glassRef = useRef(null);
@@ -1656,6 +1663,24 @@ function LemonSqueezeScene({ interaction }) {
     return () => cancelAnimationFrame(frameId);
   }, []);
 
+  useEffect(() => {
+    if (replacedLemons === handledReplacementRef.current) return undefined;
+
+    handledReplacementRef.current = replacedLemons;
+    window.clearTimeout(replacementTimerRef.current);
+    setLemonCycles((previous) => ({
+      current: null,
+      departing: previous.current ?? previous.departing,
+    }));
+    replacementTimerRef.current = window.setTimeout(() => {
+      setLemonCycles({ current: replacedLemons, departing: null });
+    }, 380);
+
+    return () => window.clearTimeout(replacementTimerRef.current);
+  }, [replacedLemons]);
+
+  useEffect(() => () => window.clearTimeout(replacementTimerRef.current), []);
+
   return (
     <div
       ref={fieldRef}
@@ -1665,8 +1690,8 @@ function LemonSqueezeScene({ interaction }) {
         '--left-squeeze': clamp(interaction.leftPress || 0, 0, 1),
         '--right-squeeze': clamp(interaction.rightPress || 0, 0, 1),
         '--soda-level': sodaLevel,
+        '--lemon-extraction': lemonExtraction,
         '--combo': interaction.combo || 0,
-        '--queue-step': completedCups,
       }}
       aria-hidden="true"
     >
@@ -1686,13 +1711,35 @@ function LemonSqueezeScene({ interaction }) {
       <div className="lemon-shore" />
       <div className="lemon-press-board">
         <span className="lemon-board-jaw left" />
-        <LemonPressHalf ref={(element) => { lemonRefs.current.left = element; }} side="left" />
-        <LemonPressHalf ref={(element) => { lemonRefs.current.right = element; }} side="right" />
+        {lemonCycles.departing !== null && (
+          <div className="lemon-press-exiting-set" style={{ '--lemon-extraction': 1 }}>
+            <LemonPressHalf side="left" state="is-exiting" />
+            <LemonPressHalf side="right" state="is-exiting" />
+          </div>
+        )}
+        <div className="lemon-press-live-set">
+          {lemonCycles.current !== null && (
+            <>
+              <LemonPressHalf
+                key={`lemon-left-${lemonCycles.current}`}
+                ref={(element) => { lemonRefs.current.left = element; }}
+                side="left"
+                state={lemonCycles.current > 0 ? 'is-entering' : ''}
+              />
+              <LemonPressHalf
+                key={`lemon-right-${lemonCycles.current}`}
+                ref={(element) => { lemonRefs.current.right = element; }}
+                side="right"
+                state={lemonCycles.current > 0 ? 'is-entering' : ''}
+              />
+            </>
+          )}
+        </div>
         <span className="lemon-board-jaw right" />
       </div>
 
-      <LemonQueue side="left" cells={queueCells} />
-      <LemonQueue side="right" cells={queueCells} />
+      <LemonQueue side="left" slots={queueSlots} replacementCount={replacedLemons} />
+      <LemonQueue side="right" slots={queueSlots} replacementCount={replacedLemons} />
 
       <div className={`lemon-juice-streams ${flowing ? 'is-flowing' : ''}`}>
         {streams.map((stream, streamIndex) => (
@@ -1718,22 +1765,29 @@ function LemonSqueezeScene({ interaction }) {
   );
 }
 
-function LemonQueue({ side, cells }) {
+function LemonQueue({ side, slots, replacementCount }) {
   return (
     <div className={`lemon-queue lemon-queue-${side}`}>
       <div className="lemon-queue-track">
-        {cells.map((cell) => (
+        {slots.map((slot) => {
+          const lemonId = replacementCount + slot;
+
+          return (
           <span
             className="lemon-queue-cell"
-            key={cell}
-            style={{ '--queue-delay': `${cell * 0.15}s` }}
+            data-queue-slot={slot}
+            key={`${side}-${lemonId}`}
+            style={{
+              '--queue-delay': `${(lemonId % LEMON_QUEUE_SLOT_COUNT) * 0.15}s`,
+            }}
           >
             <span className="lemon-queue-wobble">
               <img className="lemon-queue-frame lemon-queue-frame-a" src={lemonWalkFrameAAsset} alt="" />
               <img className="lemon-queue-frame lemon-queue-frame-b" src={lemonWalkFrameBAsset} alt="" />
             </span>
           </span>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1777,9 +1831,9 @@ const LemonSodaGlass = forwardRef(function LemonSodaGlass({ fill, cupIndex }, re
   );
 });
 
-const LemonPressHalf = forwardRef(function LemonPressHalf({ side }, ref) {
+const LemonPressHalf = forwardRef(function LemonPressHalf({ side, state }, ref) {
   return (
-    <div ref={ref} className={`lemon-press-half ${side}`}>
+    <div ref={ref} className={`lemon-press-half ${side} ${state}`}>
       <span className="lemon-rind" />
       <span className="lemon-pith" />
       <span className="lemon-flesh" />
@@ -3046,6 +3100,15 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
       scoring.minSodaLevel,
       scoring.maxSodaLevel,
     );
+    progressState.lemonExtraction = clamp(
+      progressState.lemonExtraction + elapsedSeconds / scoring.lemonExhaustionSeconds,
+      0,
+      1,
+    );
+    if (progressState.lemonExtraction >= 1) {
+      progressState.lemonExtraction = 0;
+      progressState.lemonReplacementCount += 1;
+    }
   }
 
   const ingredientStage = Math.min(4, Math.max(0, Math.floor((progressState.sodaLevel - scoring.ingredientOffset) * scoring.ingredientMultiplier)));
@@ -3089,6 +3152,8 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
     rightPress: right.value,
     squeeze,
     sodaLevel: progressState.sodaLevel,
+    lemonExtraction: progressState.lemonExtraction,
+    lemonReplacementCount: progressState.lemonReplacementCount,
     ingredientStage: progressState.ingredientStage,
     sipCount: progressState.sipCount,
     sip,
@@ -3348,6 +3413,8 @@ function createLemonProgress() {
     score: 0,
     sodaLevel: 0.16,
     ingredientStage: 0,
+    lemonExtraction: 0,
+    lemonReplacementCount: 0,
     sipCycle: 0,
     sipCount: 0,
     nextSipLevel: 0.82,

@@ -4626,14 +4626,14 @@ h1 {
 
 .lemon-press-board {
   position: absolute;
-  top: 26%;
+  top: 30%;
   left: 50%;
   z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(8px, 1.6vmin, 13px) clamp(18px, 3.4vmin, 32px);
-  gap: calc(clamp(14px, 3vmin, 30px) * (1 - var(--squeeze)));
+  padding: 10px 20px;
+  gap: calc(18px * (1 - var(--squeeze)));
   border: 3px solid rgba(255, 255, 255, 0.98);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.94);
@@ -4646,7 +4646,7 @@ h1 {
   position: absolute;
   top: 10%;
   bottom: 10%;
-  width: clamp(10px, 1.9vmin, 15px);
+  width: 12px;
   background: #9db98d;
   transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -4663,12 +4663,30 @@ h1 {
   transform: translateX(calc(var(--right-squeeze) * -16px));
 }
 
+.lemon-press-live-set,
+.lemon-press-exiting-set {
+  display: flex;
+  flex: 0 0 calc(156px + (18px * (1 - var(--squeeze))));
+  align-items: center;
+  justify-content: center;
+  gap: calc(18px * (1 - var(--squeeze)));
+}
+
+.lemon-press-exiting-set {
+  position: absolute;
+  top: 10px;
+  left: 20px;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .lemon-press-half {
   position: relative;
-  width: clamp(56px, 13vmin, 104px);
+  width: 78px;
   aspect-ratio: 1;
   border-radius: 50%;
-  filter: saturate(calc(1 - var(--soda-level) * 0.3)) brightness(calc(1 - var(--soda-level) * 0.08));
+  isolation: isolate;
+  filter: saturate(calc(1 - var(--lemon-extraction) * 0.72)) brightness(calc(1 - var(--lemon-extraction) * 0.32)) sepia(calc(var(--lemon-extraction) * 0.24));
   transition: filter 280ms ease-out, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -4680,6 +4698,42 @@ h1 {
   transform: translateX(calc(var(--right-squeeze) * -12%)) scale(calc(1 - var(--right-squeeze) * 0.22), calc(1 + var(--right-squeeze) * 0.1));
 }
 
+.lemon-press-half::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: #6f6c30;
+  content: '';
+  mix-blend-mode: multiply;
+  opacity: calc(var(--lemon-extraction) * 0.62);
+  pointer-events: none;
+  transition: opacity 280ms ease-out;
+}
+
+.lemon-press-half.is-exiting.left { animation: lemonPressExitLeft 380ms ease-in forwards; }
+.lemon-press-half.is-exiting.right { animation: lemonPressExitRight 380ms ease-in forwards; }
+.lemon-press-half.is-entering.left { animation: lemonPressEnterLeft 340ms cubic-bezier(0.22, 1.3, 0.36, 1) both; }
+.lemon-press-half.is-entering.right { animation: lemonPressEnterRight 340ms cubic-bezier(0.22, 1.3, 0.36, 1) both; }
+
+@keyframes lemonPressExitLeft {
+  to { opacity: 0; translate: -70px 12px; }
+}
+
+@keyframes lemonPressExitRight {
+  to { opacity: 0; translate: 70px 12px; }
+}
+
+@keyframes lemonPressEnterLeft {
+  from { opacity: 0; translate: -70px -8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes lemonPressEnterRight {
+  from { opacity: 0; translate: 70px -8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
 .lemon-rind,
 .lemon-pith,
 .lemon-flesh,
@@ -4687,6 +4741,13 @@ h1 {
 .lemon-press-cue {
   position: absolute;
   border-radius: 50%;
+}
+
+.lemon-rind,
+.lemon-pith,
+.lemon-flesh,
+.lemon-core {
+  z-index: 0;
 }
 
 .lemon-rind {
@@ -4711,6 +4772,7 @@ h1 {
 }
 
 .lemon-press-cue {
+  z-index: 2;
   inset: -9%;
   border: 2px solid rgba(255, 255, 255, calc(0.28 + var(--squeeze) * 0.62));
   box-shadow: 0 0 0 4px rgba(255, 247, 158, calc(0.08 + var(--squeeze) * 0.18));
@@ -4739,38 +4801,35 @@ h1 {
 }
 
 .lemon-queue {
-  --queue-size: clamp(54px, 9.4vmin, 104px);
-  --queue-gap: clamp(8px, 2vmin, 22px);
+  --queue-size: clamp(64px, 12vmin, 128px);
+  --queue-gap: clamp(8px, 1.6vmin, 18px);
+  --queue-track-width: calc((var(--queue-size) * 10) + (var(--queue-gap) * 9));
   position: absolute;
-  top: 29%;
+  top: 33%;
   z-index: 4;
-  width: 41%;
-  overflow: hidden;
+  width: var(--queue-track-width);
+  height: var(--queue-size);
   pointer-events: none;
 }
 
-.lemon-queue-left { left: 0; }
-.lemon-queue-right { right: 0; transform: scaleX(-1); }
+.lemon-queue-left { right: calc(50% + 112px); }
+.lemon-queue-right { left: calc(50% + 112px); transform: scaleX(-1); }
+
+@media (min-width: 600px) {
+  .lemon-queue { top: calc(33% - 8px); }
+}
 
 .lemon-queue-track {
   display: flex;
+  flex-direction: row-reverse;
   gap: var(--queue-gap);
-  width: max-content;
-  transition: transform 0.34s cubic-bezier(0.34, 1.4, 0.5, 1);
-}
-
-.lemon-queue-left .lemon-queue-track {
-  justify-content: flex-end;
-  transform: translateX(calc(var(--queue-step) * (var(--queue-size) + var(--queue-gap))));
-}
-
-.lemon-queue-right .lemon-queue-track {
-  justify-content: flex-start;
-  transform: translateX(calc(var(--queue-step) * (var(--queue-size) + var(--queue-gap)) * -1));
+  width: var(--queue-track-width);
+  height: 100%;
 }
 
 .lemon-queue-cell {
   flex: 0 0 var(--queue-size);
+  width: var(--queue-size);
   aspect-ratio: 0.95;
 }
 
@@ -4780,7 +4839,7 @@ h1 {
   width: 100%;
   height: 100%;
   transform-origin: 50% 92%;
-  animation: lemonQueueWobble 620ms ease-in-out infinite;
+  animation: lemonQueueWobble 800ms ease-in-out infinite;
   animation-delay: var(--queue-delay);
 }
 
@@ -4809,8 +4868,8 @@ h1 {
 }
 
 @keyframes lemonQueueWobble {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
 }
 
 .lemon-juice-stream span {
@@ -4885,10 +4944,10 @@ h1 {
 
 .lemon-soda-glass {
   position: absolute;
-  bottom: 8%;
+  bottom: 12%;
   left: 50%;
   z-index: 5;
-  width: min(18vw, 218px);
+  width: clamp(160px, 18vw, 218px);
   height: min(33vh, 274px);
   filter: drop-shadow(0 12px 22px rgba(60, 90, 60, 0.16));
   transform: translateX(-50%);
@@ -5008,6 +5067,23 @@ h1 {
 .lemon-soda-slice { right: 19%; bottom: 48%; width: 34px; height: 34px; border: 6px solid #ffe463; border-radius: 50%; transform: translateY(-18px); }
 .lemon-soda-ice.is-visible,
 .lemon-soda-slice.is-visible { opacity: 1; transform: translateY(0) rotate(0deg); }
+
+@media (max-width: 599px) {
+  .lemon-press-board {
+    right: 0;
+    left: 0;
+    width: max-content;
+    margin-inline: auto;
+    transform: none;
+  }
+
+  .lemon-soda-glass {
+    right: 0;
+    left: 0;
+    margin-inline: auto;
+    transform: none;
+  }
+}
 
 .play-routine-mirror .camera-preview {
   top: 30px;
@@ -8616,9 +8692,9 @@ h1 {
 }
 
 .play-routine-screen .camera-preview {
-  top: 30px;
+  top: 0;
   right: auto;
-  left: 30px;
+  left: 0;
   width: 102px;
 }
 
@@ -8658,8 +8734,8 @@ h1 {
   }
 
   .play-routine-screen .camera-preview {
-    top: 24px;
-    left: 24px;
+    top: 0;
+    left: 0;
     width: 102px;
   }
 
@@ -17094,16 +17170,16 @@ h1 {
 /* IRMA's camera now lives in the shared HUD. Keep its visible frame aligned
  * with the scene-space coordinates used by the Popcorn camera-rim interaction. */
 .full-viewport-routine .play-hud-top .camera-preview {
-  top: max(0px, calc(clamp(26px, 4vh, 48px) - 24px));
+  top: 32px;
   right: auto;
-  left: max(0px, calc(clamp(28px, 4vw, 64px) - 24px));
+  left: 32px;
   width: 102px;
 }
 
 @media (max-width: 559px) {
   .full-viewport-routine .play-hud-top .camera-preview {
-    top: 0;
-    left: 0;
+    top: 32px;
+    left: 32px;
     width: 89.76px;
   }
 }

@@ -1,4 +1,5 @@
 import { sceneAssetGroups } from './sceneAssets.js';
+import lemonBackgroundAudio from '../../references/Lemon/Lemon-bg-4.mp3';
 
 export const SCENE_IDS = Object.freeze({
   whaleDream: 'whaleDream',
@@ -214,6 +215,14 @@ const sceneDefinitions = [
     renderer: 'lemonSqueeze',
     interaction: 'lemonSqueeze',
     handTracking: 'lemon',
+    audio: {
+      background: {
+        source: lemonBackgroundAudio,
+        volume: 0.216,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+    },
     layout: PORTRAIT_LAYOUT,
     practice: {
       renderer: 'lemon',
