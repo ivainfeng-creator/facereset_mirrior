@@ -231,7 +231,7 @@ const sceneDefinitions = [
         },
         lemonDrop: {
           source: lemonDropAudio,
-          volume: 0.48,
+          volume: 0.72,
         },
       },
     },
