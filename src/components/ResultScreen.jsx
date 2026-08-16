@@ -16,7 +16,18 @@ const LEADERBOARD_SUBMIT_EFFECT = Object.freeze({
   volume: 0.7,
 });
 
-export default function ResultScreen({ result, habit, onRestart, onTodayPlan, onPassport, onLeaderboard, onProgressChanged, shouldPromptForDisplayName = true }) {
+export default function ResultScreen({
+  result,
+  habit,
+  onRestart,
+  onTodayPlan,
+  onPassport,
+  onLeaderboard,
+  onProgressChanged,
+  shouldPromptForDisplayName = true,
+  shouldAnimateCardLayout = false,
+  cardLayoutAnimationKey = 0,
+}) {
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -206,7 +217,10 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
           </ol>
         </header>
 
-        <div className="result-challenge-grid">
+        <div
+          className={`result-challenge-grid ${shouldAnimateCardLayout ? 'is-card-layout-entering' : ''}`}
+          key={cardLayoutAnimationKey}
+        >
           <section className="result-summary-card">
             <div className="result-summary-top">
               <div>
@@ -247,21 +261,19 @@ export default function ResultScreen({ result, habit, onRestart, onTodayPlan, on
             </div>
           </section>
 
-          <aside className="result-challenge-right">
-            <TodayPlanCard
-              className="result-focus-card"
-              sceneResults={dailyPlan.sceneResults}
-              programDay={programDay}
-              onSessionSelect={onRestart}
-              showCompletion
-            />
+          <TodayPlanCard
+            className="result-focus-card"
+            sceneResults={dailyPlan.sceneResults}
+            programDay={programDay}
+            onSessionSelect={onRestart}
+            showCompletion
+          />
 
-            <ResultLeaderboard
-              rows={leaderboard}
-              programDay={programDay}
-              isLoading={isLeaderboardLoading}
-            />
-          </aside>
+          <ResultLeaderboard
+            rows={leaderboard}
+            programDay={programDay}
+            isLoading={isLeaderboardLoading}
+          />
         </div>
 
         <nav className="result-dashboard-actions" aria-label="Result navigation">

@@ -9,7 +9,7 @@ import {
 } from '../utils/progressAdapter.js';
 import { getActiveDebugDate, toLocalDateKey } from '../utils/effectiveDate.js';
 
-export default function ProgressDebugPanel({ onProgressChange }) {
+export default function ProgressDebugPanel({ onProgressChange, onDayOneComplete }) {
   const [isOpen, setIsOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
@@ -50,6 +50,7 @@ export default function ProgressDebugPanel({ onProgressChange }) {
   const seedDayOneComplete = () => {
     seedDayOneCompleteDebug();
     refresh('已建立 Day 1 完成狀態');
+    onDayOneComplete?.();
   };
 
   const setDebugDay = (date) => {
@@ -125,7 +126,7 @@ export default function ProgressDebugPanel({ onProgressChange }) {
               <button onClick={() => setDebugDay(null)} type="button" disabled={!activeDebugDate}>Day 1</button>
               <button onClick={() => setDebugDay(dayTwoDate)} type="button" disabled={activeDebugDate === dayTwoDate}>Day 2</button>
               <button onClick={seedSessionOneComplete} type="button">Session 1 完成</button>
-              <button onClick={seedDayOneComplete} type="button">Day 1 完成</button>
+              <button onClick={seedDayOneComplete} type="button">完成當前 Day</button>
               <button onClick={seedWeek} type="button">模擬 7 天</button>
               <button onClick={clearToday} type="button">清除今天</button>
               <button onClick={clearAll} type="button">清除全部</button>

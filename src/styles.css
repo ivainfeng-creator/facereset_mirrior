@@ -12370,6 +12370,69 @@ h1 {
   text-align: left;
 }
 
+.result-challenge-grid.is-card-layout-entering > .result-summary-card {
+  animation: result-card-settle-left 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.result-challenge-grid.is-card-layout-entering > .result-focus-card {
+  animation: result-card-settle-center 560ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
+}
+
+.result-challenge-grid.is-card-layout-entering > .result-leaderboard-card {
+  animation: result-card-settle-right 620ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
+}
+
+@keyframes result-card-settle-left {
+  from {
+    opacity: 0;
+    transform: translateX(108%) scale(0.94);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateX(-2%) scale(1.015);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes result-card-settle-center {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes result-card-settle-right {
+  from {
+    opacity: 0;
+    transform: translateX(-108%) scale(0.94);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateX(2%) scale(1.015);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .result-summary-card,
 .result-focus-card,
 .result-leaderboard-card {
@@ -12812,13 +12875,6 @@ h1 {
   font-weight: 900;
 }
 
-.result-challenge-right {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: clamp(10px, 1.8vh, 16px);
-}
-
 .result-focus-card {
   display: grid;
   gap: 6px;
@@ -13182,9 +13238,49 @@ h1 {
   }
 
   .result-summary-card,
-  .result-challenge-right {
+  .result-focus-card,
+  .result-leaderboard-card {
     width: min(100%, 560px);
     justify-self: center;
+  }
+
+  .result-challenge-grid.is-card-layout-entering > .result-summary-card,
+  .result-challenge-grid.is-card-layout-entering > .result-focus-card,
+  .result-challenge-grid.is-card-layout-entering > .result-leaderboard-card {
+    animation-name: result-card-settle-down;
+  }
+
+  .result-challenge-grid.is-card-layout-entering > .result-focus-card {
+    animation-delay: 90ms;
+  }
+
+  .result-challenge-grid.is-card-layout-entering > .result-leaderboard-card {
+    animation-delay: 160ms;
+  }
+}
+
+@keyframes result-card-settle-down {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.96);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.015);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-challenge-grid.is-card-layout-entering > .result-summary-card,
+  .result-challenge-grid.is-card-layout-entering > .result-focus-card,
+  .result-challenge-grid.is-card-layout-entering > .result-leaderboard-card {
+    animation: none;
   }
 }
 
