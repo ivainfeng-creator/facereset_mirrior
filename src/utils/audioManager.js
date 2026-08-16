@@ -366,6 +366,29 @@ export function playSceneEffect(effect) {
   entry.audio.play().catch(() => attachUnlockListener());
 }
 
+export function playSceneEffectInstance(effect) {
+  if (!effect?.source || !canUseAudio()) return;
+
+  const audio = new Audio(effect.source);
+  audio.preload = 'auto';
+  audio.loop = false;
+  audio.muted = false;
+  audio.volume = clampVolume(effect.volume ?? 0.55);
+
+  const release = () => {
+    audio.onended = null;
+    audio.onerror = null;
+    audio.src = '';
+  };
+
+  audio.onended = release;
+  audio.onerror = release;
+  audio.play().catch(() => {
+    release();
+    attachUnlockListener();
+  });
+}
+
 export function pauseSceneEffect(effect) {
   if (!effect?.source) return;
 

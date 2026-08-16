@@ -181,15 +181,20 @@ export const sceneInteractionTuning = {
   [SCENE_IDS.lemonSqueeze]: {
     actionType: 'dual_press',
     feedbackInitial: 'Press both sides of your nose',
-    signal: PRESS_SIGNAL_TUNING,
+    signal: {
+      ...PRESS_SIGNAL_TUNING,
+      enterThreshold: 0.18,
+      releaseThreshold: 0.1,
+      activateMs: 40,
+    },
     scoring: {
       oneSideHintThreshold: 0.28,
       balanceHintThreshold: 0.54,
       syncBonusThreshold: 0.72,
       completedHoldSeconds: 0.3,
-      sodaBase: 0.03,
-      sodaBySqueeze: 0.03,
-      sodaByBalance: 0.02,
+      sodaBase: 0.15,
+      sodaBySqueeze: 0.15,
+      sodaByBalance: 0.1,
       minSodaLevel: 0.06,
       maxSodaLevel: 0.94,
       ingredientOffset: 0.03,
@@ -206,6 +211,7 @@ export const sceneInteractionTuning = {
       sipBaseLevel: 0.8,
       sipLevelStep: 0.035,
       sipHintLevel: 0.8,
+      lemonReplacementLevelStep: 0.2,
     },
   },
 };
