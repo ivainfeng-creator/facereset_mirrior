@@ -4880,7 +4880,10 @@ h1 {
   height: 16.5px;
   border-radius: 50% 0 50% 50%;
   background: rgba(243, 226, 74, 0.96);
-  animation: lemonStreamDrip 620ms linear infinite;
+}
+
+.lemon-juice-streams.is-flowing .lemon-juice-stream span {
+  animation: lemonStreamDrip 620ms linear both;
   animation-delay: var(--drip-delay);
 }
 
@@ -5270,8 +5273,10 @@ h1 {
 }
 
 .play-guide-toggle:hover,
-.play-exit-button:hover {
-  filter: brightness(1.02);
+.play-guide-toggle:focus-visible,
+.play-exit-button:hover,
+.play-exit-button:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .play-sound-toggle span {

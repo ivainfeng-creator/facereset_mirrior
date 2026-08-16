@@ -61,6 +61,7 @@ import {
   getSceneBackgroundDiagnostics,
   pauseSceneBackground,
   playSceneEffect,
+  playSceneEffectInstance,
   resetSceneBackground,
   resumeSceneBackground,
   startSceneBackground,
@@ -73,6 +74,7 @@ const regularTotalSeconds = STAGE_SECONDS * routineStages.length;
 const debugTotalSeconds = 5 * 60;
 const MAX_SCENE_SCORE = RAW_SCENE_SCORE_MAX;
 const POPCORN_SFX_COOLDOWN_MS = 280;
+const LEMON_DROP_LANDING_DELAYS_MS = Object.freeze([620, 775, 930, 1085, 700, 855, 1010, 1165]);
 const POPCORN_FLIGHT_DURATION_MS = 760;
 const ROUTINE_TOOLBAR_CLICK_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
@@ -319,6 +321,7 @@ export default function RoutineScreen({
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
   const gardenRainSfxRef = useRef(false);
+  const lemonDropTimersRef = useRef([]);
   const routineFinishedRef = useRef(false);
   const sessionDateRef = useRef(sessionDate || getEffectiveLocalDateKey());
   const backgroundFadeStartedRef = useRef(false);
@@ -617,6 +620,26 @@ export default function RoutineScreen({
       stopSceneEffect(gardenEffect);
     };
   }, [activeSceneId, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'lemonSqueeze') return;
+    if (!interaction.isSqueezing || !interaction.justActivated) return;
+
+    playSceneEffect(scene.audio?.effects?.lemonSqueeze);
+    const dropEffect = scene.audio?.effects?.lemonDrop;
+    lemonDropTimersRef.current = LEMON_DROP_LANDING_DELAYS_MS.map((delay) => window.setTimeout(() => {
+      playSceneEffectInstance(dropEffect);
+    }, delay));
+  }, [activeSceneId, interaction.isSqueezing, interaction.justActivated, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'lemonSqueeze') return undefined;
+
+    return () => {
+      lemonDropTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      lemonDropTimersRef.current = [];
+    };
+  }, [activeSceneId]);
 
 
   useEffect(() => {
