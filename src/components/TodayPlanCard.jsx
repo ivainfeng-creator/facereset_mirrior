@@ -1,4 +1,4 @@
-import { dailyScenes } from '../data/scenes.js';
+import { getDailyScenesForProgramDay } from '../data/scenes.js';
 
 export default function TodayPlanCard({
   sceneResults,
@@ -12,6 +12,7 @@ export default function TodayPlanCard({
   isHistory = false,
   className = '',
 }) {
+  const dailyScenes = getDailyScenesForProgramDay(programDay);
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
     sceneResults.filter((result) => result.completed).map((result) => result.sceneId),

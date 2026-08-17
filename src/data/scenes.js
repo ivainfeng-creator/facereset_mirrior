@@ -1,13 +1,8 @@
 import { sceneAssetGroups } from './sceneAssets.js';
+import { SCENE_IDS } from './sceneIds.js';
+import { FIRST_SCHEDULED_DAY, getScheduledSceneIds } from './scheduleConfig.js';
 
-export const SCENE_IDS = Object.freeze({
-  whaleDream: 'whaleDream',
-  whaleDream2: 'whaleDream2',
-  templeGarden: 'templeGarden',
-  flowerCollector: 'flowerCollector',
-  bubbleGumBunny: 'bubbleGumBunny',
-  lemonSqueeze: 'lemonSqueeze',
-});
+export { SCENE_IDS };
 
 const FULL_VIEWPORT_LAYOUT = Object.freeze({
   mode: 'full-viewport',
@@ -236,12 +231,6 @@ export const interactionScenes = Object.freeze(sceneDefinitions
 
 export const DEFAULT_SCENE_ID = interactionScenes[0].id;
 
-export const dailyScenes = Object.freeze(interactionScenes
-  .filter((scene) => Number.isFinite(scene.dailyOrder))
-  .sort((left, right) => left.dailyOrder - right.dailyOrder));
-
-export const TODAY_SCENE_IDS = Object.freeze(dailyScenes.map((scene) => scene.id));
-
 export function getSceneById(sceneId) {
   return interactionScenes.find((scene) => scene.id === sceneId) || interactionScenes[0];
 }
@@ -259,6 +248,23 @@ export function getUpcomingScenes(sceneId, count = 1, scenes = interactionScenes
 export function getNextScene(sceneId, scenes = interactionScenes) {
   return getUpcomingScenes(sceneId, 1, scenes)[0] || null;
 }
+
+// Resolves "today's 3 scenes" for a given Program Day from the centralized
+// schedule in scheduleConfig.js — the schedule's array order is preserved
+// as-is (the actual session order), never re-sorted or shuffled here.
+export function getDailySceneIdsForProgramDay(programDay) {
+  return getScheduledSceneIds(programDay);
+}
+
+export function getDailyScenesForProgramDay(programDay) {
+  return getDailySceneIdsForProgramDay(programDay).map((sceneId) => getSceneById(sceneId));
+}
+
+// Legacy Day-1 defaults, kept for the few call sites that have no Program Day
+// context (e.g. a dev-only result preview). Prefer getDailyScenesForProgramDay
+// / getDailySceneIdsForProgramDay wherever a Program Day is available.
+export const dailyScenes = Object.freeze(getDailyScenesForProgramDay(FIRST_SCHEDULED_DAY));
+export const TODAY_SCENE_IDS = Object.freeze(getDailySceneIdsForProgramDay(FIRST_SCHEDULED_DAY));
 
 export function getUpcomingDailyScenes(sceneId, count = 1) {
   return getUpcomingScenes(sceneId, count, dailyScenes);
