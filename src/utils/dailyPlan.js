@@ -38,7 +38,7 @@ export function buildDailyPlanSummary(habit, { date = getEffectiveLocalDateKey()
       sceneTitle: scene.title,
       area: scene.area,
       score: entry ? clampScore(entry.score) : 0,
-      completed: Boolean(entry),
+      completed: Boolean(entry) && entry.completed !== false,
     };
   });
   const completed = sceneResults.filter((entry) => entry.completed).length;
@@ -68,7 +68,7 @@ export function getCompletedProgramDays(habit) {
   const scenesByDate = new Map();
 
   (habit?.history || []).forEach((entry) => {
-    if (!entry?.date) return;
+    if (!entry?.date || entry.completed === false) return;
     const completedScenes = scenesByDate.get(entry.date) || new Set();
     completedScenes.add(entry.sceneId);
     scenesByDate.set(entry.date, completedScenes);
@@ -86,6 +86,33 @@ export function getCompletedProgramDays(habit) {
         return sceneIds.every((sceneId) => completedScenes.has(sceneId)) ? [programDay] : [];
       }),
   );
+}
+
+export function buildProgramDayPlanSummary(habit, programDay) {
+  const currentPlan = buildDailyPlanSummary(habit);
+  const selectedProgramDay = Number(programDay);
+
+  if (!Number.isInteger(selectedProgramDay) || selectedProgramDay < 1 || selectedProgramDay === currentPlan.programDay) {
+    return currentPlan;
+  }
+
+  const dates = new Set();
+  Object.entries(habit?.programDayByDate || {}).forEach(([date, assignedDay]) => {
+    if (Number(assignedDay) === selectedProgramDay) dates.add(date);
+  });
+  (habit?.history || []).forEach((entry) => {
+    if (entry?.date && Number(entry.programDay) === selectedProgramDay) dates.add(entry.date);
+  });
+
+  const matchingPlans = [...dates]
+    .map((date) => buildDailyPlanSummary(habit, { date }))
+    .filter((plan) => plan.programDay === selectedProgramDay)
+    .sort((left, right) => {
+      if (left.isComplete !== right.isComplete) return Number(right.isComplete) - Number(left.isComplete);
+      return right.date.localeCompare(left.date);
+    });
+
+  return matchingPlans[0] || currentPlan;
 }
 
 function buildDailyRadar(sceneResults) {

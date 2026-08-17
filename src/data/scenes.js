@@ -63,7 +63,7 @@ const sceneDefinitions = [
     },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine whale-viewport-routine' },
     planPhase: 'Warm up',
-    planArt: '/assets/design-v3/challenge-step1.png',
+    planArt: '/assets/landing/bluecloud_openmouth_1.png',
     practice: {
       renderer: 'whale',
       title: 'How to Play Whale Mouth',
@@ -130,7 +130,7 @@ const sceneDefinitions = [
     },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine cloud-garden-viewport-routine' },
     planPhase: 'Activate',
-    planArt: '/assets/design-v3/challenge-step2.png',
+    planArt: '/assets/landing/bluecloud_relax_1.png',
     practice: {
       renderer: 'cloud',
       title: 'How to Play Cloud Garden',
@@ -167,12 +167,13 @@ const sceneDefinitions = [
         popcornGather: {
           source: '/audio/popcorn/popcorn_SFX2.mp3',
           volume: 0.48,
+          loop: true,
         },
       },
     },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine popcorn-viewport-routine' },
     planPhase: 'Unwind',
-    planArt: '/assets/design-v3/challenge-step3.png',
+    planArt: '/assets/landing/bluecloud_inhale_1.png',
     practice: {
       renderer: 'popcorn',
       title: 'How to Play Popcorn Collector',
