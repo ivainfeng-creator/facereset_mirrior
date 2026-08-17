@@ -6,6 +6,7 @@ export default function ThemeScreen({
   habit,
   selectedScene,
   onSelect,
+  onViewResult,
   isEntering = false,
 }) {
   const [preparingSceneId, setPreparingSceneId] = useState(null);
@@ -13,6 +14,10 @@ export default function ThemeScreen({
   const dailyPlan = buildDailyPlanSummary(habit);
   const currentDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
   const completedProgramDays = getCompletedProgramDays(habit);
+  const latestCompletedDay = [...completedProgramDays]
+    .filter((day) => day <= currentDay)
+    .sort((left, right) => right - left)[0] || null;
+  const historyTargetDay = dailyPlan.isComplete ? currentDay : latestCompletedDay;
 
   useEffect(() => () => window.clearTimeout(preparingTimerRef.current), []);
 
@@ -59,7 +64,18 @@ export default function ThemeScreen({
           onStart={startSession}
           onSessionSelect={startSession}
           showCompletion
+          onViewResult={dailyPlan.isComplete ? () => onViewResult?.(currentDay) : undefined}
         />
+
+        {historyTargetDay && (
+          <button
+            className="challenge-v3-view-history"
+            type="button"
+            onClick={() => onViewResult?.(historyTargetDay)}
+          >
+            View history <span aria-hidden="true">→</span>
+          </button>
+        )}
       </main>
     </section>
   );

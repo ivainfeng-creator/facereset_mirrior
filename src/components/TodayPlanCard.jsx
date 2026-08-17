@@ -8,6 +8,7 @@ export default function TodayPlanCard({
   onStart,
   onSessionSelect,
   showCompletion = false,
+  onViewResult,
   isHistory = false,
   className = '',
 }) {
@@ -103,7 +104,13 @@ export default function TodayPlanCard({
       )}
 
       {isAllDone && showCompletion && (
-        <div className="challenge-v3-day-complete-banner" role="status">
+        <button
+          className={`challenge-v3-day-complete-banner ${onViewResult ? 'is-clickable' : ''}`}
+          type="button"
+          onClick={onViewResult}
+          disabled={!onViewResult}
+          aria-label={onViewResult ? `View Program Day ${programDay} result` : undefined}
+        >
           <span className="challenge-v3-banner-sheen" aria-hidden="true" />
           <div className="challenge-v3-banner-copy">
             <strong>Day {programDay} Complete</strong>
@@ -118,7 +125,8 @@ export default function TodayPlanCard({
               <b>{programDay + 1}</b>
             </div>
           </div>
-        </div>
+          {onViewResult && <span className="challenge-v3-banner-chevron" aria-hidden="true">→</span>}
+        </button>
       )}
     </section>
   );

@@ -41,9 +41,14 @@ export default function ResultScreen({
   const currentDailyPlan = useMemo(() => buildDailyPlanSummary(habit), [habit]);
   const currentProgramDay = Math.max(1, Number(currentDailyPlan.programDay) || 1);
   const completedProgramDays = getCompletedProgramDays(habit);
+  const latestCompletedDay = [...completedProgramDays]
+    .filter((day) => day <= currentProgramDay)
+    .sort((left, right) => right - left)[0] || null;
   const resolvedSelectedDay = Math.min(7, Math.max(1, Number(selectedProgramDay) || currentProgramDay));
-  const isSelectedDayAvailable = resolvedSelectedDay === currentProgramDay || completedProgramDays.has(resolvedSelectedDay);
-  const programDay = isSelectedDayAvailable ? resolvedSelectedDay : currentProgramDay;
+  const isSelectedDayAvailable = completedProgramDays.has(resolvedSelectedDay);
+  const programDay = isSelectedDayAvailable
+    ? resolvedSelectedDay
+    : latestCompletedDay || currentProgramDay;
   const isHistory = programDay !== currentProgramDay;
   const dailyPlan = useMemo(() => {
     const storedPlan = buildProgramDayPlanSummary(habit, programDay);
@@ -221,7 +226,7 @@ export default function ResultScreen({
           <h1>Face Reset Challenge</h1>
           <ol className="result-day-strip" aria-label="Seven day challenge history">
             {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-              const canSelectDay = day === currentProgramDay || completedProgramDays.has(day);
+              const canSelectDay = completedProgramDays.has(day);
               return (
               <li className={`${day === programDay ? 'is-current ' : ''}${completedProgramDays.has(day) ? 'is-complete ' : ''}${canSelectDay ? 'is-selectable' : 'is-locked'}`} key={day}>
                 <button
@@ -229,7 +234,7 @@ export default function ResultScreen({
                   onClick={() => canSelectDay && onSelectedProgramDayChange?.(day)}
                   disabled={!canSelectDay}
                   aria-current={day === programDay ? 'step' : undefined}
-                  aria-label={day === currentProgramDay ? `Current Program Day ${day}` : completedProgramDays.has(day) ? `View Program Day ${day} history` : `Program Day ${day} locked`}
+                  aria-label={completedProgramDays.has(day) ? `View Program Day ${day} history` : `Program Day ${day} locked`}
                 >
                   {day === programDay ? `DAY ${day}` : day}
                 </button>
