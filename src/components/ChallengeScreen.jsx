@@ -15,6 +15,8 @@ export default function ChallengeScreen({
   onSelect,
   onSelectDay,
   onRestart,
+  onViewHistory,
+  canViewHistory,
   onTodayPlan,
   onPassport,
   onLeaderboard,
@@ -61,6 +63,7 @@ export default function ChallengeScreen({
       dailyPlan={dailyPlan}
       daySelector={daySelector}
       onSelect={onSelect}
+      onViewHistory={canViewHistory ? onViewHistory : undefined}
       isEntering={isEntering}
       newlyCompletedSceneId={newlyCompletedSceneId}
       onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}

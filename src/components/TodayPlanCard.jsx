@@ -16,6 +16,7 @@ export default function TodayPlanCard({
   showCompletion = false,
   newlyCompletedSceneId = null,
   onCompletionStampAnimationEnd,
+  onViewHistory,
   className = '',
   isReadOnly = false,
   focusLabel = 'TODAY\'S FOCUS',
@@ -130,23 +131,46 @@ export default function TodayPlanCard({
       )}
 
       {isAllDone && showCompletion && (
-        <div className="challenge-v3-day-complete-banner" role="status">
-          <span className="challenge-v3-banner-sheen" aria-hidden="true" />
-          <div className="challenge-v3-banner-copy">
-            <strong>Day {programDay} Complete</strong>
-            <span>Come back on your next active day for Day {programDay + 1}</span>
-          </div>
-          <div className="challenge-v3-banner-calendar" aria-hidden="true">
-            <i className="challenge-v3-banner-confetti-one" />
-            <i className="challenge-v3-banner-confetti-two" />
-            <i className="challenge-v3-banner-confetti-three" />
-            <div>
-              <span>DAY</span>
-              <b>{programDay + 1}</b>
+        <>
+          <div className="challenge-v3-day-complete-banner" role="status">
+            <span className="challenge-v3-banner-sheen" aria-hidden="true" />
+            <div className="challenge-v3-banner-copy">
+              <strong>Day {programDay} Complete</strong>
+              <span>Come back on your next active day for Day {programDay + 1}</span>
+            </div>
+            <div className="challenge-v3-banner-calendar" aria-hidden="true">
+              <i className="challenge-v3-banner-confetti-one" />
+              <i className="challenge-v3-banner-confetti-two" />
+              <i className="challenge-v3-banner-confetti-three" />
+              <div>
+                <span>DAY</span>
+                <b>{programDay + 1}</b>
+              </div>
             </div>
           </div>
-        </div>
+          {onViewHistory && (
+            <button
+              className="history-fab"
+              type="button"
+              aria-label="View history"
+              data-label="View history"
+              onClick={onViewHistory}
+            >
+              <HistoryIcon />
+            </button>
+          )}
+        </>
       )}
     </section>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+      <path d="M4 4v5h5" />
+      <path d="M12 7v5l3.5 2" />
+    </svg>
   );
 }

@@ -28,7 +28,11 @@ export default function ResultScreen({
   shouldAnimateCardLayout = false,
   cardLayoutAnimationKey = 0,
   daySelector,
+  isHistoryOnly = false,
+  onCloseHistory,
 }) {
+  const [cardOrder, setCardOrder] = useState([0, 1, 2]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryOnly);
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -55,6 +59,19 @@ export default function ResultScreen({
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
+  const bringCardToFront = (cardIndex) => {
+    setCardOrder((currentOrder) => [
+      cardIndex,
+      ...currentOrder.filter((index) => index !== cardIndex),
+    ]);
+  };
+  const closeHistory = () => {
+    if (isHistoryOnly) {
+      onCloseHistory?.();
+      return;
+    }
+    setIsHistoryOpen(false);
+  };
 
   useEffect(() => {
     let isCurrent = true;
@@ -202,78 +219,77 @@ export default function ResultScreen({
     }
   };
 
+  const historyModal = isHistoryOpen && (
+    <div className="result-history-overlay" onClick={closeHistory}>
+      <section
+        className="result-history-modal"
+        aria-label="Result history"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="result-carousel" aria-label="Result cards">
+          <div
+            className={`result-challenge-grid ${shouldAnimateCardLayout ? 'is-card-layout-entering' : ''}`}
+            key={cardLayoutAnimationKey}
+          >
+            <div
+              className={`result-card-stack is-stack-${cardOrder.indexOf(0)}`}
+              onClick={() => bringCardToFront(0)}
+            >
+              <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
+                <section className="result-summary-card">
+                  <img className="result-card-image" src="/assets/Result_Card.png" alt="Face Reset challenge result" />
+                  <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
+                    <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
+                    <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div className={`result-card-stack is-stack-${cardOrder.indexOf(1)}`} onClick={() => bringCardToFront(1)}>
+              <div className="result-card-content" inert={cardOrder.indexOf(1) !== 0}>
+                <TodayPlanCard className="result-focus-card" sceneResults={dailyPlan.sceneResults} programDay={programDay} onSessionSelect={onRestart} showCompletion />
+              </div>
+            </div>
+            <div className={`result-card-stack is-stack-${cardOrder.indexOf(2)}`} onClick={() => bringCardToFront(2)}>
+              <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
+                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+
+  if (isHistoryOnly) return historyModal;
+
   return (
     <section className="screen result-screen reset-result-screen result-dashboard-screen">
       <main className="result-challenge-shell" aria-label="Face Reset challenge result">
         <header className="result-challenge-heading">
-          <h1>Face Reset Challenge</h1>
+          <div className="result-challenge-heading-row">
+            <h1>Face Reset Challenge</h1>
+            <button className="result-today-plan-action" type="button" onClick={onTodayPlan}>
+              TODAY&apos;S PLAN
+            </button>
+          </div>
           {daySelector}
         </header>
 
-        <div
-          className={`result-challenge-grid ${shouldAnimateCardLayout ? 'is-card-layout-entering' : ''}`}
-          key={cardLayoutAnimationKey}
+        <button
+          className={`result-history-fab${isHistoryOpen ? ' is-active' : ''}`}
+          type="button"
+          aria-label={isHistoryOpen ? 'Close history' : 'View history'}
+          aria-expanded={isHistoryOpen}
+          data-label={isHistoryOpen ? 'Close history' : 'View history'}
+          onClick={() => setIsHistoryOpen((isOpen) => !isOpen)}
         >
-          <section className="result-summary-card">
-            <div className="result-summary-top">
-              <div>
-              <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
-                <div className="result-score-display">
-                  <strong>{score}</strong>
-                  <span>/ 300</span>
-                </div>
-              </div>
-              <div className="result-toolbar" aria-label="Result tools">
-                <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download">
-                  <DownloadIcon />
-                </button>
-                <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share">
-                  <ShareIcon />
-                </button>
-              </div>
-            </div>
+          {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
+        </button>
 
-            <div className="result-achievement-row">
-              <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
-              <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
-            </div>
-            <div className="result-delta-row">
-              <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
-              <b><PersonalBestIcon />NEW PERSONAL BEST</b>
-            </div>
-
-            <div className="result-summary-divider" />
-            <ResultRadarPanel result={dailyPlan} />
-
-            <div className="result-balance-callout">
-              <img src="/assets/design-v3/result-mascot.png" alt="" />
-              <p>
-                <strong>You looks more relaxed and balanced!</strong>
-                <span>Keep going for even better results.</span>
-              </p>
-            </div>
-          </section>
-
-          <TodayPlanCard
-            className="result-focus-card"
-            sceneResults={dailyPlan.sceneResults}
-            programDay={programDay}
-            onSessionSelect={onRestart}
-            showCompletion
-          />
-
-          <ResultLeaderboard
-            rows={leaderboard}
-            programDay={programDay}
-            isLoading={isLeaderboardLoading}
-          />
-        </div>
-
-        <nav className="result-dashboard-actions" aria-label="Result navigation">
-          <button type="button" onClick={onTodayPlan}>TODAY&apos;S PLAN</button>
-          <button type="button" onClick={onPassport}>PASSPORT</button>
-          <button type="button" onClick={onLeaderboard}>LEADERBOARD</button>
-        </nav>
+        {historyModal}
 
         {exportMessage && <p className="export-message result-dashboard-message">{exportMessage}</p>}
 
@@ -459,9 +475,24 @@ function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
   );
 }
 
-function ResultLeaderboard({ rows, programDay, isLoading }) {
+function ResultLeaderboard({ rows, programDay, score, topPercent, isLoading }) {
   return (
     <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
+      <div className="result-leaderboard-summary">
+        <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
+        <div className="result-score-display">
+          <strong>{score}</strong>
+          <span>/ 300</span>
+        </div>
+        <div className="result-achievement-row">
+          <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
+          <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
+        </div>
+        <div className="result-delta-row">
+          <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
+          <b><PersonalBestIcon />NEW PERSONAL BEST</b>
+        </div>
+      </div>
       <header>
         <span>DAY {programDay} LEADERBOARD</span>
       </header>
@@ -510,6 +541,24 @@ function ShareIcon() {
       <circle cx="18" cy="19" r="2.5" />
       <path d="m8.2 10.8 7.6-4.6" />
       <path d="m8.2 13.2 7.6 4.6" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+      <path d="M4 4v5h5" />
+      <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
     </svg>
   );
 }

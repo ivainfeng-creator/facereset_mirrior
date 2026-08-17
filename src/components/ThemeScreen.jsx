@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import TodayPlanCard from './TodayPlanCard.jsx';
+import ResultScreen from './ResultScreen.jsx';
 import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
 
 export default function ThemeScreen({
@@ -11,8 +12,10 @@ export default function ThemeScreen({
   isEntering = false,
   newlyCompletedSceneId = null,
   onCompletionStampAnimationEnd,
+  onViewHistory,
 }) {
   const [preparingSceneId, setPreparingSceneId] = useState(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const preparingTimerRef = useRef(null);
   const currentDailyPlan = buildDailyPlanSummary(habit);
   const selectedDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
@@ -46,11 +49,22 @@ export default function ThemeScreen({
           onStart={startSession}
           onSessionSelect={startSession}
           showCompletion
+          onViewHistory={onViewHistory ? () => setIsHistoryOpen(true) : undefined}
           newlyCompletedSceneId={newlyCompletedSceneId}
           onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}
           isReadOnly={false}
           focusLabel={isHistoryView ? `DAY ${selectedDay} RECORD` : 'TODAY\'S FOCUS'}
         />
+        {isHistoryOpen && (
+          <ResultScreen
+            result={dailyPlan}
+            habit={habit}
+            onRestart={startSession}
+            isHistoryOnly
+            onCloseHistory={() => setIsHistoryOpen(false)}
+            shouldPromptForDisplayName={false}
+          />
+        )}
       </main>
     </section>
   );

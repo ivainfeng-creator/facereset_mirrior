@@ -111,6 +111,7 @@ export default function App() {
   const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
   const [newlyCompletedSceneId, setNewlyCompletedSceneId] = useState(null);
+  const [canViewCompletedHistory, setCanViewCompletedHistory] = useState(false);
   const [selectedScene, setSelectedScene] = useState(debugSceneId || DEFAULT_SCENE_ID);
   const [sessionDate, setSessionDate] = useState(null);
   const [selectedChallengeDate, setSelectedChallengeDate] = useState(null);
@@ -226,17 +227,10 @@ export default function App() {
     if (screenTransition) return;
 
     setSelectedChallengeDate(null);
+    setCanViewCompletedHistory(buildDailyPlanSummary(loadHabitProgress()).isComplete);
     traceAudioLifecycle('START pressed');
     unlockAudio();
     playSceneEffect(WELCOME_START_EFFECT);
-
-    if (buildDailyPlanSummary(loadHabitProgress()).isComplete) {
-      welcomeEffectTimerRef.current = window.setTimeout(() => {
-        playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
-      }, 140);
-      openDailyResult();
-      return;
-    }
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setChallengeView('plan');
@@ -408,6 +402,7 @@ export default function App() {
     }
     setProgressRevision((value) => value + 1);
     setNewlyCompletedSceneId(result.sceneId);
+    setCanViewCompletedHistory(false);
     playSceneEffect(SESSION_COMPLETE_STAMP_EFFECT);
     if (dailyPlan.isComplete) {
       playSceneEffect(WELCOME_START_EFFECT);
@@ -444,6 +439,7 @@ export default function App() {
     if (!dailyPlan.isComplete) return;
 
     setSelectedChallengeDate(dailyPlan.date);
+    setCanViewCompletedHistory(false);
     setLatestResult((current) => ({
       ...dailyPlan,
       snapshots: current?.programDay === dailyPlan.programDay
@@ -538,8 +534,11 @@ export default function App() {
           onCompletionStampAnimationEnd={() => setNewlyCompletedSceneId(null)}
           result={latestResult}
           onRestart={replayResultSession}
+          onViewHistory={openDailyResult}
+          canViewHistory={canViewCompletedHistory}
           onTodayPlan={() => {
             setSelectedChallengeDate(null);
+            setCanViewCompletedHistory(false);
             navigateChallenge('plan', 'slide-back');
           }}
           onPassport={() => navigate(SCREENS.passport, 'slide-fwd')}
