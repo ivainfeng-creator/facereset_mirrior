@@ -10,7 +10,7 @@ import ResultScreen from './components/ResultScreen.jsx';
 import RoutineScreen from './components/RoutineScreen.jsx';
 import ThemeScreen from './components/ThemeScreen.jsx';
 import { DEFAULT_SCENE_ID, dailyScenes, getSceneById } from './data/scenes.js';
-import { buildDailyPlanSummary } from './utils/dailyPlan.js';
+import { buildDailyPlanSummary, getCompletedProgramDays } from './utils/dailyPlan.js';
 import { isDebugHistoryEnabled, withDebugHistory } from './utils/debugHistory.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
@@ -260,12 +260,22 @@ export default function App() {
     navigate(SCREENS.theme, 'quiet');
   };
 
-  const openDailyResult = () => {
-    const dailyPlan = buildDailyPlanSummary(loadHabitProgress());
+  const openDailyResult = (requestedProgramDay = null) => {
+    const resultHabit = isDebugHistory ? challengeHabit : loadHabitProgress();
+    const dailyPlan = buildDailyPlanSummary(resultHabit);
+    const completedProgramDays = [...getCompletedProgramDays(resultHabit)]
+      .filter((day) => day <= dailyPlan.programDay)
+      .sort((left, right) => right - left);
+    const requestedDay = Number(requestedProgramDay);
+    const targetProgramDay = Number.isInteger(requestedDay) && completedProgramDays.includes(requestedDay)
+      ? requestedDay
+      : dailyPlan.isComplete
+        ? dailyPlan.programDay
+        : completedProgramDays[0];
 
-    if (!dailyPlan.isComplete) return;
+    if (!targetProgramDay) return;
 
-    setSelectedProgramDay(null);
+    setSelectedProgramDay(targetProgramDay);
     setIsCelebratingCompletion(false);
     setLatestResult((current) => ({
       ...dailyPlan,
@@ -340,7 +350,7 @@ export default function App() {
           onSelect={selectTheme}
           onGuide={openGuide}
           onBack={resetToLanding}
-          onContinue={openDailyResult}
+          onViewResult={openDailyResult}
           habit={challengeHabit}
           isEntering={screenTransition === 'welcome-to-plan'}
         />
