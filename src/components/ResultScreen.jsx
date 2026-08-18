@@ -123,7 +123,15 @@ export default function ResultScreen({
     setIsCardLayoutAnimationActive(true);
     const timer = window.setTimeout(() => setIsCardLayoutAnimationActive(false), CARD_LAYOUT_ENTRY_DURATION_MS);
     return () => window.clearTimeout(timer);
-  }, [cardLayoutAnimationKey, shouldAnimateCardLayout]);
+    // Intentionally keyed only on cardLayoutAnimationKey (one animation trigger = one
+    // key bump). App.jsx flips shouldAnimateCardLayout back to false ~800ms after
+    // triggering it, close to this effect's own 780ms unlock timer; if that prop were
+    // also a dependency, that later flip would re-run this effect, its cleanup would
+    // cancel the pending unlock timer, and the guard clause above (shouldAnimateCardLayout
+    // now false) would return without ever unlocking — leaving cards stuck unclickable
+    // whenever the two timers raced. Reading the prop only via closure avoids that.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardLayoutAnimationKey]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -302,19 +310,15 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(0)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
-                {qualifiesForLeaderboard ? (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
-                ) : (
-                  <ResultShareCard
-                    cardRef={shareCardNodeRef}
-                    slogan={shareCardSlogan}
-                    mascot={shareCardMascot}
-                    photos={shareCardPhotos}
-                    isExporting={isExporting}
-                    onDownload={downloadShareCard}
-                    onShare={shareShareCard}
-                  />
-                )}
+                <ResultShareCard
+                  cardRef={shareCardNodeRef}
+                  slogan={shareCardSlogan}
+                  mascot={shareCardMascot}
+                  photos={shareCardPhotos}
+                  isExporting={isExporting}
+                  onDownload={downloadShareCard}
+                  onShare={shareShareCard}
+                />
               </div>
             </div>
             <div
@@ -330,19 +334,7 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
-                {qualifiesForLeaderboard ? (
-                  <ResultShareCard
-                    cardRef={shareCardNodeRef}
-                    slogan={shareCardSlogan}
-                    mascot={shareCardMascot}
-                    photos={shareCardPhotos}
-                    isExporting={isExporting}
-                    onDownload={downloadShareCard}
-                    onShare={shareShareCard}
-                  />
-                ) : (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
-                )}
+                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
               </div>
             </div>
           </div>
