@@ -285,20 +285,17 @@ export default function App() {
     setScreen(SCREENS.practice);
   };
 
-  const selectTheme = (sceneId, selectedDate = null) => {
-    traceAudioLifecycle('scene selected', { sceneId });
-    preloadSceneAudio(getSceneById(sceneId).audio);
-    unlockAudio();
+  // Shared entry point for every path that plays a scene live (fresh
+  // session or same-day replay from the plan). Always routes through the
+  // practice/camera-permission/face-scan gate before a scene can reach
+  // RoutineScreen — RoutineScreen has no camera of its own, it simply
+  // renders whatever `stream` prop it is handed, so skipping this gate
+  // leaves it with a stale or null stream and the scene never becomes
+  // playable.
+  const enterSceneFlow = (sceneId, { selectedDate = null, returnView = 'plan' } = {}) => {
     setSelectedScene(sceneId);
     setSessionDate(selectedDate);
-
-    const isCompletedSession = buildDailyPlanSummary(habit, selectedDate ? { date: selectedDate } : undefined).sceneResults
-      .some((result) => result.sceneId === sceneId && result.completed);
-    if (isCompletedSession) {
-      setRoutineReturnView('plan');
-      navigate(SCREENS.routine, 'slide-fwd');
-      return;
-    }
+    setRoutineReturnView(returnView);
 
     playSceneEffect(WELCOME_PAPER_FLIP_EFFECT);
     navigate(SCREENS.practice, 'paper');
@@ -319,6 +316,13 @@ export default function App() {
     setGuideOverlay('permission');
   };
 
+  const selectTheme = (sceneId, selectedDate = null) => {
+    traceAudioLifecycle('scene selected', { sceneId });
+    preloadSceneAudio(getSceneById(sceneId).audio);
+    unlockAudio();
+    enterSceneFlow(sceneId, { selectedDate, returnView: 'plan' });
+  };
+
   const openGuide = (sceneId) => {
     setSelectedScene(sceneId);
     setGuideOverlay(null);
@@ -330,7 +334,6 @@ export default function App() {
     preloadSceneAudio(getSceneById(selectedScene).audio);
     unlockAudio();
     setGuideOverlay(null);
-    setRoutineReturnView('plan');
     markGuideSeen(selectedScene);
     navigate(SCREENS.routine, 'slide-fwd');
   };
@@ -459,10 +462,7 @@ export default function App() {
     traceAudioLifecycle('result session replay', { sceneId });
     preloadSceneAudio(getSceneById(sceneId).audio);
     unlockAudio();
-    setSelectedScene(sceneId);
-    setSessionDate(latestResult?.date || null);
-    setRoutineReturnView('result');
-    navigate(SCREENS.routine, 'slide-fwd');
+    enterSceneFlow(sceneId, { selectedDate: latestResult?.date || null, returnView: 'result' });
   };
 
   const resetToLanding = () => {

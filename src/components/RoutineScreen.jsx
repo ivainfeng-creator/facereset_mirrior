@@ -891,7 +891,7 @@ export default function RoutineScreen({
                 type="button"
                 onClick={() => {
                   playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
-                {justCaught && <div className="penguin-catch-flash">+5</div>}
+                  setIsQuitOpen(true);
                 }}
                 aria-label="Quit routine"
                 title="Exit"
