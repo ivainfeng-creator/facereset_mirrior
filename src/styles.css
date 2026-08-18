@@ -11063,7 +11063,12 @@ h1 {
   top: 55%;
   left: 50%;
   z-index: 2;
-  width: min(72vw, 38vh);
+  /* One responsive box drives the whole three-sticker composition. The vw term
+     leaves room for the side stickers that hang outside it; the svh term keeps
+     the group tied to the visible viewport (on iOS `vh` is the *large*
+     viewport, so `vh` alone renders the group oversized on a real phone). */
+  width: min(63vw - 16px, 38vh);
+  width: min(63vw - 16px, 38svh);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
 }
@@ -11096,13 +11101,22 @@ h1 {
 }
 
 .welcome-v3-mascot-frame {
+  /* `--mascot-zoom` is the art's size as a fraction of the circle's inner box,
+     and it drives the offset and the circular crop as well, so the character
+     and its frame always scale together. The art clips itself instead of
+     leaning on the parent's rounded `overflow`: iOS Safari drops that clip for
+     descendants once an ancestor runs a transform animation (both wrappers
+     here do), which is what let the character escape the circle on device. */
+  --mascot-zoom: 0.86;
   position: absolute;
-  inset: 7%;
+  top: calc((1 - var(--mascot-zoom)) * 50%);
+  left: calc((1 - var(--mascot-zoom)) * 50%);
   display: block;
-  width: 86%;
-  height: 86%;
+  width: calc(var(--mascot-zoom) * 100%);
+  height: calc(var(--mascot-zoom) * 100%);
   object-fit: contain;
   object-position: center;
+  clip-path: circle(calc(50% / var(--mascot-zoom)));
   filter: drop-shadow(0 8px 10px rgba(34, 106, 157, 0.14));
 }
 
@@ -11121,11 +11135,7 @@ h1 {
 }
 
 .welcome-v3-sticker-main .welcome-v3-mascot-frame {
-  inset: auto;
-  top: -12%;
-  left: -12%;
-  width: 124%;
-  height: 124%;
+  --mascot-zoom: 1.24;
   object-position: center 39%;
 }
 
@@ -11148,7 +11158,11 @@ h1 {
   --rot: 0deg;
   --sticker-rot: -20deg;
   top: 50%;
-  right: -39%;
+  /* Overhang stays at the designed 39% of the composition box wherever there is
+     room, and is otherwise clamped to whatever still leaves a 12px gutter, so
+     this sticker can never be cut off by the right edge. The percentages here
+     resolve against the composition box, `50vw` against the viewport. */
+  right: calc(-1 * min(39%, 50vw - 12px - 50%));
   z-index: 5;
   width: 50%;
   aspect-ratio: 1;
@@ -11250,7 +11264,8 @@ h1 {
 
   .welcome-v3-mascots {
     top: 54%;
-    width: min(66vw, 36vh);
+    width: min(63vw - 16px, 36vh);
+    width: min(63vw - 16px, 36svh);
   }
 
   .welcome-v3-start {
