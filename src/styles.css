@@ -11210,7 +11210,8 @@ h1 {
   z-index: 6;
   display: inline-grid;
   width: min(309px, calc(100% - 48px));
-  padding: clamp(14px, 2.2vh, 20px);
+  min-height: 52px;
+  padding: 14px 20px;
   place-items: center;
   border: 0;
   border-radius: 224px;
@@ -11218,7 +11219,7 @@ h1 {
   background: #1a1a1a;
   box-shadow: 0 8px 18px rgba(26, 26, 26, 0.16);
   font-family: 'Instrument Sans', sans-serif;
-  font-size: min(clamp(18px, 5vw, 24px), 2.4vh);
+  font-size: clamp(18px, 4vw, 20px);
   font-weight: 900;
   letter-spacing: 1.4px;
   line-height: 1;
@@ -14418,16 +14419,17 @@ h1 {
 .challenge-v3-start {
   display: inline-grid;
   width: min(100%, 309px);
+  min-height: 52px;
   place-items: center;
   justify-self: center;
   margin-top: clamp(8px, 1.6svh, 14px);
-  padding: clamp(14px, 2.2svh, 20px);
+  padding: 14px 20px;
   border: 0;
   border-radius: 999px;
   color: #ffffff;
   background: #067abb;
   font-family: 'Instrument Sans', sans-serif;
-  font-size: min(clamp(18px, 5vw, 24px), 2.4svh);
+  font-size: clamp(18px, 4vw, 20px);
   font-weight: 900;
   letter-spacing: 1.4px;
   line-height: 1;
@@ -15004,10 +15006,10 @@ h1 {
 
 .challenge-v3-session {
   display: flex;
-  min-height: 0;
+  min-height: clamp(88px, 12vh, 104px);
   align-items: center;
   gap: clamp(12px, 3vw, 16px);
-  padding: clamp(10px, 1.6vh, 14px) 12px;
+  padding: 10px 12px;
   overflow: hidden;
   border-radius: 14px;
   color: #a8a6a3;
@@ -15169,10 +15171,11 @@ h1 {
 
 .challenge-v3-continue {
   height: auto;
-  padding: clamp(14px, 2.2vh, 20px);
+  min-height: 52px;
+  padding: 14px 20px;
   border-radius: 999px;
   font-family: 'Instrument Sans', sans-serif;
-  font-size: min(clamp(18px, 5vw, 24px), 2.4vh);
+  font-size: clamp(18px, 4vw, 20px);
   font-weight: 900;
   letter-spacing: 1.4px;
   line-height: 1;
