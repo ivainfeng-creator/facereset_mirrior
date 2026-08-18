@@ -159,6 +159,9 @@ export function createMockLandmarkData(mode = LANDMARK_MODES.mock, time = perfor
     blendshapes: {
       noseSneerLeft: (Math.sin(time / 720) + 1) * 0.44,
       noseSneerRight: (Math.sin(time / 760 + 0.6) + 1) * 0.42,
+      browInnerUp: (Math.sin(time / 940 + 0.3) + 1) * 0.32,
+      browOuterUpLeft: (Math.sin(time / 980 + 0.5) + 1) * 0.28,
+      browOuterUpRight: (Math.sin(time / 1000 + 0.1) + 1) * 0.28,
       mouthUpperUpLeft: (Math.sin(time / 720 + 0.3) + 1) * 0.28,
       mouthUpperUpRight: (Math.sin(time / 760 + 0.9) + 1) * 0.26,
       cheekPuff: (Math.sin(time / 1100) + 1) * 0.46,
@@ -256,6 +259,7 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     mouth,
     faceScale,
   });
+  const eyebrowRaise = getEyebrowRaiseRatio(landmarkData.blendshapes || {});
 
   return {
     mode: landmarkData.mode,
@@ -275,15 +279,29 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     cheeks: {
       puffRatio: getCheekPuffRatio({
         blendshapes: landmarkData.blendshapes || {},
+      }),
+      puckerRatio: getMouthPuckerRatio({
+        blendshapes: landmarkData.blendshapes || {},
         mouth,
         faceScale,
       }),
+    },
+    eyebrows: {
+      raiseRatio: eyebrowRaise,
     },
     eyeRegions: extractEyeRegions({ leftEye, rightEye, mouth, faceScale }),
     hasRequiredLandmarks: hasRequiredLandmarks(landmarkData.normalizedLandmarks),
     bounds,
     faceOval,
   };
+}
+
+function getEyebrowRaiseRatio(blendshapes) {
+  const inner = clamp(blendshapes.browInnerUp || 0, 0, 1);
+  const outerLeft = clamp(blendshapes.browOuterUpLeft || 0, 0, 1);
+  const outerRight = clamp(blendshapes.browOuterUpRight || 0, 0, 1);
+  const outerAverage = (outerLeft + outerRight) / 2;
+  return clamp(inner * 0.62 + outerAverage * 0.38, 0, 1);
 }
 
 function normalizeBlendshapes(faceBlendshape) {
@@ -358,20 +376,22 @@ function getVerticalHeadPoseProxy({ face, leftEye, rightEye, jaw }) {
   };
 }
 
-function getCheekPuffRatio({ blendshapes, mouth, faceScale }) {
+function getCheekPuffRatio({ blendshapes }) {
   const blendshapeSignal = Math.max(
     blendshapes.cheekPuff || 0,
     (blendshapes.mouthPucker || 0) * 0.72,
     (blendshapes.mouthFunnel || 0) * 0.56,
   );
+  return clamp(blendshapeSignal / 0.72, 0, 1);
+}
 
-  if (blendshapeSignal > 0.03) {
-    return clamp(blendshapeSignal / 0.72, 0, 1);
-  }
+function getMouthPuckerRatio({ blendshapes, mouth, faceScale }) {
+  const pucker = clamp(blendshapes.mouthPucker || 0, 0, 1);
+  if (pucker > 0.03) return clamp(pucker / 0.72, 0, 1);
 
   const mouthOpen = mouth.openRatio || 0;
   const mouthWidthRatio = faceScale ? mouth.width / faceScale : 0.26;
-  return clamp((0.32 - mouthWidthRatio) / 0.14 + (0.12 - mouthOpen) / 0.18, 0, 1);
+  return clamp((0.28 - mouthWidthRatio) / 0.12 + (0.1 - mouthOpen) / 0.16, 0, 1);
 }
 
 export function getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval = [] }) {

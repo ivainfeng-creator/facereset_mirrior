@@ -1,6 +1,18 @@
 import { sceneAssetGroups } from './sceneAssets.js';
 import { SCENE_IDS } from './sceneIds.js';
 import { FIRST_SCHEDULED_DAY, getScheduledSceneIds } from './scheduleConfig.js';
+import lemonBackgroundAudio from '../../references/Lemon/Lemon-bg-4.mp3';
+import lemonDropAudio from '../../references/Lemon/Drop-1.mp3';
+import lemonSqueezeAudio from '../../references/Lemon/Squeeze.mp3';
+import bunnyBackgroundAudio from '../../references/Bunny/bunny-bg-2.mp3';
+import bunnyBlowAudio from '../../references/Bunny/Below.mp3';
+import bunnyDeflateAudio from '../../references/Bunny/Deflat.mp3';
+import bunnyPopAudio from '../../references/Bunny/Balloon-pop.mp3';
+import penguinBackgroundAudio from '../../references/Penguin/Penguin-bg.mp3';
+import penguinCatchAudio from '../../references/Penguin/Catch.mp3';
+import penguinFishAudio from '../../references/Penguin/Fish.mp3';
+import penguinPullAudio from '../../references/Penguin/Pull.mp3';
+import penguinYoAudio from '../../references/Penguin/Yo.mp3';
 
 export { SCENE_IDS };
 
@@ -38,7 +50,7 @@ const sceneDefinitions = [
     audio: {
       background: {
         source: '/audio/whale_mouth/whale_BG.mp3',
-        volume: 0.34,
+        volume: 0.26,
         fadeInMs: 1000,
         fadeOutMs: 1000,
       },
@@ -104,7 +116,7 @@ const sceneDefinitions = [
     audio: {
       background: {
         source: '/audio/garden/garden_BGM.mp3',
-        volume: 0.32,
+        volume: 0.24,
         fadeInMs: 1000,
         fadeOutMs: 1000,
       },
@@ -147,7 +159,7 @@ const sceneDefinitions = [
     audio: {
       background: {
         source: '/audio/popcorn/popcorn_BGM.mp3',
-        volume: 0.32,
+        volume: 0.24,
         fadeInMs: 1000,
         fadeOutMs: 1000,
       },
@@ -186,7 +198,31 @@ const sceneDefinitions = [
     renderer: 'bubbleGumBunny',
     interaction: 'cheekPuff',
     handTracking: 'none',
+    audio: {
+      background: {
+        source: bunnyBackgroundAudio,
+        volume: 0.18,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        balloonBlow: {
+          source: bunnyBlowAudio,
+          volume: 0.5,
+        },
+        balloonDeflate: {
+          source: bunnyDeflateAudio,
+          volume: 0.5,
+        },
+        balloonPop: {
+          source: bunnyPopAudio,
+          volume: 0.65,
+        },
+      },
+    },
     layout: PORTRAIT_LAYOUT,
+    planPhase: 'Activate',
+    planArt: '/assets/bluecloud_below.png',
     practice: {
       renderer: 'bunny',
       title: 'How to Play Bubble Gum Bunny',
@@ -194,6 +230,7 @@ const sceneDefinitions = [
       tips: ['Keep your lips closed.', 'Hold each puff for about two seconds.', 'Steady rhythm grows the biggest bubble.'],
       effectTitle: 'Grow the bubble',
       effectDescription: 'Puff softly and keep the bubble floating.',
+      previewDemo: { effect: 'bubbleGrow', cycleMs: 3600 },
     },
   },
   {
@@ -210,7 +247,27 @@ const sceneDefinitions = [
     renderer: 'lemonSqueeze',
     interaction: 'lemonSqueeze',
     handTracking: 'lemon',
+    audio: {
+      background: {
+        source: lemonBackgroundAudio,
+        volume: 0.12,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        lemonSqueeze: {
+          source: lemonSqueezeAudio,
+          volume: 0.48,
+        },
+        lemonDrop: {
+          source: lemonDropAudio,
+          volume: 0.72,
+        },
+      },
+    },
     layout: PORTRAIT_LAYOUT,
+    planPhase: 'Warm up',
+    planArt: '/assets/Bluecloud_nose.png',
     practice: {
       renderer: 'lemon',
       title: 'How to Play Lemon Squeeze',
@@ -218,6 +275,48 @@ const sceneDefinitions = [
       tips: ['Keep both fingertips visible.', 'Press both sides together.', 'Slow squeeze and release makes more soda.'],
       effectTitle: 'Make lemon soda',
       effectDescription: 'Squeeze evenly and fill the glass with bubbles.',
+      previewDemo: { effect: 'lemonSqueeze', cycleMs: 3600 },
+    },
+  },
+  {
+    id: SCENE_IDS.penguinFishing,
+    order: 7,
+    title: 'Penguin Fishing',
+    subtitle: 'Raise your eyebrows to lift the line and catch fish through the ice.',
+    action: 'Eyebrow raise',
+    area: 'Eyebrows',
+    areaKey: 'eyebrows',
+    stamp: 'Brows',
+    mood: 'Icy fishing',
+    symbol: 'penguin',
+    renderer: 'penguinFishing',
+    interaction: 'eyebrowRaise',
+    handTracking: 'none',
+    audio: {
+      background: {
+        source: penguinBackgroundAudio,
+        volume: 0.18,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        pullLine: { source: penguinPullAudio, volume: 0.65 },
+        fishNibble: { source: penguinFishAudio, volume: 0.5 },
+        catchFish: { source: penguinCatchAudio, volume: 0.62 },
+        celebration: { source: penguinYoAudio, volume: 0.58 },
+      },
+    },
+    layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine penguin-viewport-routine' },
+    planPhase: 'Unwind',
+    planArt: '/assets/Bluecloud_eyebrow.png',
+    practice: {
+      renderer: 'penguin',
+      title: 'How to Play Penguin Fishing',
+      description: 'Gently raise both eyebrows and hold steady to pull the fishing line up through the ice.',
+      tips: ['Keep your face centered and relaxed.', 'Raise both eyebrows gently, without lifting your chin.', 'Hold the raise until the penguin catches a fish, then relax and repeat.'],
+      effectTitle: 'Catch the fish',
+      effectDescription: 'Lift your eyebrows, pull the line, and reel in a fish.',
+      previewDemo: { effect: 'penguinFishing', cycleMs: 3600 },
     },
   },
 ];

@@ -29,7 +29,7 @@ export function getRoutineFeedback(stageIndex, stageProgress, globalProgress) {
   };
 }
 
-export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.templeGarden) {
+export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.templeGarden, date = null) {
   const rawSceneScore = stageScores[sceneId] ?? stageScores.temple ?? stageScores.whale ?? stageScores.eye ?? 820;
   const score = toFinalSceneScore(rawSceneScore);
   const radarScore = normalizeScoreForRadar(score);
@@ -44,6 +44,7 @@ export function buildResult(stageScores, snapshots = [], sceneId = SCENE_IDS.tem
     },
     radar,
     snapshots,
+    date,
     comment: getSceneComment(sceneId),
   };
 }
@@ -82,6 +83,17 @@ function getSceneRadar(sceneId, score, softVariance) {
     ];
   }
 
+  if (sceneId === SCENE_IDS.penguinFishing) {
+    return [
+      { label: '抬眉力度', value: clamp(score + 5, 52, 99) },
+      { label: '釣線穩定', value: clamp(score + softVariance, 48, 98) },
+      { label: '企鵝收穫', value: clamp(score + 8 - softVariance, 52, 99) },
+      { label: '冰海節奏', value: clamp(82 + softVariance * 2, 48, 98) },
+      { label: '連續上鉤', value: clamp(78 + Math.round(Math.sin(score * 0.13) * 10), 45, 98) },
+      { label: '療癒指數', value: clamp(86 + Math.round(Math.cos(score * 0.09) * 6), 52, 99) },
+    ];
+  }
+
   if (sceneId === SCENE_IDS.whaleDream || sceneId === SCENE_IDS.whaleDream2) {
     return [
       { label: sceneId === SCENE_IDS.whaleDream2 ? '河豚呼吸' : '鯨魚張嘴', value: clamp(score + 4, 54, 98) },
@@ -116,6 +128,9 @@ function getSceneComment(sceneId) {
   }
   if (sceneId === SCENE_IDS.flowerCollector) {
     return '今天的 Popcorn Collector 完成！鼻子輕輕一皺，爆米花都被吸進來了。';
+  }
+  if (sceneId === SCENE_IDS.penguinFishing) {
+    return '今天的 Penguin Fishing 完成！雙眉抬得又穩又輕，企鵝也順利釣到一桶魚。';
   }
   if (sceneId === SCENE_IDS.whaleDream) {
     return '今天的 Whale Mouth 完成！張嘴節奏很穩，小魚順著海流游進鯨魚嘴裡。';
