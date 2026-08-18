@@ -2971,6 +2971,12 @@ function TrackingVideo({ videoRef, isDemoMode }) {
   return <video ref={videoRef} className="tracking-video" autoPlay playsInline muted />;
 }
 
+// The shared gameplay camera. Its position and size come entirely from the
+// shared HUD system in styles.css, so every scene gets the same camera.
+// `data-camera-frame` marks the visible video box — the wrapper also carries the
+// header/status rows on non-gameplay screens — so scene effects that need to
+// anchor to what the player actually sees can measure that element instead of
+// hard-coding scene-space numbers.
 export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnavailable, previewVideoRef, compact = false }) {
   return (
     <div className={`camera-preview ${compact ? 'camera-preview-compact' : ''}`} aria-label="Front camera preview">
@@ -2978,7 +2984,7 @@ export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnav
         <span className="preview-dot" />
         <span>Front camera</span>
       </div>
-      <div className="preview-video-shell">
+      <div className="preview-video-shell" data-camera-frame="">
         {isCameraUnavailable ? (
           <span className="scene-camera-off" aria-hidden="true">
             <svg viewBox="0 -960 960 960" focusable="false">
