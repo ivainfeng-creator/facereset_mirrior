@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
+import {
+  CALIBRATION_CONFIRM_MS,
+  FALLBACK_ELIGIBILITY_GRACE_MS,
+  FALLBACK_MAX_WAIT_MS,
+  useFaceLandmarks,
+} from '../hooks/useFaceLandmarks.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 
 const SCAN_COMPLETE_EFFECT = Object.freeze({
@@ -20,6 +25,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
   const stageRef = useRef(null);
   const alignmentRef = useRef(null);
   const featuresRef = useRef(null);
+  const stabilityRef = useRef(null);
   const completedRef = useRef(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [isScanComplete, setIsScanComplete] = useState(false);
@@ -38,27 +44,26 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
     }
   }, [stream]);
 
-  const { alignment, containerSize, detectorMessage, detectorMode, features } = useFaceLandmarks({
+  const {
+    alignment,
+    landmarkStability,
+    fallbackPresenceRef,
+    containerSize,
+    detectorMessage,
+    detectorMode,
+    features,
+  } = useFaceLandmarks({
     videoRef,
     stageRef,
     stream,
     isDemoMode,
   });
-  const scanProgressCap = alignment?.ready
-    ? 1
-    : (alignment?.quality || 0) >= 72
-      ? 0.74
-      : (alignment?.quality || 0) >= 54
-        ? 0.42
-        : null;
-  const isScanStalled = scanProgressCap !== null
-    && scanProgress >= scanProgressCap
-    && !alignment?.ready;
 
   useEffect(() => {
     alignmentRef.current = alignment;
     featuresRef.current = features;
-  }, [alignment, features]);
+    stabilityRef.current = landmarkStability;
+  }, [alignment, features, landmarkStability]);
 
   useEffect(() => {
     let lastTick = performance.now();
@@ -69,21 +74,39 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
 
       const currentAlignment = alignmentRef.current;
       const currentFeatures = featuresRef.current;
+      const currentStability = stabilityRef.current;
+
+      // === Soft max-wait fallback decision (wall clock) ===
+      // Measured against performance.now(), not against accumulated landmark
+      // events, so a usable face that stays broadly present reaches Ready by
+      // ~2.5s even if detection events stutter or stop arriving.
+      const fallback = fallbackPresenceRef.current;
+      const isFallbackHolding = fallback.firstEligibleAt !== null
+        && now - fallback.lastEligibleAt <= FALLBACK_ELIGIBILITY_GRACE_MS;
+      const fallbackElapsed = isFallbackHolding ? now - fallback.firstEligibleAt : 0;
+      const isFallbackReady = fallbackElapsed >= FALLBACK_MAX_WAIT_MS;
+      const isReady = Boolean(currentAlignment?.ready) || isFallbackReady;
 
       setScanProgress((current) => {
         if (completedRef.current) return 1;
 
         let next = current;
-        if (!currentFeatures) {
+        if (isReady) {
+          next = Math.min(1, current + elapsed / 320);
+        } else if (!currentFeatures && !isFallbackHolding) {
+          // No face, and not inside the fallback's grace window: decay toward
+          // zero. The gate does not pass.
           next = Math.max(0, current - elapsed / 2200);
-        } else if (currentAlignment?.ready) {
-          next = Math.min(1, current + elapsed / 650);
-        } else if ((currentAlignment?.quality || 0) >= 72) {
-          next = Math.min(0.74, current + elapsed / 3200);
-        } else if ((currentAlignment?.quality || 0) >= 54) {
-          next = Math.min(0.42, current + elapsed / 4200);
         } else {
-          next = Math.max(0.08, current - elapsed / 2400);
+          // Ring tracks whichever path is further along — the strict 700ms
+          // confirm or the 2.5s wall-clock fallback — so it never stalls at an
+          // artificial ceiling and never jumps at the end.
+          const strictProgress = (currentStability?.stabilityMs || 0) / CALIBRATION_CONFIRM_MS;
+          const fallbackProgress = fallbackElapsed / FALLBACK_MAX_WAIT_MS;
+          const target = Math.min(0.96, Math.max(strictProgress, fallbackProgress));
+          next = target >= current
+            ? Math.min(target, current + elapsed / 260)
+            : Math.max(target, current - elapsed / 1400);
         }
 
         if (next >= 1 && !completedRef.current) {
@@ -96,7 +119,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
       });
     }, 90);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [fallbackPresenceRef]);
 
   return (
     <section className={`screen mirror-screen scan-alignment-screen ${isOverlay ? 'guide-flow-overlay' : ''}`}>
