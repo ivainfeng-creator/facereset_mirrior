@@ -17637,7 +17637,7 @@ h1 {
   }
 }
 
-.app-shell:has(.penguin-viewport-routine) {
+.app-shell:has(.routine-screen .penguin-viewport-routine) {
   background: #087db9;
 }
 
@@ -17675,6 +17675,7 @@ h1 {
   position: absolute;
   inset: 0;
   z-index: 4;
+  display: none;
   pointer-events: none;
   user-select: none;
 }
