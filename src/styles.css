@@ -5012,11 +5012,39 @@ h1 {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * SHARED GAMEPLAY HUD SYSTEM
+ *
+ * Every gameplay scene renders the exact same HUD markup from RoutineScreen:
+ *   <header class="play-hud play-hud-top">   camera preview + timer/info/exit
+ *   <footer class="play-hud play-hud-bottom"> score
+ *
+ * Position and size therefore live here once, expressed through the tokens
+ * below, and scenes must NOT re-position or re-size the HUD themselves — a
+ * scene-scoped `.<scene>-viewport-routine .camera-preview` rule is what used to
+ * make the camera jump between scenes. Breakpoints change the token values;
+ * ownership of the geometry rules never moves.
+ * ------------------------------------------------------------------------- */
+.play-routine-screen {
+  /* Safe spacing shared by the upper-left camera and the upper-right toolbar. */
+  --play-hud-inset-inline: clamp(24px, 2.2vw, 32px);
+  --play-hud-inset-block: clamp(24px, 2.2vw, 32px);
+  --play-hud-inset-block-end: clamp(28px, 2.6vw, 40px);
+  --play-hud-gap: 16px;
+  /* Height of the upper-right timer/info/exit pill, derived from the timer so
+   * the two can never drift apart. */
+  --play-hud-actions-height: calc(clamp(34px, 3.4vw, 41px) + 12px);
+  --play-camera-width: clamp(124px, 9vw, 140px);
+  --play-camera-aspect: 1 / 1.45;
+  /* First x that is guaranteed to be clear of the camera preview. Scene copy
+   * and the mobile coaching message both anchor to this. */
+  --play-camera-clear-left: calc(
+    var(--play-hud-inset-inline) + var(--play-camera-width) + var(--play-hud-gap)
+  );
+}
+
+/* Skin only — geometry is owned by the shared HUD rule further down. */
 .play-routine-mirror .camera-preview {
-  top: 30px;
-  left: 30px;
-  right: auto;
-  width: 102px;
   border: 0;
   border-radius: 8px;
   box-shadow: none;
@@ -5029,8 +5057,12 @@ h1 {
   display: none;
 }
 
+/* The visible camera frame. This box — not the .camera-preview wrapper — is the
+ * user-visible viewport, so it is the stable reference for effects that need to
+ * anchor to what the player actually sees (see data-camera-frame in
+ * RoutineScreen's CameraPreview). */
 .play-routine-mirror .preview-video-shell {
-  aspect-ratio: 1 / 1.45;
+  aspect-ratio: var(--play-camera-aspect);
 }
 
 .play-routine-mirror .preview-video,
@@ -5040,8 +5072,8 @@ h1 {
 
 .play-hud {
   position: absolute;
-  right: 24px;
-  left: 24px;
+  right: var(--play-hud-inset-inline, 24px);
+  left: var(--play-hud-inset-inline, 24px);
   z-index: 12;
   display: flex;
   align-items: center;
@@ -5054,12 +5086,12 @@ h1 {
 }
 
 .play-hud-top {
-  top: 24px;
+  top: var(--play-hud-inset-block, 24px);
   display: block;
 }
 
 .play-hud-bottom {
-  bottom: 24px;
+  bottom: var(--play-hud-inset-block-end, 24px);
   align-items: end;
 }
 
@@ -5075,7 +5107,6 @@ h1 {
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
 }
 
-.play-hud .camera-preview,
 .play-hud .play-sound-toggle,
 .play-hud .play-close-button,
 .play-hud .play-timer,
@@ -5084,13 +5115,19 @@ h1 {
   inset: auto;
 }
 
-.play-hud .camera-preview {
+/* Camera preview — upper-left on every scene and every breakpoint. This is the
+ * single rule that positions and sizes it; it deliberately outranks the generic
+ * `.camera-preview` defaults used by the mirror/practice screens. */
+.play-routine-screen .play-hud-top .camera-preview {
   position: absolute;
   top: 0;
+  right: auto;
+  bottom: auto;
   left: 0;
-  width: 86px;
+  width: var(--play-camera-width);
 }
 
+/* Timer / info / exit — upper-right, sharing the camera's top safe margin. */
 .play-hud-top .play-hud-actions {
   position: absolute;
   top: 0;
@@ -5099,7 +5136,7 @@ h1 {
 
 .play-hud .play-timer {
   display: grid;
-  height: clamp(34px, 3.4vw, 41px);
+  height: calc(var(--play-hud-actions-height, 46px) - 12px);
   place-items: center;
   padding: 0 13px;
   box-sizing: border-box;
@@ -5428,9 +5465,13 @@ h1 {
   text-align: center;
 }
 
+/* Coaching / instruction message.
+ * Desktop keeps the established top-centre hierarchy; mobile re-anchors it
+ * beside the camera in the breakpoint block below. */
 .play-action-prompt {
   position: absolute;
   top: clamp(112px, 16vh, 158px);
+  right: auto;
   left: 50%;
   z-index: 12;
   max-width: min(78vw, 330px);
@@ -5446,6 +5487,36 @@ h1 {
   text-align: center;
   text-transform: uppercase;
   transform: translateX(-50%);
+}
+
+/* ---------------------------------------------------------------------------
+ * SHARED GAMEPLAY HUD — MOBILE BREAKPOINT
+ * Same HUD, same rules, different token values. 559px is the breakpoint the
+ * rest of .play-routine-screen already uses for phone portrait.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 559px) {
+  .play-routine-screen {
+    --play-hud-inset-inline: 16px;
+    --play-hud-inset-block: 16px;
+    --play-hud-inset-block-end: 24px;
+    --play-hud-gap: 10px;
+    --play-camera-width: clamp(84px, 24vw, 96px);
+  }
+
+  /* The instruction must never cover the camera preview, so on phones it is
+   * anchored to the first x that clears the camera and dropped below the
+   * timer/info/exit pill. It keeps the full remaining width and may wrap. */
+  .play-routine-screen .play-action-prompt {
+    top: calc(
+      var(--play-hud-inset-block) + var(--play-hud-actions-height) + var(--play-hud-gap)
+    );
+    right: var(--play-hud-inset-inline);
+    left: var(--play-camera-clear-left);
+    max-width: none;
+    padding: 8px 12px;
+    text-align: left;
+    transform: none;
+  }
 }
 
 .face-tracking-toast {
@@ -8670,18 +8741,12 @@ h1 {
   border-radius: 0;
 }
 
-.play-routine-screen .camera-preview {
-  top: 0;
-  right: auto;
-  left: 0;
-  width: 102px;
-}
-
-/* Keep every scene title aligned with the top edge of the camera preview. */
+/* Keep every scene title aligned with the top edge of the camera preview, and
+ * clear of it however wide the shared HUD makes the camera. */
 .play-routine-screen :is(.temple-copy, .whale-copy, .flower-copy, .bunny-copy, .lemon-copy) {
   top: 30px;
   right: 54px;
-  left: 146px;
+  left: var(--play-camera-clear-left);
 }
 
 .play-routine-screen :is(.temple-copy, .whale-copy, .flower-copy, .bunny-copy, .lemon-copy) h1 {
@@ -8712,16 +8777,10 @@ h1 {
     height: 100svh;
   }
 
-  .play-routine-screen .camera-preview {
-    top: 0;
-    left: 0;
-    width: 102px;
-  }
-
   .play-routine-screen :is(.temple-copy, .whale-copy, .flower-copy, .bunny-copy, .lemon-copy) {
     top: 24px;
     right: 52px;
-    left: 146px;
+    left: var(--play-camera-clear-left);
   }
 
   .play-close-button {
@@ -15523,16 +15582,6 @@ h1 {
   bottom: auto;
 }
 
-.popcorn-viewport-routine .play-score {
-  bottom: clamp(28px, 4vh, 52px);
-  left: clamp(28px, 4vw, 64px);
-}
-
-.popcorn-viewport-routine .camera-preview {
-  top: clamp(26px, 4vh, 48px);
-  left: clamp(28px, 4vw, 64px);
-}
-
 @keyframes popcornIdleFloat {
   0%,
   100% {
@@ -15672,10 +15721,6 @@ h1 {
     min-height: 24%;
   }
 
-  .popcorn-viewport-routine .camera-preview {
-    width: 89.76px;
-  }
-
   .collector-popcorn {
     width: clamp(25px, 9vw, 48px);
   }
@@ -15741,11 +15786,6 @@ h1 {
   bottom: auto;
 }
 
-.cloud-garden-viewport-routine .play-score {
-  bottom: clamp(28px, 4vh, 52px);
-  left: clamp(28px, 4vw, 64px);
-}
-
 .cloud-garden-viewport-routine .temple-copy {
   top: clamp(30px, 4vh, 52px);
   right: auto;
@@ -15785,11 +15825,6 @@ h1 {
     transform: translateX(-57%);
   }
 
-  .whale-viewport-routine .camera-preview {
-    top: clamp(26px, 4vh, 48px);
-    left: clamp(28px, 4vw, 64px);
-  }
-
   .whale-viewport-routine .whale-copy {
     top: clamp(26px, 4vh, 48px);
     right: auto;
@@ -15799,11 +15834,6 @@ h1 {
   .whale-viewport-routine .play-close-button {
     top: clamp(28px, 4vh, 52px);
     right: clamp(28px, 4vw, 64px);
-  }
-
-  .whale-viewport-routine .play-score {
-    bottom: clamp(28px, 4vh, 52px);
-    left: clamp(28px, 4vw, 64px);
   }
 
   .whale-viewport-routine .play-timer.timer-ring {
@@ -17636,22 +17666,9 @@ h1 {
   aspect-ratio: auto;
 }
 
-/* IRMA's camera now lives in the shared HUD. Keep its visible frame aligned
- * with the scene-space coordinates used by the Popcorn camera-rim interaction. */
-.full-viewport-routine .play-hud-top .camera-preview {
-  top: 32px;
-  right: auto;
-  left: 32px;
-  width: 102px;
-}
-
-@media (max-width: 559px) {
-  .full-viewport-routine .play-hud-top .camera-preview {
-    top: 32px;
-    left: 32px;
-    width: 89.76px;
-  }
-}
+/* The camera preview is positioned and sized only by the shared HUD system
+ * (see "SHARED GAMEPLAY HUD SYSTEM" above). Full-viewport scenes deliberately
+ * add nothing here. */
 
 .app-shell:has(.routine-screen .penguin-viewport-routine) {
   background: #087db9;
