@@ -1,33 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  buildDailyPlanSummary,
-  buildProgramDayPlanSummary,
-  DAILY_TOTAL_MAX_SCORE,
-  getCompletedProgramDays,
-} from '../utils/dailyPlan.js';
+import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
 import {
   fetchProgramDayLeaderboard,
   getSupabaseDisplayName,
   saveSupabaseDisplayName,
 } from '../utils/supabaseProgressAdapter.js';
+import { playSceneEffect } from '../utils/audioManager.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 import TodayPlanCard from './TodayPlanCard.jsx';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
+const LEADERBOARD_SUBMIT_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
+const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
 
 export default function ResultScreen({
   result,
   habit,
-  selectedProgramDay = null,
-  onSelectedProgramDayChange,
   onRestart,
   onTodayPlan,
   onPassport,
   onLeaderboard,
   onProgressChanged,
   shouldPromptForDisplayName = true,
+  shouldAnimateCardLayout = false,
+  cardLayoutAnimationKey = 0,
+  daySelector,
+  isHistoryOnly = false,
+  onCloseHistory,
 }) {
+  const [cardOrder, setCardOrder] = useState([0, 1, 2]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryOnly);
+  const [isCardLayoutAnimationActive, setIsCardLayoutAnimationActive] = useState(shouldAnimateCardLayout);
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -38,40 +45,59 @@ export default function ResultScreen({
   const [isNameSaving, setIsNameSaving] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState('');
-  const currentDailyPlan = useMemo(() => buildDailyPlanSummary(habit), [habit]);
-  const currentProgramDay = Math.max(1, Number(currentDailyPlan.programDay) || 1);
-  const completedProgramDays = getCompletedProgramDays(habit);
-  const latestCompletedDay = [...completedProgramDays]
-    .filter((day) => day <= currentProgramDay)
-    .sort((left, right) => right - left)[0] || null;
-  const resolvedSelectedDay = Math.min(7, Math.max(1, Number(selectedProgramDay) || currentProgramDay));
-  const isSelectedDayAvailable = completedProgramDays.has(resolvedSelectedDay);
-  const programDay = isSelectedDayAvailable
-    ? resolvedSelectedDay
-    : latestCompletedDay || currentProgramDay;
-  const isHistory = programDay !== currentProgramDay;
+  const [carouselTouchStartX, setCarouselTouchStartX] = useState(null);
   const dailyPlan = useMemo(() => {
-    const storedPlan = buildProgramDayPlanSummary(habit, programDay);
-    const canUseCurrentResult = result?.type === 'daily-plan'
-      && !isHistory
-      && Number(result.programDay) === currentProgramDay;
-    if (!canUseCurrentResult) return storedPlan;
+    const storedPlan = buildDailyPlanSummary(habit, result?.date ? { date: result.date } : undefined);
+    if (result?.type !== 'daily-plan') return storedPlan;
     return {
       ...storedPlan,
       ...result,
       sceneResults: result.sceneResults?.length ? result.sceneResults : storedPlan.sceneResults,
       radar: result.radar?.length ? result.radar : storedPlan.radar,
     };
-  }, [currentProgramDay, habit, isHistory, programDay, result]);
+  }, [habit, result]);
   const score = dailyPlan.score;
   const sceneTitle = dailyPlan.sceneTitle;
   const focusLabel = dailyPlan.area;
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
+  const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
+  const qualifiesForLeaderboard = !isLeaderboardLoading && (
+    leaderboard.length < 10 || score >= (leaderboard[9]?.score ?? 0)
+  );
+  const bringCardToFront = (cardIndex) => {
+    if (isCardLayoutAnimationActive) return;
+    setCardOrder((currentOrder) => [
+      cardIndex,
+      ...currentOrder.filter((index) => index !== cardIndex),
+    ]);
+  };
+  const handleCarouselTouchEnd = (event) => {
+    if (isCardLayoutAnimationActive || carouselTouchStartX === null) return;
+
+    const horizontalDistance = event.changedTouches[0].clientX - carouselTouchStartX;
+    setCarouselTouchStartX(null);
+    if (Math.abs(horizontalDistance) < 40) return;
+
+    bringCardToFront(cardOrder[horizontalDistance < 0 ? 2 : 1]);
+  };
+  const closeHistory = () => {
+    if (isHistoryOnly) {
+      onCloseHistory?.();
+      return;
+    }
+    setIsHistoryOpen(false);
+  };
 
   useEffect(() => {
-    if (selectedProgramDay !== programDay) onSelectedProgramDayChange?.(programDay);
-  }, [onSelectedProgramDayChange, programDay, selectedProgramDay]);
+    if (!shouldAnimateCardLayout) return undefined;
+
+    setCardOrder([0, 1, 2]);
+    setIsHistoryOpen(true);
+    setIsCardLayoutAnimationActive(true);
+    const timer = window.setTimeout(() => setIsCardLayoutAnimationActive(false), CARD_LAYOUT_ENTRY_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [cardLayoutAnimationKey, shouldAnimateCardLayout]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -95,7 +121,7 @@ export default function ResultScreen({
 
   useEffect(() => {
     let isCurrent = true;
-    if (!shouldPromptForDisplayName || isHistory || !dailyPlan.isComplete) {
+    if (!shouldPromptForDisplayName || !dailyPlan.isComplete) {
       setIsNameEntryOpen(false);
       return () => { isCurrent = false; };
     }
@@ -104,8 +130,6 @@ export default function ResultScreen({
       return () => { isCurrent = false; };
     }
 
-    const tenthPlaceScore = leaderboard[9]?.score ?? -1;
-    const qualifiesForLeaderboard = leaderboard.length < 10 || score >= tenthPlaceScore;
     if (!qualifiesForLeaderboard) {
       setIsNameEntryOpen(false);
       return () => { isCurrent = false; };
@@ -141,7 +165,6 @@ export default function ResultScreen({
   }, [
     dailyPlan.isComplete,
     habit?.displayName,
-    isHistory,
     isLeaderboardLoading,
     leaderboard,
     onProgressChanged,
@@ -151,6 +174,7 @@ export default function ResultScreen({
 
   const saveName = async (event) => {
     event.preventDefault();
+    playSceneEffect(LEADERBOARD_SUBMIT_EFFECT);
     const displayName = normalizeDisplayName(nameDraft);
     if (!displayName) {
       setNameError('Enter a display name to join the leaderboard.');
@@ -219,96 +243,98 @@ export default function ResultScreen({
     }
   };
 
+  const historyModal = isHistoryOpen && (
+    <div className="result-history-overlay">
+      <section
+        className="result-history-modal"
+        aria-label="Result history"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="result-carousel"
+          aria-label="Result cards"
+          onTouchStart={(event) => setCarouselTouchStartX(event.touches[0].clientX)}
+          onTouchEnd={handleCarouselTouchEnd}
+          onTouchCancel={() => setCarouselTouchStartX(null)}
+        >
+          <div
+            className={`result-challenge-grid ${isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
+            key={cardLayoutAnimationKey}
+          >
+            <div
+              className={`result-card-stack is-stack-${cardOrder.indexOf(0)}`}
+              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(0)}
+            >
+              <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
+                {qualifiesForLeaderboard ? (
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                ) : (
+                  <ResultShareCard
+                    isExporting={isExporting}
+                    onDownload={downloadVideo}
+                    onShare={shareVideo}
+                  />
+                )}
+              </div>
+            </div>
+            <div
+              className={`result-card-stack is-stack-${cardOrder.indexOf(1)}`}
+              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(1)}
+            >
+              <div className="result-card-content" inert={cardOrder.indexOf(1) !== 0}>
+                <TodayPlanCard className="result-focus-card" sceneResults={dailyPlan.sceneResults} programDay={programDay} onSessionSelect={onRestart} showCompletion />
+              </div>
+            </div>
+            <div
+              className={`result-card-stack is-stack-${cardOrder.indexOf(2)}`}
+              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
+            >
+              <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
+                {qualifiesForLeaderboard ? (
+                  <ResultShareCard
+                    isExporting={isExporting}
+                    onDownload={downloadVideo}
+                    onShare={shareVideo}
+                  />
+                ) : (
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+
+  if (isHistoryOnly) return historyModal;
+
   return (
     <section className="screen result-screen reset-result-screen result-dashboard-screen">
       <main className="result-challenge-shell" aria-label="Face Reset challenge result">
         <header className="result-challenge-heading">
-          <h1>Face Reset Challenge</h1>
-          <ol className="result-day-strip" aria-label="Seven day challenge history">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-              const canSelectDay = completedProgramDays.has(day);
-              return (
-              <li className={`${day === programDay ? 'is-current ' : ''}${completedProgramDays.has(day) ? 'is-complete ' : ''}${canSelectDay ? 'is-selectable' : 'is-locked'}`} key={day}>
-                <button
-                  type="button"
-                  onClick={() => canSelectDay && onSelectedProgramDayChange?.(day)}
-                  disabled={!canSelectDay}
-                  aria-current={day === programDay ? 'step' : undefined}
-                  aria-label={completedProgramDays.has(day) ? `View Program Day ${day} history` : `Program Day ${day} locked`}
-                >
-                  {day === programDay ? `DAY ${day}` : day}
-                </button>
-                {completedProgramDays.has(day) && <span aria-hidden="true">✓</span>}
-              </li>
-              );
-            })}
-          </ol>
+          <div className="result-challenge-heading-row">
+            <h1>Face Reset Challenge</h1>
+            <button className="result-today-plan-action" type="button" onClick={onTodayPlan}>
+              TODAY&apos;S PLAN
+            </button>
+          </div>
+          {daySelector}
         </header>
 
-        <div className="result-challenge-grid">
-          <section className="result-summary-card">
-            <div className="result-summary-top">
-              <div>
-              <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
-                <div className="result-score-display">
-                  <strong>{score}</strong>
-                  <span>/ 300</span>
-                </div>
-              </div>
-              <div className="result-toolbar" aria-label="Result tools">
-                <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download">
-                  <DownloadIcon />
-                </button>
-                <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share">
-                  <ShareIcon />
-                </button>
-              </div>
-            </div>
+        <button
+          className={`result-history-fab${isHistoryOpen ? ' is-active' : ''}`}
+          type="button"
+          aria-label={isHistoryOpen ? 'Close history' : 'View history'}
+          aria-expanded={isHistoryOpen}
+          data-label={isHistoryOpen ? 'Close history' : 'View history'}
+          onClick={() => setIsHistoryOpen((isOpen) => !isOpen)}
+        >
+          {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
+        </button>
 
-            <div className="result-achievement-row">
-              <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
-              <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
-            </div>
-            <div className="result-delta-row">
-              <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
-              <b><PersonalBestIcon />NEW PERSONAL BEST</b>
-            </div>
-
-            <div className="result-summary-divider" />
-            <ResultRadarPanel result={dailyPlan} />
-
-            <div className="result-balance-callout">
-              <img src="/assets/design-v3/result-mascot.png" alt="" />
-              <p>
-                <strong>You looks more relaxed and balanced!</strong>
-                <span>Keep going for even better results.</span>
-              </p>
-            </div>
-          </section>
-
-          <aside className="result-challenge-right">
-            <TodayPlanCard
-              className="result-focus-card"
-              sceneResults={dailyPlan.sceneResults}
-              programDay={programDay}
-              onSessionSelect={isHistory ? undefined : onRestart}
-              showCompletion={!isHistory}
-              isHistory={isHistory}
-            />
-
-            <ResultLeaderboard
-              rows={leaderboard}
-              programDay={programDay}
-              isLoading={isLeaderboardLoading}
-            />
-          </aside>
-        </div>
-
-        <nav className="result-dashboard-actions" aria-label="Result navigation">
-          <button type="button" onClick={onTodayPlan}>TODAY&apos;S PLAN</button>
-          <button type="button" onClick={onPassport}>PASSPORT</button>
-          <button type="button" onClick={onLeaderboard}>LEADERBOARD</button>
-        </nav>
+        {historyModal}
 
         {exportMessage && <p className="export-message result-dashboard-message">{exportMessage}</p>}
 
@@ -323,22 +349,26 @@ export default function ResultScreen({
               >
                 ×
               </button>
-              <h2>You&apos;re on the leaderboard!</h2>
-              <p>Enter a display name to appear on Day {programDay}&apos;s leaderboard.</p>
-              <label htmlFor="leaderboard-display-name">Display name</label>
-              <input
-                id="leaderboard-display-name"
-                value={nameDraft}
-                maxLength={24}
-                placeholder="Enter your name"
-                onChange={(event) => {
-                  setNameDraft(event.target.value);
-                  setNameError('');
-                }}
-                autoComplete="nickname"
-                autoFocus
-              />
-              {nameError && <small className="result-name-entry-error">{nameError}</small>}
+              <header className="result-name-entry-heading">
+                <h2>You&apos;re in Top 10!</h2>
+                <p>Enter a display name to appear on leaderboard.</p>
+              </header>
+              <div className={`result-name-entry-field${nameError ? ' is-error' : ''}`}>
+                <input
+                  id="leaderboard-display-name"
+                  aria-label="Display name"
+                  value={nameDraft}
+                  maxLength={24}
+                  placeholder="Enter your name"
+                  onChange={(event) => {
+                    setNameDraft(event.target.value);
+                    setNameError('');
+                  }}
+                  autoComplete="nickname"
+                  autoFocus
+                />
+                {nameError && <small className="result-name-entry-error">{nameError}</small>}
+              </div>
               <button className="result-name-entry-submit" type="submit" disabled={isNameSaving}>
                 {isNameSaving ? 'Saving...' : 'Join the Leaderboard'}
               </button>
@@ -490,9 +520,24 @@ function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
   );
 }
 
-function ResultLeaderboard({ rows, programDay, isLoading }) {
+function ResultLeaderboard({ rows, programDay, score, topPercent, isLoading }) {
   return (
     <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
+      <div className="result-leaderboard-summary">
+        <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
+        <div className="result-score-display">
+          <strong>{score}</strong>
+          <span>/ 300</span>
+        </div>
+        <div className="result-achievement-row">
+          <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
+          <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
+        </div>
+        <div className="result-delta-row">
+          <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
+          <b><PersonalBestIcon />NEW PERSONAL BEST</b>
+        </div>
+      </div>
       <header>
         <span>DAY {programDay} LEADERBOARD</span>
       </header>
@@ -510,6 +555,18 @@ function ResultLeaderboard({ rows, programDay, isLoading }) {
         )}
         {isLoading && <li className="result-leaderboard-empty">Loading leaderboard...</li>}
       </ol>
+    </section>
+  );
+}
+
+function ResultShareCard({ isExporting, onDownload, onShare }) {
+  return (
+    <section className="result-summary-card">
+      <img className="result-card-image" src="/assets/Result_Card.png" alt="Face Reset challenge result" />
+      <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
+        <button onClick={onDownload} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
+        <button onClick={onShare} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
+      </div>
     </section>
   );
 }
@@ -541,6 +598,22 @@ function ShareIcon() {
       <circle cx="18" cy="19" r="2.5" />
       <path d="m8.2 10.8 7.6-4.6" />
       <path d="m8.2 13.2 7.6 4.6" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 -960 960 960">
+      <path d="m489-460 91-55 91 55-24-104 80-69-105-9-42-98-42 98-105 9 80 69-24 104Zm19 260h224q-7 26-24 42t-44 20L228-85q-33 5-59.5-15.5T138-154L85-591q-4-33 16-59t53-30l46-6v80l-36 5 54 437 290-36Zm-148-80q-33 0-56.5-23.5T280-360v-440q0-33 23.5-56.5T360-880h440q33 0 56.5 23.5T880-800v440q0 33-23.5 56.5T800-280H360Zm0-80h440v-440H360v440Zm220-220ZM218-164Z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
     </svg>
   );
 }

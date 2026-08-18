@@ -8,7 +8,10 @@ import {
   loadHabit,
   markGuideSeen,
   saveResult,
+  seedDayOneCompleteProgress,
   seedDemoProgress,
+  seedNextSessionCompleteProgress,
+  seedSecondProgramDayProgress,
   seedSessionOneCompleteProgress,
 } from './storage.js';
 
@@ -73,6 +76,15 @@ export const localProgressAdapter = {
     },
     seedSessionOneComplete() {
       return seedSessionOneCompleteProgress();
+    },
+    seedNextSessionComplete() {
+      return seedNextSessionCompleteProgress();
+    },
+    seedDayOneComplete() {
+      return seedDayOneCompleteProgress();
+    },
+    seedSecondProgramDay() {
+      return seedSecondProgramDayProgress();
     },
   },
 };

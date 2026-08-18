@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
+import { playSceneEffect } from '../utils/audioManager.js';
+
+const SCAN_COMPLETE_EFFECT = Object.freeze({
+  source: '/audio/Overall/Scanning.mp3',
+  volume: 0.7,
+});
+const SCAN_CLOSE_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-2.mp3',
+  volume: 0.7,
+});
+const SCAN_CTA_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
 
 export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOverlay = false }) {
   const videoRef = useRef(null);
@@ -30,6 +44,16 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
     stream,
     isDemoMode,
   });
+  const scanProgressCap = alignment?.ready
+    ? 1
+    : (alignment?.quality || 0) >= 72
+      ? 0.74
+      : (alignment?.quality || 0) >= 54
+        ? 0.42
+        : null;
+  const isScanStalled = scanProgressCap !== null
+    && scanProgress >= scanProgressCap
+    && !alignment?.ready;
 
   useEffect(() => {
     alignmentRef.current = alignment;
@@ -47,6 +71,8 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
       const currentFeatures = featuresRef.current;
 
       setScanProgress((current) => {
+        if (completedRef.current) return 1;
+
         let next = current;
         if (!currentFeatures) {
           next = Math.max(0, current - elapsed / 2200);
@@ -62,6 +88,7 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
 
         if (next >= 1 && !completedRef.current) {
           completedRef.current = true;
+          playSceneEffect(SCAN_COMPLETE_EFFECT);
           setIsScanComplete(true);
         }
 
@@ -79,7 +106,14 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
           <p>Center your face in the frame</p>
         </div>
 
-        <button className="scan-close-button" onClick={onBack} aria-label="Back to intro" />
+        <button
+          className="scan-close-button"
+          onClick={() => {
+            playSceneEffect(SCAN_CLOSE_EFFECT);
+            onBack();
+          }}
+          aria-label="Back to intro"
+        />
 
         <div className="scan-face-zone">
           <div className={`scan-face-frame ${isCameraUnavailable ? 'is-camera-unavailable' : ''}`} ref={stageRef}>
@@ -93,7 +127,10 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
           className={`scan-primary-action ${isScanComplete ? 'is-complete' : ''}`}
           type="button"
           disabled={!isScanComplete}
-          onClick={onBegin}
+          onClick={() => {
+            playSceneEffect(SCAN_CTA_EFFECT);
+            onBegin();
+          }}
         >
           {isCameraUnavailable ? 'Scan paused' : isScanComplete ? 'Next' : (
             <span className="challenge-v3-start-preparing">
@@ -151,7 +188,7 @@ export function MirrorVideo({ videoRef, isDemoMode, showPlaceholder = false }) {
   );
 }
 
-function ScanCameraPlaceholder() {
+export function ScanCameraPlaceholder() {
   return (
     <span className="scan-camera-placeholder camera-permission-icon" aria-hidden="true">
       <svg viewBox="0 -960 960 960" focusable="false">

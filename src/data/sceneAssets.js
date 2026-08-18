@@ -31,6 +31,23 @@ import popcornPiece03Asset from '../../references/popcorn-piece-03.png';
 import popcornPiece04Asset from '../../references/popcorn-piece-04.png';
 import popcornPiece05Asset from '../../references/popcorn-piece-05.png';
 import popcornPiece06Asset from '../../references/popcorn-piece-06.png';
+import bunnyFrame1Asset from '../../references/Bunny/Bunny-1.png';
+import bunnyFrame2Asset from '../../references/Bunny/Bunny-2.png';
+import bunnyFrame3Asset from '../../references/Bunny/Bunny-3.png';
+import bunnyFrame4Asset from '../../references/Bunny/Bunny-4.png';
+import bunnyBackgroundAsset from '../../references/Bunny/Bunny-bg.png';
+import bunnyBalloonFrame1Asset from '../../references/Bunny/B-1.png';
+import bunnyBalloonFrame2Asset from '../../references/Bunny/B-2.png';
+import bunnyBalloonFrame3Asset from '../../references/Bunny/B-3.png';
+import bunnyBalloonFrame4Asset from '../../references/Bunny/B-4.png';
+import bunnyBalloonFrame5Asset from '../../references/Bunny/B-5.png';
+import lemonWalkFrameAAsset from '../../references/Lemon/Lemon.svg';
+import lemonWalkFrameBAsset from '../../references/Lemon/Lemon-1.svg';
+import penguinAsset from '../../references/Penguin/Penguin.png';
+import penguinIceBackgroundAsset from '../../references/Penguin/Ice_background.png';
+import penguinIceStage2Asset from '../../references/Penguin/Ice_background_ice-2.png';
+import penguinIceStage3Asset from '../../references/Penguin/Ice_background_ice-3.png';
+import penguinIceStage4Asset from '../../references/Penguin/Ice_background_ice-4.png';
 
 export {
   whaleClosedAsset,
@@ -66,6 +83,23 @@ export {
   popcornPiece04Asset,
   popcornPiece05Asset,
   popcornPiece06Asset,
+  bunnyFrame1Asset,
+  bunnyFrame2Asset,
+  bunnyFrame3Asset,
+  bunnyFrame4Asset,
+  bunnyBackgroundAsset,
+  bunnyBalloonFrame1Asset,
+  bunnyBalloonFrame2Asset,
+  bunnyBalloonFrame3Asset,
+  bunnyBalloonFrame4Asset,
+  bunnyBalloonFrame5Asset,
+  lemonWalkFrameAAsset,
+  lemonWalkFrameBAsset,
+  penguinAsset,
+  penguinIceBackgroundAsset,
+  penguinIceStage2Asset,
+  penguinIceStage3Asset,
+  penguinIceStage4Asset,
 };
 
 export const sceneAssetGroups = Object.freeze({
@@ -109,6 +143,27 @@ export const sceneAssetGroups = Object.freeze({
     popcornPiece05Asset,
     popcornPiece06Asset,
   ]),
-  bubbleGumBunny: Object.freeze([]),
-  lemonSqueeze: Object.freeze([]),
+  bubbleGumBunny: Object.freeze([
+    bunnyBackgroundAsset,
+    bunnyFrame1Asset,
+    bunnyFrame2Asset,
+    bunnyFrame3Asset,
+    bunnyFrame4Asset,
+    bunnyBalloonFrame1Asset,
+    bunnyBalloonFrame2Asset,
+    bunnyBalloonFrame3Asset,
+    bunnyBalloonFrame4Asset,
+    bunnyBalloonFrame5Asset,
+  ]),
+  lemonSqueeze: Object.freeze([
+    lemonWalkFrameAAsset,
+    lemonWalkFrameBAsset,
+  ]),
+  penguinFishing: Object.freeze([
+    penguinAsset,
+    penguinIceBackgroundAsset,
+    penguinIceStage2Asset,
+    penguinIceStage3Asset,
+    penguinIceStage4Asset,
+  ]),
 });

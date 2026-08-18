@@ -8,16 +8,17 @@ import { DAILY_SCENE_COUNT } from '../utils/scoring.js';
 // This is manually edited. Nothing in the app randomizes, reshuffles, or
 // auto-optimizes these lists — the array order IS the session order.
 //
-// Day 1 may get a specially curated lineup for the competition/demo; edit the
-// `1: [...]` entry below whenever that's decided. Every consumer resolves
-// "today's scenes" through getScheduledSceneIds(programDay), so changing an
-// entry here is the only edit needed — no other file duplicates this list.
+// Every consumer resolves "today's scenes" through getScheduledSceneIds(
+// programDay), so changing an entry here is the only edit needed — no other
+// file duplicates this list.
 //
-// NOTE: the final Day 1-7 combinations are not decided yet. Until they are,
-// every day temporarily reuses the current 3-scene lineup (whaleDream ->
-// templeGarden -> flowerCollector) as a placeholder. This intentionally makes
-// every day identical for now — see validateSceneSchedule() below, which
-// warns about that (once, aggregated) instead of staying silent about it.
+// The Day 1-7 lineups below are the finalized combinations. Day 1 and Day 2
+// are curated for the competition/demo; Day 3-7 are arranged so no two days
+// share the same 3-scene combination (order-independent) and all six
+// scheduled scenes are spread across the cycle — whaleDream, templeGarden and
+// flowerCollector appear 4x each, penguinFishing, bubbleGumBunny and
+// lemonSqueeze 3x each, filling all 21 slots. Note whaleDream2 is registered
+// in scenes.js but intentionally not scheduled here.
 //
 // CAUTION: if a Program Day someone has already started/completed has its
 // scene IDs changed here later, their existing history/session results for
@@ -35,12 +36,12 @@ export const FIRST_SCHEDULED_DAY = 1;
 export const LAST_SCHEDULED_DAY = 7;
 
 export const SCENE_SCHEDULE = Object.freeze({
-  1: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
-  2: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
-  3: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
-  4: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
-  5: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
-  6: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
+  1: [SCENE_IDS.whaleDream, SCENE_IDS.penguinFishing, SCENE_IDS.flowerCollector],
+  2: [SCENE_IDS.templeGarden, SCENE_IDS.bubbleGumBunny, SCENE_IDS.lemonSqueeze],
+  3: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.penguinFishing],
+  4: [SCENE_IDS.flowerCollector, SCENE_IDS.bubbleGumBunny, SCENE_IDS.lemonSqueeze],
+  5: [SCENE_IDS.whaleDream, SCENE_IDS.bubbleGumBunny, SCENE_IDS.flowerCollector],
+  6: [SCENE_IDS.templeGarden, SCENE_IDS.penguinFishing, SCENE_IDS.lemonSqueeze],
   7: [SCENE_IDS.whaleDream, SCENE_IDS.templeGarden, SCENE_IDS.flowerCollector],
 });
 

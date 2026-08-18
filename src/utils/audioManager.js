@@ -187,6 +187,10 @@ export function startSceneBackground({ id, source, volume = 0.35, fadeInMs = 100
   const entry = getAudioEntry(source);
   if (!entry) return;
 
+  if (activeBackground?.id === id && activeBackground.source === source && !entry.audio.paused) {
+    return;
+  }
+
   if (activeBackground) stopSceneBackground(activeBackground, { fadeOutMs: 0 });
 
   cancelFade(entry);
@@ -274,6 +278,49 @@ export function stopSceneBackground(background, { fadeOutMs = 1000 } = {}) {
   });
 }
 
+export function pauseSceneBackground(background) {
+  if (!background?.source) return;
+
+  if (
+    activeBackground?.id !== background.id
+    || activeBackground?.source !== background.source
+  ) {
+    return;
+  }
+
+  const entry = getAudioEntry(background.source);
+  if (!entry) return;
+
+  cancelFade(entry);
+  const generation = claim(entry);
+  activeBackground = { ...activeBackground, generation };
+  entry.audio.pause();
+  traceAudioLifecycle('BGM paused', { id: background.id, source: background.source, generation });
+}
+
+export function resumeSceneBackground(background) {
+  if (!background?.source) return;
+
+  if (
+    activeBackground?.id !== background.id
+    || activeBackground?.source !== background.source
+  ) {
+    return;
+  }
+
+  const entry = getAudioEntry(background.source);
+  if (!entry || !entry.audio.paused) return;
+
+  cancelFade(entry);
+  const generation = claim(entry);
+  activeBackground = { ...activeBackground, generation };
+  entry.audio.loop = true;
+  entry.audio.muted = false;
+  entry.audio.volume = activeBackground.volume;
+  entry.audio.play().catch(() => attachUnlockListener());
+  traceAudioLifecycle('BGM resumed', { id: background.id, source: background.source, generation });
+}
+
 export function resetSceneBackground(background) {
   if (!background?.source) return;
   if (pendingBackground?.generation === background.generation || pendingBackground?.id === background.id) {
@@ -316,6 +363,54 @@ export function playSceneEffect(effect) {
   entry.audio.muted = false;
   entry.audio.volume = effect.volume ?? 0.55;
   entry.audio.currentTime = 0;
+  entry.audio.play().catch(() => attachUnlockListener());
+}
+
+export function playSceneEffectInstance(effect) {
+  if (!effect?.source || !canUseAudio()) return;
+
+  const audio = new Audio(effect.source);
+  audio.preload = 'auto';
+  audio.loop = false;
+  audio.muted = false;
+  audio.volume = clampVolume(effect.volume ?? 0.55);
+
+  const release = () => {
+    audio.onended = null;
+    audio.onerror = null;
+    audio.src = '';
+  };
+
+  audio.onended = release;
+  audio.onerror = release;
+  audio.play().catch(() => {
+    release();
+    attachUnlockListener();
+  });
+}
+
+export function pauseSceneEffect(effect) {
+  if (!effect?.source) return;
+
+  const entry = getAudioEntry(effect.source);
+  if (!entry) return;
+
+  cancelFade(entry);
+  claim(entry);
+  entry.audio.pause();
+}
+
+export function resumeSceneEffect(effect) {
+  if (!effect?.source) return;
+
+  const entry = getAudioEntry(effect.source);
+  if (!entry) return;
+
+  cancelFade(entry);
+  claim(entry);
+  entry.audio.loop = Boolean(effect.loop);
+  entry.audio.muted = false;
+  entry.audio.volume = effect.volume ?? 0.55;
   entry.audio.play().catch(() => attachUnlockListener());
 }
 

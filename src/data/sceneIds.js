@@ -8,4 +8,5 @@ export const SCENE_IDS = Object.freeze({
   flowerCollector: 'flowerCollector',
   bubbleGumBunny: 'bubbleGumBunny',
   lemonSqueeze: 'lemonSqueeze',
+  penguinFishing: 'penguinFishing',
 });
