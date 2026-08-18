@@ -17877,3 +17877,214 @@ h1 {
     width: 540px;
   }
 }
+
+/* Share Card (ported from the share-card-preview-export donor branch).
+   The intrinsic .share-card node is always 1080x1350 and is scaled down purely
+   via the wrapper's transform, so the exported PNG never captures a scaled node.
+   These rules are self-contained under the share-card-* namespace and don't
+   touch any existing .result-* card/carousel styling. */
+.share-card-scaler {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.share-card-scale-inner {
+  transform-origin: top left;
+}
+
+.share-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: #f3e6d2;
+  background-image:
+    radial-gradient(circle, rgba(26, 26, 26, 0.14) 3px, transparent 3px);
+  background-size: 28px 28px;
+  background-position: -6px -6px;
+  font-family: var(--fr-font-body);
+}
+
+.share-card-slogan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 56px 0;
+  text-align: center;
+}
+
+.share-card-slogan strong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #181818;
+  font-family: var(--fr-font-display);
+  font-size: 98px;
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: 0.2px;
+}
+
+.share-card-slogan strong span {
+  display: block;
+}
+
+.share-card-slogan .share-card-subtitle {
+  color: #2a2a2a;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.share-card-photos {
+  position: relative;
+  flex: 1;
+  margin: -8px 0 0;
+}
+
+/* Historical days without persisted snapshots fall back to a photo-less card:
+   center the mascot instead of leaving partially-populated/broken photo slots. */
+.share-card-photos.is-photoless {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-card-photos.is-photoless .share-card-mascot {
+  position: static;
+  width: 46%;
+}
+
+.share-card-photo {
+  position: absolute;
+  margin: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 20px 44px rgba(60, 40, 10, 0.18);
+}
+
+.share-card-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The large hero photo anchors the collage; the two supporting photos overlap
+   its top-left and bottom-right corners, matching the target composition.
+   Sizes/positions were corrected after a post-merge regression left all three
+   circles slightly oversized, with the bottom-right one sitting flush against
+   (left:725px + width:355px === the card's 1080px width) the right edge, so
+   its box-shadow blur visibly bled past the card boundary. */
+.share-card-photo-main {
+  z-index: 2;
+  top: 129px;
+  left: 179px;
+  width: 722px;
+  height: 722px;
+  padding: 18px;
+}
+
+.share-card-photo-top-left {
+  z-index: 3;
+  top: 26px;
+  left: 48px;
+  width: 322px;
+  height: 322px;
+  padding: 14px;
+  transform: rotate(-6deg);
+}
+
+.share-card-photo-bottom-right {
+  z-index: 3;
+  top: 605px;
+  left: 700px;
+  width: 316px;
+  height: 316px;
+  padding: 14px;
+  transform: rotate(6deg);
+}
+
+.share-card-photo figcaption {
+  position: absolute;
+  right: 2%;
+  bottom: 2%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 11px 24px 11px 13px;
+  color: #1a1a1a;
+  background: var(--fr-yellow);
+  box-shadow: 0 8px 18px rgba(60, 40, 10, 0.2);
+  font-size: 29px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.share-card-photo figcaption b {
+  display: grid;
+  width: 37px;
+  height: 37px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--fr-yellow);
+  background: #181818;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.share-card-photo-top-left figcaption {
+  top: auto;
+  bottom: -8%;
+  right: 8%;
+}
+
+.share-card-photo-main figcaption {
+  top: 30%;
+  right: -4%;
+  bottom: auto;
+  left: auto;
+}
+
+.share-card-mascot {
+  position: absolute;
+  z-index: 4;
+  bottom: 90px;
+  left: 90px;
+  width: 29%;
+  height: auto;
+  transform: rotate(-5deg);
+  /* Layered zero-blur drop-shadows fake a sticker-style white stroke around the
+     transparent mascot PNG; the final shadow keeps the original soft depth cue. */
+  filter:
+    drop-shadow(0 4px 0 #fff) drop-shadow(0 -4px 0 #fff)
+    drop-shadow(4px 0 0 #fff) drop-shadow(-4px 0 0 #fff)
+    drop-shadow(3px 3px 0 #fff) drop-shadow(-3px 3px 0 #fff)
+    drop-shadow(3px -3px 0 #fff) drop-shadow(-3px -3px 0 #fff)
+    drop-shadow(0 16px 22px rgba(60, 40, 10, 0.22));
+}
+
+.share-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 60px 44px;
+}
+
+.share-card-branding {
+  margin: 0;
+  border-radius: 999px;
+  padding: 14px 34px;
+  color: #fff;
+  background: #181818;
+  font-family: var(--fr-font-display);
+  font-size: 29px;
+  font-weight: 400;
+  letter-spacing: 0.6px;
+}
