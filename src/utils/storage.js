@@ -568,6 +568,7 @@ export function buildLeaderboard(habit = loadHabit()) {
     { name: 'Bubble Hero', score: 84, detail: 'Bubble Gum Bunny' },
     { name: 'Popcorn Crew', score: 79, detail: 'Popcorn Collector' },
     { name: 'Soda Sprout', score: 74, detail: 'Lemon Squeeze' },
+    { name: 'Sunny Side', score: 69, detail: 'Lemon Squeeze' },
   ].sort((a, b) => b.score - a.score);
 
   return rows.map((row, index) => ({

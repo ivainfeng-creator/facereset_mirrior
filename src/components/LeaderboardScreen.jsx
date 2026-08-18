@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
-import { loadPassportProgress } from '../utils/progressAdapter.js';
+import { loadLeaderboardRows, loadPassportProgress } from '../utils/progressAdapter.js';
 import { buildDailyPlanSummary, buildProgramDayPlanSummary } from '../utils/dailyPlan.js';
-import { fetchProgramDayLeaderboard } from '../utils/supabaseProgressAdapter.js';
 
 export default function LeaderboardScreen({ habit, onBack, onRestart, programDay: selectedProgramDay = null }) {
   const passport = loadPassportProgress(habit);
@@ -10,26 +8,7 @@ export default function LeaderboardScreen({ habit, onBack, onRestart, programDay
     ? Number(selectedProgramDay)
     : currentProgramDay;
   const dailyPlan = buildProgramDayPlanSummary(habit, programDay);
-  const [rows, setRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isCurrent = true;
-    setIsLoading(true);
-    void fetchProgramDayLeaderboard(programDay).then((data) => {
-      if (!isCurrent) return;
-      setRows(data.map((row) => ({
-        rank: Number(row.rank),
-        name: row.display_name || 'Anonymous',
-        score: Math.max(0, Number(row.total_score) || 0),
-        detail: `${row.completed_sessions}/3 sessions`,
-      })));
-      setIsLoading(false);
-    });
-    return () => {
-      isCurrent = false;
-    };
-  }, [programDay, habit?.updatedAt]);
+  const rows = loadLeaderboardRows(habit);
 
   return (
     <section className="screen leaderboard-screen">
@@ -71,8 +50,7 @@ export default function LeaderboardScreen({ habit, onBack, onRestart, programDay
               <b>{row.score}</b>
             </article>
           ))}
-          {!isLoading && !rows.length && <p className="leaderboard-status">No completed Day {programDay} scores yet.</p>}
-          {isLoading && <p className="leaderboard-status">Loading leaderboard...</p>}
+          {!rows.length && <p className="leaderboard-status">No Day {programDay} scores yet.</p>}
         </section>
 
         <footer className="passport-actions">

@@ -12970,6 +12970,7 @@ h1 {
   justify-content: center;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: clamp(24px, 6vh, 72px) clamp(14px, 4vw, 48px);
   background: rgba(10, 13, 18, 0.88);
   box-sizing: border-box;
@@ -12981,6 +12982,7 @@ h1 {
   justify-content: center;
   width: min(100%, 960px);
   margin: auto;
+  transform: translateY(-5%);
 }
 
 .result-history-modal .result-carousel {
@@ -13003,7 +13005,7 @@ h1 {
   align-self: start;
   width: min(84vw, 430px);
   cursor: pointer;
-  transform-origin: top center;
+  transform-origin: bottom center;
   transition: filter 260ms ease, opacity 260ms ease, transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -13074,12 +13076,12 @@ h1 {
 @keyframes result-card-settle-front {
   from {
     opacity: 0;
-    transform: translateY(28px) scale(0.94);
+    transform: scale(0.94);
   }
 
   72% {
     opacity: 1;
-    transform: translateY(-3px) scale(1.02);
+    transform: scale(1.02);
   }
 
   to {
@@ -13091,12 +13093,12 @@ h1 {
 @keyframes result-card-settle-left {
   from {
     opacity: 0;
-    transform: translateX(calc(0px - min(31vw, 258px))) translateY(88px) rotate(-5deg) scale(0.9);
+    transform: translateX(calc(0px - min(31vw, 258px))) translateY(16px) rotate(-5deg) scale(0.9);
   }
 
   72% {
     opacity: 1;
-    transform: translateX(calc(0px - min(31vw, 258px))) translateY(10px) rotate(-5deg) scale(0.98);
+    transform: translateX(calc(0px - min(31vw, 258px))) translateY(16px) rotate(-5deg) scale(0.98);
   }
 
   to {
@@ -13108,12 +13110,12 @@ h1 {
 @keyframes result-card-settle-right {
   from {
     opacity: 0;
-    transform: translateX(-108%) scale(0.94);
+    transform: translateX(min(31vw, 258px)) translateY(32px) rotate(3deg) scale(0.86);
   }
 
   72% {
     opacity: 1;
-    transform: translateX(min(31vw, 258px)) translateY(26px) rotate(3deg) scale(0.95);
+    transform: translateX(min(31vw, 258px)) translateY(32px) rotate(3deg) scale(0.95);
   }
 
   to {
@@ -13154,7 +13156,7 @@ h1 {
 }
 
 .result-leaderboard-summary .result-score-display {
-  padding-top: 8px;
+  padding-top: 16px;
 }
 
 .result-summary-top {
@@ -13836,7 +13838,7 @@ h1 {
 .result-leaderboard-card {
   display: grid;
   grid-template-rows: auto auto;
-  padding: 14px 12px 12px;
+  padding: 18px 24px;
 }
 
 .result-leaderboard-card header {
@@ -13955,33 +13957,12 @@ h1 {
     justify-self: stretch;
   }
 
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack {
-    animation-name: result-card-settle-down;
-  }
-
   .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(2) {
     animation-delay: 90ms;
   }
 
   .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(3) {
     animation-delay: 160ms;
-  }
-}
-
-@keyframes result-card-settle-down {
-  from {
-    opacity: 0;
-    transform: translateY(28px) scale(0.96);
-  }
-
-  72% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.015);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 
@@ -16198,6 +16179,19 @@ h1 {
   color: var(--fr-text-muted);
   font-size: 0.86rem;
   text-align: center;
+}
+
+/* Rankings can exceed a handset viewport; keep every row and action reachable. */
+.leaderboard-screen {
+  height: 100svh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.leaderboard-card {
+  min-height: 100svh;
+  overflow: visible;
 }
 
 .result-dashboard-actions {

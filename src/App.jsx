@@ -40,8 +40,6 @@ const SCREENS = {
 
 const isDemoPreview = new URLSearchParams(window.location.search).get('demo') === '1';
 const isProgressDebug = new URLSearchParams(window.location.search).get('debug') === '1';
-const isResultPreview = import.meta.env.DEV
-  && new URLSearchParams(window.location.search).get('result') === '1';
 const debugSceneId = getActiveDebugSceneId();
 const SKIP_FACE_SCAN_STORAGE_KEY = 'face-reset-mirror-skip-face-scan';
 const WELCOME_TRANSITION_MS = 1020;
@@ -64,40 +62,14 @@ const SESSION_COMPLETE_STAMP_EFFECT = Object.freeze({
 });
 const DAILY_COMPLETION_RESULT_DELAY_MS = 1240;
 
-const RESULT_PREVIEW = {
-  type: 'daily-plan',
-  completed: dailyScenes.length,
-  total: dailyScenes.length,
-  isComplete: true,
-  score: dailyScenes.reduce((total, _scene, index) => total + Math.max(70, 94 - index), 0),
-  maxScore: dailyScenes.length * 100,
-  holdSeconds: 52,
-  sceneTitle: 'FULL RESET COMPLETE',
-  area: 'ALL 3 SESSIONS',
-  programDay: 1,
-  sceneResults: dailyScenes.map((scene, index) => ({
-    sceneId: scene.id,
-    sceneTitle: scene.title,
-    score: Math.max(70, 94 - index),
-    completed: true,
-  })),
-  radar: [
-    { label: 'movement', value: 84 },
-    { label: 'hold', value: 78 },
-    { label: 'control', value: 86 },
-    { label: 'smoothness', value: 81 },
-    { label: 'relaxation', value: 76 },
-  ],
-};
-
 export default function App() {
   const [screen, setScreen] = useState(
-    debugSceneId ? SCREENS.permission : (isResultPreview || isDemoPreview ? SCREENS.challenge : SCREENS.landing),
+    debugSceneId ? SCREENS.permission : (isDemoPreview ? SCREENS.challenge : SCREENS.landing),
   );
   const [cameraStream, setCameraStream] = useState(null);
   const [cameraError, setCameraError] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
-  const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
+  const [latestResult, setLatestResult] = useState(null);
   const [progressRevision, setProgressRevision] = useState(0);
   const [newlyCompletedSceneId, setNewlyCompletedSceneId] = useState(null);
   const [canViewCompletedHistory, setCanViewCompletedHistory] = useState(false);
@@ -105,7 +77,7 @@ export default function App() {
   const [sessionDate, setSessionDate] = useState(null);
   const [selectedChallengeDate, setSelectedChallengeDate] = useState(null);
   const [skipFaceScan, setSkipFaceScan] = useState(loadSkipFaceScanPreference);
-  const [challengeView, setChallengeView] = useState(isResultPreview ? 'result' : 'plan');
+  const [challengeView, setChallengeView] = useState('plan');
   const [routineReturnView, setRoutineReturnView] = useState('plan');
   const [shouldAnimateResultCards, setShouldAnimateResultCards] = useState(false);
   const [shouldAnimateCompletionFlow, setShouldAnimateCompletionFlow] = useState(false);
@@ -528,7 +500,7 @@ export default function App() {
           onPassport={() => navigate(SCREENS.passport, 'slide-fwd')}
           onLeaderboard={() => navigate(SCREENS.leaderboard, 'slide-fwd')}
           onProgressChanged={() => setProgressRevision((revision) => revision + 1)}
-          shouldPromptForDisplayName={!isResultPreview}
+          shouldPromptForDisplayName
           shouldAnimateResultCards={shouldAnimateResultCards}
           shouldAnimateCompletionFlow={shouldAnimateCompletionFlow}
           resultAnimationKey={resultAnimationKey}

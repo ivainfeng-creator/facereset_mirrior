@@ -100,6 +100,20 @@ export default function ResultScreen({
   }, [cardLayoutAnimationKey, shouldAnimateCardLayout]);
 
   useEffect(() => {
+    if (!isHistoryOpen) return undefined;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+    };
+  }, [isHistoryOpen]);
+
+  useEffect(() => {
     let isCurrent = true;
     const loadLeaderboard = async () => {
       const rows = await fetchProgramDayLeaderboard(programDay);
@@ -268,7 +282,7 @@ export default function ResultScreen({
             >
               <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
                 {qualifiesForLeaderboard ? (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
                 ) : (
                   <ResultShareCard
                     isExporting={isExporting}
@@ -298,7 +312,7 @@ export default function ResultScreen({
                     onShare={shareVideo}
                   />
                 ) : (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
                 )}
               </div>
             </div>
@@ -520,27 +534,19 @@ function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
   );
 }
 
-function ResultLeaderboard({ rows, programDay, score, topPercent, isLoading }) {
+function ResultLeaderboard({ rows, programDay, score, isLoading }) {
   return (
     <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
       <div className="result-leaderboard-summary">
-        <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
+        <p className="result-eyebrow">DAY {programDay} · SCOREBOARD</p>
         <div className="result-score-display">
           <strong>{score}</strong>
           <span>/ 300</span>
         </div>
-        <div className="result-achievement-row">
-          <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
-          <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
-        </div>
         <div className="result-delta-row">
-          <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
           <b><PersonalBestIcon />NEW PERSONAL BEST</b>
         </div>
       </div>
-      <header>
-        <span>DAY {programDay} LEADERBOARD</span>
-      </header>
       <ol>
         {rows.slice(0, 10).map((row) => (
           <li key={`${row.rank}-${row.name}`}>
@@ -637,8 +643,8 @@ function UpIcon() {
 
 function PersonalBestIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 960 960">
-      <path d="m354 713 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143Zm126 167q-83 0-156-31.5T197 763q-54-54-85.5-127T80 480q0-83 31.5-156T197 197q54-54 127-85.5T480 80q83 0 156 31.5T763 197q54 54 85.5 127T880 480q0 83-31.5 156T763 763q-54 54-127 85.5T480 880Z" />
+    <svg aria-hidden="true" height="12px" viewBox="0 -960 960 960" width="12px" fill="#1f1f1f">
+      <path d="m320-240 160-122 160 122-60-198 160-114H544l-64-208-64 208H220l160 114-60 198ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z" />
     </svg>
   );
 }
