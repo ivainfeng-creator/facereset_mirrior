@@ -13,6 +13,9 @@ export default function ThemeScreen({
   newlyCompletedSceneId = null,
   onCompletionStampAnimationEnd,
   onViewHistory,
+  shouldAnimateHistoryCards = false,
+  shouldAnimateCompletionFlow = false,
+  historyAnimationKey = 0,
 }) {
   const [preparingSceneId, setPreparingSceneId] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -22,6 +25,10 @@ export default function ThemeScreen({
   const isHistoryView = dailyPlan.date !== currentDailyPlan.date;
 
   useEffect(() => () => window.clearTimeout(preparingTimerRef.current), []);
+
+  useEffect(() => {
+    if (shouldAnimateHistoryCards) setIsHistoryOpen(true);
+  }, [historyAnimationKey, shouldAnimateHistoryCards]);
 
   const startSession = (sceneId) => {
     if (preparingSceneId) return;
@@ -49,7 +56,9 @@ export default function ThemeScreen({
           onStart={startSession}
           onSessionSelect={startSession}
           showCompletion
-          onViewHistory={onViewHistory ? () => setIsHistoryOpen(true) : undefined}
+          onViewHistory={onViewHistory ? () => setIsHistoryOpen((isOpen) => !isOpen) : undefined}
+          isHistoryOpen={isHistoryOpen}
+          shouldAnimateCompletionFlow={shouldAnimateCompletionFlow}
           newlyCompletedSceneId={newlyCompletedSceneId}
           onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}
           isReadOnly={false}
@@ -63,6 +72,8 @@ export default function ThemeScreen({
             isHistoryOnly
             onCloseHistory={() => setIsHistoryOpen(false)}
             shouldPromptForDisplayName={false}
+            shouldAnimateCardLayout={shouldAnimateHistoryCards}
+            cardLayoutAnimationKey={historyAnimationKey}
           />
         )}
       </main>

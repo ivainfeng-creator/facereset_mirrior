@@ -119,6 +119,7 @@ export default function App() {
   const [challengeView, setChallengeView] = useState(isResultPreview ? 'result' : 'plan');
   const [routineReturnView, setRoutineReturnView] = useState('plan');
   const [shouldAnimateResultCards, setShouldAnimateResultCards] = useState(false);
+  const [shouldAnimateCompletionFlow, setShouldAnimateCompletionFlow] = useState(false);
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [guideOverlay, setGuideOverlay] = useState(null);
@@ -227,6 +228,8 @@ export default function App() {
     if (screenTransition) return;
 
     setSelectedChallengeDate(null);
+    setShouldAnimateResultCards(false);
+    setShouldAnimateCompletionFlow(false);
     setCanViewCompletedHistory(buildDailyPlanSummary(loadHabitProgress()).isComplete);
     traceAudioLifecycle('START pressed');
     unlockAudio();
@@ -406,10 +409,16 @@ export default function App() {
     playSceneEffect(SESSION_COMPLETE_STAMP_EFFECT);
     if (dailyPlan.isComplete) {
       playSceneEffect(WELCOME_START_EFFECT);
+      setCanViewCompletedHistory(true);
+      setShouldAnimateCompletionFlow(true);
       navigateChallenge('plan', 'quiet');
       completionResultTimerRef.current = window.setTimeout(() => {
         setResultAnimationKey((key) => key + 1);
-        navigateChallenge('result', 'quiet', { animateResultCards: true });
+        setShouldAnimateResultCards(true);
+        completionResultTimerRef.current = window.setTimeout(() => {
+          setShouldAnimateResultCards(false);
+          setShouldAnimateCompletionFlow(false);
+        }, 800);
       }, DAILY_COMPLETION_RESULT_DELAY_MS);
       return;
     }
@@ -430,7 +439,8 @@ export default function App() {
           ? sessionSnapshotsRef.current.snapshots
           : [],
     }));
-    navigateChallenge('result');
+            setCanViewCompletedHistory(true);
+            navigateChallenge('plan');
   };
 
   const openDailyResultWithAnimation = () => {
@@ -449,10 +459,16 @@ export default function App() {
           : [],
     }));
     playSceneEffect(WELCOME_START_EFFECT);
+    setCanViewCompletedHistory(true);
+    setShouldAnimateCompletionFlow(true);
     navigateChallenge('plan', 'quiet');
     completionResultTimerRef.current = window.setTimeout(() => {
       setResultAnimationKey((key) => key + 1);
-      navigateChallenge('result', 'quiet', { animateResultCards: true });
+      setShouldAnimateResultCards(true);
+      completionResultTimerRef.current = window.setTimeout(() => {
+        setShouldAnimateResultCards(false);
+        setShouldAnimateCompletionFlow(false);
+      }, 800);
     }, DAILY_COMPLETION_RESULT_DELAY_MS);
   };
 
@@ -546,6 +562,7 @@ export default function App() {
           onProgressChanged={() => setProgressRevision((revision) => revision + 1)}
           shouldPromptForDisplayName={!isResultPreview}
           shouldAnimateResultCards={shouldAnimateResultCards}
+          shouldAnimateCompletionFlow={shouldAnimateCompletionFlow}
           resultAnimationKey={resultAnimationKey}
         />
       )}

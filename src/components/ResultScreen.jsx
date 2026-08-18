@@ -15,6 +15,7 @@ const LEADERBOARD_SUBMIT_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
   volume: 0.7,
 });
+const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
 
 export default function ResultScreen({
   result,
@@ -33,6 +34,7 @@ export default function ResultScreen({
 }) {
   const [cardOrder, setCardOrder] = useState([0, 1, 2]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryOnly);
+  const [isCardLayoutAnimationActive, setIsCardLayoutAnimationActive] = useState(shouldAnimateCardLayout);
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -59,7 +61,11 @@ export default function ResultScreen({
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
+  const qualifiesForLeaderboard = !isLeaderboardLoading && (
+    leaderboard.length < 10 || score >= (leaderboard[9]?.score ?? 0)
+  );
   const bringCardToFront = (cardIndex) => {
+    if (isCardLayoutAnimationActive) return;
     setCardOrder((currentOrder) => [
       cardIndex,
       ...currentOrder.filter((index) => index !== cardIndex),
@@ -72,6 +78,16 @@ export default function ResultScreen({
     }
     setIsHistoryOpen(false);
   };
+
+  useEffect(() => {
+    if (!shouldAnimateCardLayout) return undefined;
+
+    setCardOrder([0, 1, 2]);
+    setIsHistoryOpen(true);
+    setIsCardLayoutAnimationActive(true);
+    const timer = window.setTimeout(() => setIsCardLayoutAnimationActive(false), CARD_LAYOUT_ENTRY_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [cardLayoutAnimationKey, shouldAnimateCardLayout]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -104,8 +120,6 @@ export default function ResultScreen({
       return () => { isCurrent = false; };
     }
 
-    const tenthPlaceScore = leaderboard[9]?.score ?? -1;
-    const qualifiesForLeaderboard = leaderboard.length < 10 || score >= tenthPlaceScore;
     if (!qualifiesForLeaderboard) {
       setIsNameEntryOpen(false);
       return () => { isCurrent = false; };
@@ -220,41 +234,56 @@ export default function ResultScreen({
   };
 
   const historyModal = isHistoryOpen && (
-    <div className="result-history-overlay" onClick={closeHistory}>
+    <div className="result-history-overlay">
       <section
         className="result-history-modal"
         aria-label="Result history"
         role="dialog"
         aria-modal="true"
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="result-carousel" aria-label="Result cards">
           <div
-            className={`result-challenge-grid ${shouldAnimateCardLayout ? 'is-card-layout-entering' : ''}`}
+            className={`result-challenge-grid ${isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
             key={cardLayoutAnimationKey}
           >
             <div
               className={`result-card-stack is-stack-${cardOrder.indexOf(0)}`}
-              onClick={() => bringCardToFront(0)}
+              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(0)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
-                <section className="result-summary-card">
-                  <img className="result-card-image" src="/assets/Result_Card.png" alt="Face Reset challenge result" />
-                  <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
-                    <button onClick={downloadVideo} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
-                    <button onClick={shareVideo} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
-                  </div>
-                </section>
+                {qualifiesForLeaderboard ? (
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                ) : (
+                  <ResultShareCard
+                    isExporting={isExporting}
+                    onDownload={downloadVideo}
+                    onShare={shareVideo}
+                  />
+                )}
               </div>
             </div>
-            <div className={`result-card-stack is-stack-${cardOrder.indexOf(1)}`} onClick={() => bringCardToFront(1)}>
+            <div
+              className={`result-card-stack is-stack-${cardOrder.indexOf(1)}`}
+              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(1)}
+            >
               <div className="result-card-content" inert={cardOrder.indexOf(1) !== 0}>
                 <TodayPlanCard className="result-focus-card" sceneResults={dailyPlan.sceneResults} programDay={programDay} onSessionSelect={onRestart} showCompletion />
               </div>
             </div>
-            <div className={`result-card-stack is-stack-${cardOrder.indexOf(2)}`} onClick={() => bringCardToFront(2)}>
+            <div
+              className={`result-card-stack is-stack-${cardOrder.indexOf(2)}`}
+              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
+            >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
-                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                {qualifiesForLeaderboard ? (
+                  <ResultShareCard
+                    isExporting={isExporting}
+                    onDownload={downloadVideo}
+                    onShare={shareVideo}
+                  />
+                ) : (
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                )}
               </div>
             </div>
           </div>
@@ -514,6 +543,18 @@ function ResultLeaderboard({ rows, programDay, score, topPercent, isLoading }) {
   );
 }
 
+function ResultShareCard({ isExporting, onDownload, onShare }) {
+  return (
+    <section className="result-summary-card">
+      <img className="result-card-image" src="/assets/Result_Card.png" alt="Face Reset challenge result" />
+      <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
+        <button onClick={onDownload} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
+        <button onClick={onShare} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
+      </div>
+    </section>
+  );
+}
+
 function RestartIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -547,10 +588,8 @@ function ShareIcon() {
 
 function HistoryIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
-      <path d="M4 4v5h5" />
-      <path d="M12 7v5l3.5 2" />
+    <svg aria-hidden="true" viewBox="0 -960 960 960">
+      <path d="m489-460 91-55 91 55-24-104 80-69-105-9-42-98-42 98-105 9 80 69-24 104Zm19 260h224q-7 26-24 42t-44 20L228-85q-33 5-59.5-15.5T138-154L85-591q-4-33 16-59t53-30l46-6v80l-36 5 54 437 290-36Zm-148-80q-33 0-56.5-23.5T280-360v-440q0-33 23.5-56.5T360-880h440q33 0 56.5 23.5T880-800v440q0 33-23.5 56.5T800-280H360Zm0-80h440v-440H360v440Zm220-220ZM218-164Z" />
     </svg>
   );
 }

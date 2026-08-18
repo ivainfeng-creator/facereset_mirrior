@@ -23,6 +23,7 @@ export default function ChallengeScreen({
   onProgressChanged,
   shouldPromptForDisplayName,
   shouldAnimateResultCards,
+  shouldAnimateCompletionFlow,
   resultAnimationKey,
 }) {
   const currentPlan = buildDailyPlanSummary(habit);
@@ -67,6 +68,9 @@ export default function ChallengeScreen({
       isEntering={isEntering}
       newlyCompletedSceneId={newlyCompletedSceneId}
       onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}
+      shouldAnimateHistoryCards={shouldAnimateResultCards}
+      shouldAnimateCompletionFlow={shouldAnimateCompletionFlow}
+      historyAnimationKey={resultAnimationKey}
     />
   );
 }

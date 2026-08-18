@@ -1,8 +1,13 @@
+import { useLayoutEffect, useRef } from 'react';
 import { getSceneById } from '../data/scenes.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 
 const SESSION_SELECT_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
+const HISTORY_CLOSE_EFFECT = Object.freeze({
+  source: '/audio/Overall/Click-2.mp3',
   volume: 0.7,
 });
 
@@ -17,10 +22,15 @@ export default function TodayPlanCard({
   newlyCompletedSceneId = null,
   onCompletionStampAnimationEnd,
   onViewHistory,
+  isHistoryOpen = false,
+  shouldAnimateCompletionFlow = false,
   className = '',
   isReadOnly = false,
   focusLabel = 'TODAY\'S FOCUS',
 }) {
+  const historyButtonRef = useRef(null);
+  const previousHistoryWidthRef = useRef(null);
+  const previousHistoryOpenRef = useRef(isHistoryOpen);
   const dailyScenes = sceneResults.map((result) => getSceneById(result.sceneId));
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
@@ -29,6 +39,39 @@ export default function TodayPlanCard({
   const completedCount = completedScenes.size;
   const activeIndex = dailyScenes.findIndex((scene) => !completedScenes.has(scene.id));
   const isAllDone = completedCount >= dailyScenes.length;
+
+  const toggleHistory = () => {
+    playSceneEffect(isHistoryOpen ? HISTORY_CLOSE_EFFECT : SESSION_SELECT_EFFECT);
+    onViewHistory?.();
+  };
+
+  useLayoutEffect(() => {
+    const button = historyButtonRef.current;
+    if (!button) return undefined;
+
+    const nextWidth = button.getBoundingClientRect().width;
+    const previousWidth = previousHistoryWidthRef.current;
+    const didHistoryStateChange = previousHistoryOpenRef.current !== isHistoryOpen;
+    previousHistoryOpenRef.current = isHistoryOpen;
+    previousHistoryWidthRef.current = nextWidth;
+
+    if (!didHistoryStateChange || !previousWidth) return undefined;
+
+    button.style.width = `${previousWidth}px`;
+    void button.offsetWidth;
+    const animationFrame = window.requestAnimationFrame(() => {
+      button.style.width = `${nextWidth}px`;
+    });
+    const clearWidth = (event) => {
+      if (event.propertyName === 'width') button.style.width = '';
+    };
+    button.addEventListener('transitionend', clearWidth);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      button.removeEventListener('transitionend', clearWidth);
+    };
+  }, [isHistoryOpen]);
 
   return (
     <section className={`challenge-v3-plan ${className}`.trim()} aria-label={focusLabel}>
@@ -150,13 +193,15 @@ export default function TodayPlanCard({
           </div>
           {onViewHistory && (
             <button
-              className="history-fab"
+              ref={historyButtonRef}
+              className={`history-fab${isHistoryOpen ? ' is-active' : ''}${shouldAnimateCompletionFlow ? ' is-completion-entering' : ''}`}
               type="button"
-              aria-label="View history"
-              data-label="View history"
-              onClick={onViewHistory}
+              aria-label={isHistoryOpen ? 'Close history' : 'View history'}
+              aria-expanded={isHistoryOpen}
+              onClick={toggleHistory}
             >
-              <HistoryIcon />
+              {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
+              <span>{isHistoryOpen ? 'Close' : 'View history'}</span>
             </button>
           )}
         </>
@@ -167,10 +212,17 @@ export default function TodayPlanCard({
 
 function HistoryIcon() {
   return (
+    <svg className="history-profile-icon" aria-hidden="true" viewBox="0 -960 960 960">
+      <path d="m489-460 91-55 91 55-24-104 80-69-105-9-42-98-42 98-105 9 80 69-24 104Zm19 260h224q-7 26-24 42t-44 20L228-85q-33 5-59.5-15.5T138-154L85-591q-4-33 16-59t53-30l46-6v80l-36 5 54 437 290-36Zm-148-80q-33 0-56.5-23.5T280-360v-440q0-33 23.5-56.5T360-880h440q33 0 56.5 23.5T880-800v440q0 33-23.5 56.5T800-280H360Zm0-80h440v-440H360v440Zm220-220ZM218-164Z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
-      <path d="M4 4v5h5" />
-      <path d="M12 7v5l3.5 2" />
+      <path d="m6 6 12 12" />
+      <path d="m18 6-12 12" />
     </svg>
   );
 }
