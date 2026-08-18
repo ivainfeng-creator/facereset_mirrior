@@ -6,6 +6,7 @@ import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
 export default function ThemeScreen({
   habit,
   dailyPlan,
+  result,
   daySelector,
   selectedScene,
   onSelect,
@@ -23,6 +24,20 @@ export default function ThemeScreen({
   const currentDailyPlan = buildDailyPlanSummary(habit);
   const selectedDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
   const isHistoryView = dailyPlan.date !== currentDailyPlan.date;
+  // The Today's Plan "view history" card reads from `dailyPlan`, which comes
+  // from buildDailyPlanSummary and never carries snapshots (they aren't
+  // persisted to habit history). For the day the user is actively viewing
+  // right now, `result` (App.jsx's latestResult) is the one place real
+  // in-memory camera captures from the just-completed sessions actually live
+  // (see App.jsx's sessionSnapshotsRef), so thread them onto the plan here
+  // rather than losing them. Any other day correctly falls through to the
+  // snapshot-less dailyPlan and the Share Card's existing no-photo fallback.
+  const resultForHistoryCard = !isHistoryView
+    && result?.type === 'daily-plan'
+    && result.programDay === dailyPlan.programDay
+    && result.snapshots?.length
+    ? { ...dailyPlan, snapshots: result.snapshots }
+    : dailyPlan;
 
   useEffect(() => () => window.clearTimeout(preparingTimerRef.current), []);
 
@@ -66,7 +81,7 @@ export default function ThemeScreen({
         />
         {isHistoryOpen && (
           <ResultScreen
-            result={dailyPlan}
+            result={resultForHistoryCard}
             habit={habit}
             onRestart={startSession}
             isHistoryOnly
