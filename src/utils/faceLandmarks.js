@@ -159,6 +159,9 @@ export function createMockLandmarkData(mode = LANDMARK_MODES.mock, time = perfor
     blendshapes: {
       noseSneerLeft: (Math.sin(time / 720) + 1) * 0.44,
       noseSneerRight: (Math.sin(time / 760 + 0.6) + 1) * 0.42,
+      browInnerUp: (Math.sin(time / 940 + 0.3) + 1) * 0.32,
+      browOuterUpLeft: (Math.sin(time / 980 + 0.5) + 1) * 0.28,
+      browOuterUpRight: (Math.sin(time / 1000 + 0.1) + 1) * 0.28,
       mouthUpperUpLeft: (Math.sin(time / 720 + 0.3) + 1) * 0.28,
       mouthUpperUpRight: (Math.sin(time / 760 + 0.9) + 1) * 0.26,
       cheekPuff: (Math.sin(time / 1100) + 1) * 0.46,
@@ -256,6 +259,7 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     mouth,
     faceScale,
   });
+  const eyebrowRaise = getEyebrowRaiseRatio(landmarkData.blendshapes || {});
 
   return {
     mode: landmarkData.mode,
@@ -282,11 +286,22 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
         faceScale,
       }),
     },
+    eyebrows: {
+      raiseRatio: eyebrowRaise,
+    },
     eyeRegions: extractEyeRegions({ leftEye, rightEye, mouth, faceScale }),
     hasRequiredLandmarks: hasRequiredLandmarks(landmarkData.normalizedLandmarks),
     bounds,
     faceOval,
   };
+}
+
+function getEyebrowRaiseRatio(blendshapes) {
+  const inner = clamp(blendshapes.browInnerUp || 0, 0, 1);
+  const outerLeft = clamp(blendshapes.browOuterUpLeft || 0, 0, 1);
+  const outerRight = clamp(blendshapes.browOuterUpRight || 0, 0, 1);
+  const outerAverage = (outerLeft + outerRight) / 2;
+  return clamp(inner * 0.62 + outerAverage * 0.38, 0, 1);
 }
 
 function normalizeBlendshapes(faceBlendshape) {

@@ -43,6 +43,11 @@ import bunnyBalloonFrame4Asset from '../../references/Bunny/B-4.png';
 import bunnyBalloonFrame5Asset from '../../references/Bunny/B-5.png';
 import lemonWalkFrameAAsset from '../../references/Lemon/Lemon.svg';
 import lemonWalkFrameBAsset from '../../references/Lemon/Lemon-1.svg';
+import penguinAsset from '../../references/Penguin/Penguin.png';
+import penguinIceBackgroundAsset from '../../references/Penguin/Ice_background.png';
+import penguinIceStage2Asset from '../../references/Penguin/Ice_background_ice-2.png';
+import penguinIceStage3Asset from '../../references/Penguin/Ice_background_ice-3.png';
+import penguinIceStage4Asset from '../../references/Penguin/Ice_background_ice-4.png';
 
 export {
   whaleClosedAsset,
@@ -90,6 +95,11 @@ export {
   bunnyBalloonFrame5Asset,
   lemonWalkFrameAAsset,
   lemonWalkFrameBAsset,
+  penguinAsset,
+  penguinIceBackgroundAsset,
+  penguinIceStage2Asset,
+  penguinIceStage3Asset,
+  penguinIceStage4Asset,
 };
 
 export const sceneAssetGroups = Object.freeze({
@@ -148,5 +158,12 @@ export const sceneAssetGroups = Object.freeze({
   lemonSqueeze: Object.freeze([
     lemonWalkFrameAAsset,
     lemonWalkFrameBAsset,
+  ]),
+  penguinFishing: Object.freeze([
+    penguinAsset,
+    penguinIceBackgroundAsset,
+    penguinIceStage2Asset,
+    penguinIceStage3Asset,
+    penguinIceStage4Asset,
   ]),
 });

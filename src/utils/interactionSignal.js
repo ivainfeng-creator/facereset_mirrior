@@ -100,6 +100,7 @@ export const INTERACTION_ACTIONS = {
   mouthOpen: 'mouth_open',
   noseSniff: 'nose_sniff',
   cheekPuff: 'cheek_puff',
+  eyebrowRaise: 'eyebrow_raise',
   dualPress: 'dual_press',
 };
 
@@ -167,6 +168,7 @@ function getActionType(sceneId) {
     cheekPuff: INTERACTION_ACTIONS.cheekPuff,
     templePress: INTERACTION_ACTIONS.dualPress,
     lemonSqueeze: INTERACTION_ACTIONS.dualPress,
+    eyebrowRaise: INTERACTION_ACTIONS.eyebrowRaise,
   };
   return actionByInteraction[getSceneById(sceneId).interaction] || INTERACTION_ACTIONS.mouthOpen;
 }
@@ -176,6 +178,7 @@ function getControlsForAction(actionType, interaction) {
     mouthOpen: clamp(interaction.mouthOpen || 0, 0, 1),
     noseWrinkle: clamp(interaction.sniff || 0, 0, 1),
     cheekPuff: clamp(interaction.puff || 0, 0, 1),
+    eyebrowRaise: clamp(interaction.browRaise || 0, 0, 1),
     leftPress: clamp(interaction.leftPress || 0, 0, 1),
     rightPress: clamp(interaction.rightPress || 0, 0, 1),
     sync: clamp(interaction.sync || 0, 0, 1),
@@ -194,6 +197,7 @@ function getControlsForAction(actionType, interaction) {
 function getPrimaryValue(actionType, controls) {
   if (actionType === INTERACTION_ACTIONS.noseSniff) return controls.noseWrinkle;
   if (actionType === INTERACTION_ACTIONS.cheekPuff) return controls.cheekPuff;
+  if (actionType === INTERACTION_ACTIONS.eyebrowRaise) return controls.eyebrowRaise;
   if (actionType === INTERACTION_ACTIONS.dualPress) {
     return clamp((controls.leftPress + controls.rightPress) / 2, 0, 1);
   }
@@ -203,6 +207,7 @@ function getPrimaryValue(actionType, controls) {
 function getPrimaryActive(actionType, interaction, primaryValue) {
   if (actionType === INTERACTION_ACTIONS.noseSniff) return Boolean(interaction.isSniffing);
   if (actionType === INTERACTION_ACTIONS.cheekPuff) return Boolean(interaction.isPuffing);
+  if (actionType === INTERACTION_ACTIONS.eyebrowRaise) return Boolean(interaction.isFishing);
   if (actionType === INTERACTION_ACTIONS.dualPress) {
     return Boolean(interaction.isPressing || interaction.isSqueezing || primaryValue > 0.55);
   }
@@ -213,6 +218,7 @@ function getEventCountForAction(actionType, interaction) {
   if (actionType === INTERACTION_ACTIONS.noseSniff) return interaction.flowerCount || 0;
   if (actionType === INTERACTION_ACTIONS.mouthOpen) return interaction.fishCount || 0;
   if (actionType === INTERACTION_ACTIONS.cheekPuff) return interaction.bubbleStage || 0;
+  if (actionType === INTERACTION_ACTIONS.eyebrowRaise) return interaction.fishCount || 0;
   return interaction.combo || 0;
 }
 

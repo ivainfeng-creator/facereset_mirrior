@@ -17636,3 +17636,242 @@ h1 {
     width: 89.76px;
   }
 }
+
+.app-shell:has(.penguin-viewport-routine) {
+  background: #087db9;
+}
+
+.penguin-fishing-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  color: #ffffff;
+  background: #087db9;
+  isolation: isolate;
+}
+
+.penguin-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.penguin-water-shimmer {
+  position: absolute;
+  inset: 58% 0 0;
+  z-index: 1;
+  background: rgba(35, 159, 224, 0.16);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.penguin-floating-ice {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  user-select: none;
+}
+
+.penguin-ice-stage {
+  position: absolute;
+  aspect-ratio: 1508 / 860;
+  height: auto;
+  object-fit: contain;
+  animation: penguinIceFloat 4.8s ease-in-out infinite alternate;
+}
+
+.penguin-ice-stage.stage-2 {
+  width: 360px;
+  left: 1206px;
+  bottom: 26px;
+  animation-delay: -1.2s;
+}
+
+.penguin-ice-stage.stage-3 {
+  width: 280px;
+  bottom: 52px;
+  right: 1206px;
+  animation-delay: -2.4s;
+}
+
+.penguin-ice-stage.stage-4 {
+  width: 240px;
+  bottom: 155px;
+  right: 1056px;
+  animation-delay: -3.6s;
+}
+
+.penguin-character {
+  position: absolute;
+  bottom: calc(clamp(2%, 3vh, 5%) + 3%);
+  left: 50%;
+  z-index: 3;
+  width: 540px;
+  aspect-ratio: 3918 / 2848;
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  filter: drop-shadow(0 20px 16px rgba(5, 54, 100, 0.24));
+  transform: translateX(-50%);
+  transform-origin: center bottom;
+  transition: transform 160ms ease-out, background-position 90ms steps(1, end);
+  pointer-events: none;
+}
+
+@media (min-width: 760px) {
+  .penguin-character {
+    width: 540px;
+  }
+}
+
+.penguin-character.is-idle {
+  animation: penguinIdle 900ms steps(1, end) infinite;
+}
+
+.penguin-character.is-fishing {
+  animation: penguinFishPull 720ms ease-in-out infinite alternate;
+}
+
+.penguin-character.is-celebrating {
+  animation: penguinCelebrate 580ms steps(1, end) both;
+}
+
+.penguin-catch-flash {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  z-index: 5;
+  color: #123d6d;
+  font-family: 'Luckiest Guy', 'Instrument Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  transform: translate(-50%, calc(-50% - 40px));
+  animation: penguinCatchFlash 2s ease-out both;
+}
+
+.penguin-catch-score,
+.penguin-catch-label {
+  display: block;
+}
+
+.penguin-catch-score {
+  color: #f6b827;
+  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  line-height: 0.9;
+}
+
+.penguin-catch-label {
+  margin-top: 8px;
+  color: #fff;
+  font-size: clamp(1rem, 2vw, 1.55rem);
+}
+
+.preview-penguin-environment {
+  overflow: hidden;
+  background: #087db9;
+}
+
+.preview-penguin-environment img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.routine-scene-preview-canvas .penguin-fishing-scene.is-practice-preview .penguin-background,
+.routine-scene-preview-canvas .penguin-fishing-scene.is-practice-preview .penguin-water-shimmer {
+  display: none;
+}
+
+@keyframes penguinFishPull {
+  from {
+    transform: translateX(-50%) rotate(-1.5deg);
+  }
+
+  to {
+    transform: translateX(-50%) rotate(1.5deg);
+  }
+}
+
+@keyframes penguinIdle {
+  0%, 32% {
+    background-position: 0 0;
+  }
+
+  33%, 65% {
+    background-position: 33.333% 0;
+  }
+
+  66%, 100% {
+    background-position: 66.666% 0;
+  }
+}
+
+@keyframes penguinCelebrate {
+  0%, 32% {
+    background-position: 0 100%;
+  }
+
+  33%, 65% {
+    background-position: 33.333% 100%;
+  }
+
+  66%, 100% {
+    background-position: 66.666% 100%;
+  }
+}
+
+@keyframes penguinIceFloat {
+  from {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+
+  to {
+    transform: translateY(-14px) rotate(1.5deg);
+  }
+}
+
+@keyframes penguinCatchFlash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.78);
+  }
+
+  28% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -24px) scale(1.04);
+  }
+}
+
+@media (max-width: 559px) {
+  .penguin-background {
+    inset: 0 auto auto 50%;
+    width: auto;
+    min-width: 100%;
+    max-width: none;
+    height: 100%;
+    object-fit: contain;
+    transform: translateX(-50%);
+  }
+
+  .penguin-floating-ice {
+    display: none;
+  }
+
+  .penguin-character {
+    bottom: 11%;
+    width: 540px;
+  }
+}

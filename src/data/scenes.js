@@ -6,6 +6,11 @@ import bunnyBackgroundAudio from '../../references/Bunny/bunny-bg-2.mp3';
 import bunnyBlowAudio from '../../references/Bunny/Below.mp3';
 import bunnyDeflateAudio from '../../references/Bunny/Deflat.mp3';
 import bunnyPopAudio from '../../references/Bunny/Balloon-pop.mp3';
+import penguinBackgroundAudio from '../../references/Penguin/Penguin-bg.mp3';
+import penguinCatchAudio from '../../references/Penguin/Catch.mp3';
+import penguinFishAudio from '../../references/Penguin/Fish.mp3';
+import penguinPullAudio from '../../references/Penguin/Pull.mp3';
+import penguinYoAudio from '../../references/Penguin/Yo.mp3';
 
 export const SCENE_IDS = Object.freeze({
   whaleDream: 'whaleDream',
@@ -14,6 +19,7 @@ export const SCENE_IDS = Object.freeze({
   flowerCollector: 'flowerCollector',
   bubbleGumBunny: 'bubbleGumBunny',
   lemonSqueeze: 'lemonSqueeze',
+  penguinFishing: 'penguinFishing',
 });
 
 const FULL_VIEWPORT_LAYOUT = Object.freeze({
@@ -274,6 +280,47 @@ const sceneDefinitions = [
       previewDemo: { effect: 'lemonSqueeze', cycleMs: 3600 },
     },
   },
+  {
+    id: SCENE_IDS.penguinFishing,
+    order: 7,
+    title: 'Penguin Fishing',
+    subtitle: 'Raise your eyebrows to lift the line and catch fish through the ice.',
+    action: 'Eyebrow raise',
+    area: 'Eyebrows',
+    areaKey: 'eyebrows',
+    stamp: 'Brows',
+    mood: 'Icy fishing',
+    symbol: 'penguin',
+    renderer: 'penguinFishing',
+    interaction: 'eyebrowRaise',
+    handTracking: 'none',
+    audio: {
+      background: {
+        source: penguinBackgroundAudio,
+        volume: 0.18,
+        fadeInMs: 1000,
+        fadeOutMs: 1000,
+      },
+      effects: {
+        pullLine: { source: penguinPullAudio, volume: 0.65 },
+        fishNibble: { source: penguinFishAudio, volume: 0.5 },
+        catchFish: { source: penguinCatchAudio, volume: 0.62 },
+        celebration: { source: penguinYoAudio, volume: 0.58 },
+      },
+    },
+    layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine penguin-viewport-routine' },
+    planPhase: 'Lift',
+    planArt: '/assets/landing/bluecloud_relax_1.png',
+    practice: {
+      renderer: 'penguin',
+      title: 'How to Play Penguin Fishing',
+      description: 'Gently raise both eyebrows and hold steady to pull the fishing line up through the ice.',
+      tips: ['Keep your face centered and relaxed.', 'Raise both eyebrows gently, without lifting your chin.', 'Hold the raise until the penguin catches a fish, then relax and repeat.'],
+      effectTitle: 'Catch the fish',
+      effectDescription: 'Lift your eyebrows, pull the line, and reel in a fish.',
+      previewDemo: { effect: 'penguinFishing', cycleMs: 3600 },
+    },
+  },
 ];
 
 export const interactionScenes = Object.freeze(sceneDefinitions
@@ -295,7 +342,7 @@ const PROGRAM_DAY_SCENE_IDS = Object.freeze({
   2: Object.freeze([
     SCENE_IDS.lemonSqueeze,
     SCENE_IDS.bubbleGumBunny,
-    SCENE_IDS.flowerCollector,
+    SCENE_IDS.penguinFishing,
   ]),
 });
 

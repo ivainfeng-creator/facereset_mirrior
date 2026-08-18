@@ -4,7 +4,7 @@ import { getEffectiveLocalDateKey, toLocalDateKey } from './effectiveDate.js';
 import { getCurrentProgramDay } from './programDay.js';
 
 export const SCENE_MAX_SCORE = SCENE_SCORE_MAX;
-export const DAILY_TOTAL_MAX_SCORE = 3 * SCENE_MAX_SCORE;
+export const DAILY_TOTAL_MAX_SCORE = getDailyTotalMaxScore();
 
 export function getDailyTotalMaxScore(programDay) {
   return getDailySceneIds(programDay).length * SCENE_MAX_SCORE;

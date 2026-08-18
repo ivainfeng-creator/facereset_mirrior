@@ -214,6 +214,41 @@ export const sceneInteractionTuning = {
       lemonReplacementLevelStep: 0.2,
     },
   },
+  [SCENE_IDS.penguinFishing]: {
+    actionType: 'eyebrow_raise',
+    feedbackInitial: 'Raise both eyebrows to pull up the fishing line',
+    input: {
+      baseline: 0.08,
+      range: 0.42,
+      strongThreshold: 0.62,
+    },
+    signal: {
+      enterThreshold: 0.3,
+      releaseThreshold: 0.16,
+      activateMs: 120,
+      releaseMs: 200,
+      attackSeconds: 0.12,
+      releaseSeconds: 0.26,
+    },
+    scoring: {
+      tensionBase: 0.17,
+      tensionByValue: 0.24,
+      decay: 0.12,
+      minimumTension: 0.04,
+      catchThreshold: 0.94,
+      catchHoldSeconds: 0.35,
+      resetTension: 0.1,
+      catchScore: 10,
+      strongCatchBonus: 3,
+      releaseHoldSeconds: 0.5,
+      releaseScore: 3,
+      comboBonusEvery: 3,
+      comboBonusScore: 5,
+      specialEvery: 5,
+      specialScore: 6,
+      completionModulo: 8,
+    },
+  },
 };
 
 export const SCENE_TUNING_STORAGE_KEY = 'face-reset.scene-tuning.v1';

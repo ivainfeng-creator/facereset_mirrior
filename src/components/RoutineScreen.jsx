@@ -44,6 +44,11 @@ import {
   flowerYellowStage4,
   lemonWalkFrameAAsset,
   lemonWalkFrameBAsset,
+  penguinAsset,
+  penguinIceBackgroundAsset,
+  penguinIceStage2Asset,
+  penguinIceStage3Asset,
+  penguinIceStage4Asset,
   popcornCollectorBackgroundAsset,
   popcornCollectorBucketAsset,
   popcornCollectorForegroundAsset,
@@ -113,6 +118,12 @@ const POPCORN_PIECE_ASSETS = [
 ];
 
 const LEMON_QUEUE_SLOT_COUNT = 10;
+const PENGUIN_ICE_STAGE_ASSETS = [
+  penguinIceStage2Asset,
+  penguinIceStage3Asset,
+  penguinIceStage4Asset,
+];
+const PENGUIN_CELEBRATION_MS = 2000;
 
 const POPCORN_SOURCE_COUNT = 46;
 const POPCORN_CLUSTER_LIMIT = 220;
@@ -230,6 +241,7 @@ const INTERACTION_PROGRESS_FACTORIES = {
   lemonSqueeze: createLemonProgress,
   noseSniff: createNoseProgress,
   cheekPuff: createBubbleProgress,
+  eyebrowRaise: createPenguinProgress,
 };
 
 const INTERACTION_SCORERS = {
@@ -265,6 +277,13 @@ const INTERACTION_SCORERS = {
     stageProgress,
     tuning,
   }),
+  eyebrowRaise: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreEyebrowRaise({
+    features: inputs.features,
+    timestamp,
+    progressState,
+    stageProgress,
+    tuning,
+  }),
   mouthOpening: ({ inputs, timestamp, progressState, stageProgress, tuning }) => scoreMouthOpening({
     features: inputs.features,
     timestamp,
@@ -281,6 +300,7 @@ const SCENE_RENDERERS = {
   popcornCollector: FlowerCollectorScene,
   bubbleGumBunny: BubbleGumBunnyScene,
   lemonSqueeze: LemonSqueezeScene,
+  penguinFishing: PenguinFishingScene,
 };
 
 const LEMON_CUPS = Object.freeze([
@@ -329,6 +349,7 @@ export default function RoutineScreen({
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
   const bunnyBalloonSfxRef = useRef({ frame: 0 });
+  const penguinSfxRef = useRef({ catchCount: 0, specialCatchCount: 0, wasFishing: false });
   const gardenRainSfxRef = useRef(false);
   const routineFinishedRef = useRef(false);
   const sessionDateRef = useRef(sessionDate || getEffectiveLocalDateKey());
@@ -664,6 +685,45 @@ export default function RoutineScreen({
     scene.audio,
   ]);
 
+  useEffect(() => {
+    const sfxState = penguinSfxRef.current;
+    if (activeSceneId !== 'penguinFishing') {
+      sfxState.catchCount = 0;
+      sfxState.specialCatchCount = 0;
+      sfxState.wasFishing = false;
+      return;
+    }
+
+    if (interaction.isFishing && !sfxState.wasFishing) {
+      playSceneEffect(scene.audio?.effects?.pullLine);
+      playSceneEffect(scene.audio?.effects?.fishNibble);
+    }
+
+    const catchCount = interaction.fishCount || 0;
+    if (catchCount > sfxState.catchCount) {
+      playSceneEffect(scene.audio?.effects?.catchFish);
+      playSceneEffect(scene.audio?.effects?.celebration);
+    }
+
+    sfxState.catchCount = catchCount;
+    sfxState.wasFishing = interaction.isFishing;
+  }, [
+    activeSceneId,
+    interaction.fishCount,
+    interaction.isFishing,
+    interaction.specialCatches,
+    scene.audio,
+  ]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'penguinFishing') return undefined;
+
+    const effects = scene.audio?.effects || {};
+    return () => {
+      Object.values(effects).forEach((effect) => stopSceneEffect(effect));
+    };
+  }, [activeSceneId, scene.audio]);
+
 
   useEffect(() => {
     const nextTarget = snapshotTargetsRef.current[0];
@@ -695,7 +755,9 @@ export default function RoutineScreen({
   }, [activeSceneId, interaction.score]);
 
   const rawDisplayScore = Math.max(stageScores[activeSceneId] || 0, interaction.score);
-  const displayScore = toFinalSceneScore(rawDisplayScore);
+  const displayScore = activeSceneId === 'penguinFishing'
+    ? Math.round(rawDisplayScore)
+    : toFinalSceneScore(rawDisplayScore);
   const finishRoutine = () => {
     traceWhaleAttempt('finishRoutine invoked', {
       completionGuardBefore: routineFinishedRef.current,
@@ -829,7 +891,7 @@ export default function RoutineScreen({
                 type="button"
                 onClick={() => {
                   playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
-                  setIsQuitOpen(true);
+                {justCaught && <div className="penguin-catch-flash">+10</div>}
                 }}
                 aria-label="Quit routine"
                 title="Exit"
@@ -975,6 +1037,11 @@ function createBaseInteraction(sceneId) {
     bubbleStage: 0,
     bubblePops: 0,
     justPopped: false,
+    browRaise: 0,
+    lineTension: 0.04,
+    isFishing: false,
+    justCaught: false,
+    specialCatches: 0,
     combo: 0,
     isPuffing: false,
     sync: 0,
@@ -1056,6 +1123,14 @@ function PreviewSceneBackground({ scene }) {
     );
   }
 
+  if (scene.id === 'penguinFishing') {
+    return (
+      <div className="routine-scene-preview-background preview-penguin-environment">
+        <img src={penguinIceBackgroundAsset} alt="" />
+      </div>
+    );
+  }
+
   const backgroundAsset = scene.id === 'templeGarden' ? cloudGardenBackgroundAsset : null;
 
   return (
@@ -1112,6 +1187,8 @@ function createPracticePreviewInteraction(scene, previewDemo) {
     puff: scene.interaction === 'cheekPuff' ? 0.24 : 0,
     bubbleSize: scene.interaction === 'cheekPuff' ? 0.28 : 0.07,
     squeeze: scene.interaction === 'lemonSqueeze' ? 0.2 : 0,
+    browRaise: scene.interaction === 'eyebrowRaise' ? 0.24 : 0,
+    lineTension: scene.interaction === 'eyebrowRaise' ? 0.2 : 0.04,
   };
 
   if (!previewDemo.effect) return interaction;
@@ -1160,6 +1237,19 @@ function createPracticePreviewInteraction(scene, previewDemo) {
       bubblePops: isPopping ? 1 : 0,
       justPopped: isPopping,
       isPuffing: isActive && !isPopping,
+    };
+  }
+
+  if (previewDemo.effect === 'penguinFishing') {
+    const justCaught = previewDemo.progress >= 0.7 && previewDemo.progress < 0.82;
+    return {
+      ...interaction,
+      browRaise: activation,
+      lineTension: justCaught ? 0.98 : 0.08 + activation * 0.8,
+      fishCount: Math.floor(previewDemo.progress * 4),
+      isFishing: isActive,
+      justCaught,
+      specialCatches: previewDemo.progress > 0.9 ? 1 : 0,
     };
   }
 
@@ -2657,6 +2747,46 @@ function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
   );
 }
 
+function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
+  const tension = clamp(interaction.lineTension || 0.04, 0.04, 1);
+  const isFishing = Boolean(interaction.isFishing);
+  const justCaught = Boolean(interaction.justCaught);
+  const fishingFrame = Math.min(11, 3 + Math.floor(tension * 9));
+  const frame = {
+    column: fishingFrame % 4,
+    row: Math.floor(fishingFrame / 4),
+  };
+
+  return (
+    <div
+      className={`penguin-fishing-scene ${isFishing ? 'is-fishing' : ''} ${justCaught ? 'just-caught' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
+      style={{ '--line-tension': tension }}
+      aria-hidden="true"
+    >
+      <img className="penguin-background" src={penguinIceBackgroundAsset} alt="" />
+      <div className="penguin-water-shimmer" />
+      <div
+        className={`penguin-character ${isFishing ? 'is-fishing' : 'is-idle'} ${justCaught ? 'is-celebrating' : ''}`}
+        style={{
+          backgroundImage: `url(${penguinAsset})`,
+          backgroundPosition: `${frame.column * 33.333}% ${frame.row * 33.333}%`,
+        }}
+      />
+      <div className="penguin-floating-ice" aria-hidden="true">
+        {PENGUIN_ICE_STAGE_ASSETS.map((asset, index) => (
+          <img key={asset} className={`penguin-ice-stage stage-${index + 2}`} src={asset} alt="" />
+        ))}
+      </div>
+      {justCaught && (
+        <div className="penguin-catch-flash">
+          <span className="penguin-catch-score">+10</span>
+          <span className="penguin-catch-label">Nice catch!</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BubbleGumBunnyScene({ interaction }) {
   const puff = clamp(interaction.puff || 0, 0, 1);
   const bubbleSize = clamp(interaction.bubbleSize || 0.07, 0.05, 1);
@@ -3409,6 +3539,80 @@ function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo
   return 'Nice puff, keep the bubble growing';
 }
 
+function scoreEyebrowRaise({ features, timestamp, progressState, stageProgress, tuning }) {
+  const scoring = tuning.scoring;
+  const raiseRatio = features?.eyebrows?.raiseRatio;
+  const rawRaise = Number.isFinite(raiseRatio)
+    ? clamp((raiseRatio - tuning.input.baseline) / tuning.input.range, 0, 1)
+    : null;
+  const signal = updateInteractionSignal(rawRaise, timestamp, progressState.signal, tuning.signal);
+  const browRaise = signal.value;
+  const isFishing = signal.active;
+  const isStrong = browRaise >= tuning.input.strongThreshold;
+  const elapsedSeconds = signal.deltaSeconds;
+  let justCaught = timestamp < progressState.celebrationUntil;
+
+  if (isFishing) {
+    progressState.lineTension = clamp(
+      progressState.lineTension + elapsedSeconds * (scoring.tensionBase + browRaise * scoring.tensionByValue),
+      0,
+      1,
+    );
+  } else {
+    progressState.lineTension = clamp(
+      progressState.lineTension - elapsedSeconds * scoring.decay,
+      scoring.minimumTension,
+      1,
+    );
+  }
+
+  if (progressState.lineTension >= scoring.catchThreshold) {
+    progressState.catchHoldSeconds += elapsedSeconds;
+    if (progressState.catchHoldSeconds >= scoring.catchHoldSeconds) {
+      progressState.fishCount += 1;
+      progressState.catchSequence += 1;
+      progressState.score += 10;
+      progressState.combo += 1;
+      progressState.lineTension = scoring.resetTension;
+      progressState.catchHoldSeconds = 0;
+      progressState.celebrationUntil = timestamp + PENGUIN_CELEBRATION_MS;
+      justCaught = true;
+    }
+  } else {
+    progressState.catchHoldSeconds = 0;
+  }
+
+  progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
+
+  return {
+    score: Math.round(progressState.score),
+    completion: clamp((progressState.fishCount % scoring.completionModulo) / scoring.completionModulo, 0, 1),
+    feedback: getEyebrowRaiseFeedback({ features, isFishing, isStrong, signal, justCaught }),
+    isOnTrack: isFishing && signal.phase === 'holding',
+    browRaise,
+    lineTension: progressState.lineTension,
+    fishCount: progressState.fishCount,
+    specialCatches: progressState.specialCatches,
+    catchSequence: progressState.catchSequence,
+    justCaught,
+    combo: progressState.combo,
+    isFishing,
+    holdSeconds: signal.holdSeconds,
+    justActivated: signal.justActivated,
+    justReleased: signal.justReleased,
+    phase: signal.phase,
+  };
+}
+
+function getEyebrowRaiseFeedback({ features, isFishing, isStrong, signal, justCaught }) {
+  if (!features?.eyebrows) return 'Find your face';
+  if (justCaught) return 'Fish on! Relax, then cast again';
+  if (!isFishing) return 'Raise both eyebrows to pull the line';
+  if (signal.phase !== 'holding') return 'Hold your eyebrows gently';
+  if (isStrong) return 'Great lift, keep the line coming up';
+  return 'Nice and steady, the fish is nibbling';
+}
+
 function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tuning }) {
   const scoring = tuning.scoring;
   const noseDiagnostics = features?.nose?.diagnostics || null;
@@ -3600,6 +3804,20 @@ function createBubbleProgress() {
     stage: 0,
     maxHold: 0,
     bubbleHoldAccumulator: 0,
+    signal: createInteractionSignalState(),
+  };
+}
+
+function createPenguinProgress() {
+  return {
+    score: 0,
+    lineTension: 0.04,
+    fishCount: 0,
+    specialCatches: 0,
+    catchSequence: 0,
+    combo: 0,
+    catchHoldSeconds: 0,
+    celebrationUntil: 0,
     signal: createInteractionSignalState(),
   };
 }
