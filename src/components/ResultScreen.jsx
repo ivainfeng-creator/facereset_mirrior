@@ -45,6 +45,7 @@ export default function ResultScreen({
   const [isNameSaving, setIsNameSaving] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState('');
+  const [carouselTouchStartX, setCarouselTouchStartX] = useState(null);
   const dailyPlan = useMemo(() => {
     const storedPlan = buildDailyPlanSummary(habit, result?.date ? { date: result.date } : undefined);
     if (result?.type !== 'daily-plan') return storedPlan;
@@ -70,6 +71,15 @@ export default function ResultScreen({
       cardIndex,
       ...currentOrder.filter((index) => index !== cardIndex),
     ]);
+  };
+  const handleCarouselTouchEnd = (event) => {
+    if (isCardLayoutAnimationActive || carouselTouchStartX === null) return;
+
+    const horizontalDistance = event.changedTouches[0].clientX - carouselTouchStartX;
+    setCarouselTouchStartX(null);
+    if (Math.abs(horizontalDistance) < 40) return;
+
+    bringCardToFront(cardOrder[horizontalDistance < 0 ? 2 : 1]);
   };
   const closeHistory = () => {
     if (isHistoryOnly) {
@@ -241,7 +251,13 @@ export default function ResultScreen({
         role="dialog"
         aria-modal="true"
       >
-        <div className="result-carousel" aria-label="Result cards">
+        <div
+          className="result-carousel"
+          aria-label="Result cards"
+          onTouchStart={(event) => setCarouselTouchStartX(event.touches[0].clientX)}
+          onTouchEnd={handleCarouselTouchEnd}
+          onTouchCancel={() => setCarouselTouchStartX(null)}
+        >
           <div
             className={`result-challenge-grid ${isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
             key={cardLayoutAnimationKey}

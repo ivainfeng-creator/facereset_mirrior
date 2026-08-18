@@ -12968,6 +12968,7 @@ h1 {
   min-height: 100svh;
   align-items: center;
   justify-content: center;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: clamp(24px, 6vh, 72px) clamp(14px, 4vw, 48px);
   background: rgba(10, 13, 18, 0.88);
