@@ -238,7 +238,7 @@ export const sceneInteractionTuning = {
       catchThreshold: 0.94,
       catchHoldSeconds: 0.35,
       resetTension: 0.1,
-      catchScore: 10,
+      catchScore: 5,
       strongCatchBonus: 3,
       releaseHoldSeconds: 0.5,
       releaseScore: 3,

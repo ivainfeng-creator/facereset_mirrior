@@ -13,13 +13,9 @@ import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
 import {
-  pauseSceneBackground,
   playSceneEffect,
   preloadAudioSources,
   preloadSceneAudio,
-  resumeSceneBackground,
-  startSceneBackground,
-  stopSceneBackground,
   traceAudioLifecycle,
   unlockAudio,
 } from './utils/audioManager.js';
@@ -50,13 +46,6 @@ const debugSceneId = getActiveDebugSceneId();
 const SKIP_FACE_SCAN_STORAGE_KEY = 'face-reset-mirror-skip-face-scan';
 const WELCOME_TRANSITION_MS = 1020;
 const NAVIGATION_TRANSITION_MS = 420;
-const OVERALL_BACKGROUND = Object.freeze({
-  id: 'overall-background',
-  source: '/audio/Overall/Background.mp3',
-  volume: 0.21,
-  fadeInMs: 1000,
-  fadeOutMs: 1000,
-});
 const WELCOME_START_EFFECT = Object.freeze({
   source: '/audio/Overall/Star-1.mp3',
   volume: 0.55,
@@ -161,22 +150,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isRoutineScreen) return undefined;
-
-    startSceneBackground(OVERALL_BACKGROUND);
-    return () => {
-      stopSceneBackground(OVERALL_BACKGROUND, { fadeOutMs: OVERALL_BACKGROUND.fadeOutMs });
-    };
-  }, [isRoutineScreen]);
-
-  useEffect(() => {
-    if (!guideOverlay || isRoutineScreen) return undefined;
-
-    pauseSceneBackground(OVERALL_BACKGROUND);
-    return () => resumeSceneBackground(OVERALL_BACKGROUND);
-  }, [guideOverlay, isRoutineScreen]);
-
-  useEffect(() => {
     if (skipFaceScan) setGuideOverlay(null);
   }, [skipFaceScan]);
 
@@ -251,10 +224,6 @@ export default function App() {
       setScreen(SCREENS.challenge);
       setScreenTransition(null);
     }, WELCOME_TRANSITION_MS);
-  };
-
-  const startWelcomeBackground = () => {
-    if (screen === SCREENS.landing) startSceneBackground(OVERALL_BACKGROUND);
   };
 
   const navigate = (nextScreen, type = 'quiet') => {
@@ -508,7 +477,6 @@ export default function App() {
       {screen === SCREENS.landing && (
         <LandingScreen
           onStart={startTodayPlan}
-          onInteract={startWelcomeBackground}
           habit={habit}
           isExiting={screenTransition === 'welcome-to-plan'}
         />

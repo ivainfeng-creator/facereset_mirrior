@@ -227,6 +227,8 @@ const sceneDefinitions = [
       },
     },
     layout: PORTRAIT_LAYOUT,
+    planPhase: 'Activate',
+    planArt: '/assets/bluecloud_below.png',
     practice: {
       renderer: 'bunny',
       title: 'How to Play Bubble Gum Bunny',
@@ -270,6 +272,8 @@ const sceneDefinitions = [
       },
     },
     layout: PORTRAIT_LAYOUT,
+    planPhase: 'Warm up',
+    planArt: '/assets/Bluecloud_nose.png',
     practice: {
       renderer: 'lemon',
       title: 'How to Play Lemon Squeeze',
@@ -309,8 +313,8 @@ const sceneDefinitions = [
       },
     },
     layout: { ...FULL_VIEWPORT_LAYOUT, className: 'full-viewport-routine penguin-viewport-routine' },
-    planPhase: 'Lift',
-    planArt: '/assets/landing/bluecloud_relax_1.png',
+    planPhase: 'Unwind',
+    planArt: '/assets/Bluecloud_eyebrow.png',
     practice: {
       renderer: 'penguin',
       title: 'How to Play Penguin Fishing',

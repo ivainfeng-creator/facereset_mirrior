@@ -891,7 +891,7 @@ export default function RoutineScreen({
                 type="button"
                 onClick={() => {
                   playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
-                {justCaught && <div className="penguin-catch-flash">+10</div>}
+                {justCaught && <div className="penguin-catch-flash">+5</div>}
                 }}
                 aria-label="Quit routine"
                 title="Exit"
@@ -2779,7 +2779,7 @@ function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
       </div>
       {justCaught && (
         <div className="penguin-catch-flash">
-          <span className="penguin-catch-score">+10</span>
+          <span className="penguin-catch-score">+5</span>
           <span className="penguin-catch-label">Nice catch!</span>
         </div>
       )}
@@ -3571,7 +3571,7 @@ function scoreEyebrowRaise({ features, timestamp, progressState, stageProgress, 
     if (progressState.catchHoldSeconds >= scoring.catchHoldSeconds) {
       progressState.fishCount += 1;
       progressState.catchSequence += 1;
-      progressState.score += 10;
+      progressState.score += scoring.catchScore;
       progressState.combo += 1;
       progressState.lineTension = scoring.resetTension;
       progressState.catchHoldSeconds = 0;
