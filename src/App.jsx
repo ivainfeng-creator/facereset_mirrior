@@ -11,6 +11,7 @@ import RoutineScreen from './components/RoutineScreen.jsx';
 import { DEFAULT_SCENE_ID, dailyScenes, getSceneById } from './data/scenes.js';
 import { buildDailyPlanSummary } from './utils/dailyPlan.js';
 import { getActiveDebugSceneId } from './utils/debugScene.js';
+import { createFaceLandmarker } from './utils/faceLandmarks.js';
 import { getViverseAuthSnapshot, initializeViverseAuth } from './utils/viverseClient.js';
 import {
   playSceneEffect,
@@ -199,6 +200,14 @@ export default function App() {
 
   const startTodayPlan = () => {
     if (screenTransition) return;
+
+    // Warm the FaceLandmarker model/WASM in the background as soon as the
+    // user commits to the challenge flow, so the download+compile overlaps
+    // with plan/practice dwell time instead of starting cold at the first
+    // Face Detection screen. This only reuses the existing module-level
+    // singleton (src/utils/faceLandmarks.js) — no camera permission, no
+    // second instance, and it never blocks navigation.
+    createFaceLandmarker().catch(() => {});
 
     setSelectedChallengeDate(null);
     setShouldAnimateResultCards(false);
