@@ -17744,8 +17744,8 @@ h1 {
 
 .penguin-character {
   position: absolute;
-  bottom: calc(clamp(2%, 3vh, 5%) + 3%);
-  left: 50%;
+  bottom: calc(clamp(2%, 3vh, 5%) + 15%);
+  left: 45%;
   z-index: 3;
   width: 540px;
   aspect-ratio: 3918 / 2848;
@@ -17756,12 +17756,6 @@ h1 {
   transform-origin: center bottom;
   transition: transform 160ms ease-out, background-position 90ms steps(1, end);
   pointer-events: none;
-}
-
-@media (min-width: 760px) {
-  .penguin-character {
-    width: 540px;
-  }
 }
 
 .penguin-character.is-idle {
@@ -17778,8 +17772,8 @@ h1 {
 
 .penguin-catch-flash {
   position: absolute;
-  top: 42%;
-  left: 50%;
+  top: 25%;
+  left: 40%;
   z-index: 5;
   color: #123d6d;
   font-family: 'Luckiest Guy', 'Instrument Sans', sans-serif;
@@ -17805,6 +17799,20 @@ h1 {
   margin-top: 8px;
   color: #fff;
   font-size: clamp(1rem, 2vw, 1.55rem);
+}
+
+.play-routine-screen.penguin-viewport-routine .play-action-prompt {
+  top: 87%;
+  right: auto;
+  left: 50%;
+  max-width: min(78vw, 330px);
+  border: none;
+  background: rgba(247, 215, 52, 0.92);
+  box-shadow: none;
+  opacity: 1;
+  text-align: center;
+  text-transform: none;
+  transform: translateX(-50%);
 }
 
 .preview-penguin-environment {
@@ -17889,7 +17897,7 @@ h1 {
   }
 }
 
-@media (max-width: 559px) {
+@media (max-width: 599px) {
   .penguin-background {
     inset: 0 auto auto 50%;
     width: auto;
@@ -17905,8 +17913,28 @@ h1 {
   }
 
   .penguin-character {
-    bottom: 11%;
-    width: 540px;
+    bottom: 21%;
+    left: 50%;
+    width: 378px;
+  }
+
+  .penguin-catch-flash {
+    top: 37%;
+    left: 45%;
+  }
+
+  .play-routine-screen.penguin-viewport-routine .play-action-prompt {
+    top: 77%;
+    right: auto;
+    left: 50%;
+    max-width: min(78vw, 330px);
+    border: none;
+    background: rgba(247, 215, 52, 0.92);
+    box-shadow: none;
+    opacity: 1;
+    text-align: center;
+    text-transform: none;
+    transform: translateX(-50%);
   }
 }
 
