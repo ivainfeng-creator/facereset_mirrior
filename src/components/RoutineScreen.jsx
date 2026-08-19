@@ -755,7 +755,7 @@ export default function RoutineScreen({
   }, [activeSceneId, interaction.score]);
 
   const rawDisplayScore = Math.max(stageScores[activeSceneId] || 0, interaction.score);
-  const displayScore = activeSceneId === 'penguinFishing'
+  const displayScore = activeSceneId === 'penguinFishing' || activeSceneId === 'bubbleGumBunny'
     ? Math.round(rawDisplayScore)
     : toFinalSceneScore(rawDisplayScore);
   const finishRoutine = () => {
@@ -2887,7 +2887,9 @@ function BubbleGumBunnyScene({ interaction }) {
   const bubbleSize = clamp(interaction.bubbleSize || 0.07, 0.05, 1);
   const bubblePops = interaction.bubblePops || 0;
   const [isBursting, setIsBursting] = useState(false);
+  const [isPopScoreVisible, setIsPopScoreVisible] = useState(false);
   const [isPuffFrame, setIsPuffFrame] = useState(false);
+  const [popScoreAward, setPopScoreAward] = useState(0);
   const bunnyFrame = isBursting
     ? bunnyFrame4Asset
     : interaction.isPuffing
@@ -2930,9 +2932,15 @@ function BubbleGumBunnyScene({ interaction }) {
   useEffect(() => {
     if (bubblePops > lastBubblePopsRef.current) {
       setIsBursting(true);
-      const timer = window.setTimeout(() => setIsBursting(false), 520);
+      setIsPopScoreVisible(true);
+      setPopScoreAward(interaction.popScoreAward || 0);
+      const burstTimer = window.setTimeout(() => setIsBursting(false), 520);
+      const scoreTimer = window.setTimeout(() => setIsPopScoreVisible(false), 2000);
       lastBubblePopsRef.current = bubblePops;
-      return () => window.clearTimeout(timer);
+      return () => {
+        window.clearTimeout(burstTimer);
+        window.clearTimeout(scoreTimer);
+      };
     }
     lastBubblePopsRef.current = bubblePops;
     return undefined;
@@ -3002,6 +3010,9 @@ function BubbleGumBunnyScene({ interaction }) {
           <img className={`bunny-balloon ${isBursting ? 'is-bursting' : ''}`} src={balloonFrame} alt="" />
         )}
       </div>
+      {isPopScoreVisible && popScoreAward > 0 && (
+        <span className="bunny-pop-score" key={bubblePops}>+{popScoreAward}</span>
+      )}
       {isBursting && bubblePops > 0 && (
         <div className="bubble-pop-burst" key={bubblePops}>
           <span />
@@ -3576,15 +3587,12 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
 
   if (isPuffing) {
     progressState.bubbleSize = clamp(progressState.bubbleSize + (scoring.growthBase + puff * scoring.growthByValue) * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
-    const holdEvents = consumeTimedEvents(progressState, 'bubbleHold', signal.holdSeconds > scoring.holdBonusSeconds ? scoring.holdEventRate : 0, elapsedSeconds);
-    progressState.score += holdEvents * scoring.holdEventScore;
   } else {
     progressState.bubbleSize = clamp(progressState.bubbleSize - scoring.decay * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
   }
 
   const nextStage = Math.min(4, Math.floor(progressState.bubbleSize * scoring.stageMultiplier));
   if (nextStage > progressState.stage) {
-    progressState.score += (nextStage - progressState.stage) * scoring.stageScore;
     progressState.stage = nextStage;
   }
 
@@ -3597,18 +3605,20 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
       progressState.bubblePops += 1;
       progressState.justPopped = true;
       progressState.combo = Math.min(12, progressState.combo + 1);
-      progressState.score += scoring.popScore + (progressState.combo >= 3 ? scoring.comboBonusScore : 0);
+      progressState.popScoreAward = scoring.popScore + (progressState.combo >= 3 ? scoring.comboBonusScore : 0);
+      progressState.score += progressState.popScoreAward;
     } else {
       progressState.justPopped = false;
+      progressState.popScoreAward = 0;
     }
   } else {
     progressState.maxHold = 0;
     progressState.justPopped = false;
+    progressState.popScoreAward = 0;
   }
 
   if (signal.justReleased && signal.holdSeconds >= scoring.releaseHoldSeconds) {
     progressState.combo = Math.min(12, progressState.combo + 1);
-    progressState.score += scoring.releaseScore + (signal.holdSeconds >= scoring.longHoldSeconds ? scoring.longHoldBonusScore : 0);
   }
   progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
@@ -3622,6 +3632,7 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
     bubbleStage: progressState.stage,
     bubblePops: progressState.bubblePops,
     justPopped: progressState.justPopped,
+    popScoreAward: progressState.popScoreAward,
     combo: progressState.combo,
     isPuffing,
     holdSeconds: signal.holdSeconds,
