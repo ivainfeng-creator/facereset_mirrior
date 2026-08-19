@@ -1060,6 +1060,7 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
   const previewScale = previewFrame.width && previewFrame.height
     ? Math.max(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
     : 0;
+  const scenePreviewScale = scene.id === 'bubbleGumBunny' ? 0.9 : 1;
 
   useEffect(() => {
     const syncPreviewFrame = () => {
@@ -1094,7 +1095,7 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
           width: `${sourceViewport.width}px`,
           height: `${sourceViewport.height}px`,
           opacity: previewScale ? 1 : 0,
-          transform: `translate(-50%, -50%) scale(${previewScale || 1})`,
+          transform: `translate(-50%, -50%) scale(${(previewScale || 1) * scenePreviewScale})`,
         }}
       >
         <SceneRenderer interaction={interaction} previewForegroundOnly />
@@ -1122,7 +1123,11 @@ function PreviewSceneBackground({ scene }) {
     );
   }
 
-  const backgroundAsset = scene.id === 'templeGarden' ? cloudGardenBackgroundAsset : null;
+  const backgroundAsset = scene.id === 'templeGarden'
+    ? cloudGardenBackgroundAsset
+    : scene.id === 'bubbleGumBunny'
+      ? bunnyBackgroundAsset
+      : null;
 
   return (
     <div
@@ -2873,7 +2878,7 @@ function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
   );
 }
 
-function BubbleGumBunnyScene({ interaction }) {
+function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
   const puff = clamp(interaction.puff || 0, 0, 1);
   const bubbleSize = clamp(interaction.bubbleSize || 0.07, 0.05, 1);
   const bubblePops = interaction.bubblePops || 0;
@@ -2949,12 +2954,12 @@ function BubbleGumBunnyScene({ interaction }) {
 
   return (
     <div
-      className={`bubble-bunny-scene ${interaction.isPuffing ? 'is-puffing' : ''} ${interaction.justPopped ? 'is-popping' : ''} ${isBursting ? 'is-bursting' : ''}`}
+      className={`bubble-bunny-scene ${interaction.isPuffing ? 'is-puffing' : ''} ${interaction.justPopped ? 'is-popping' : ''} ${isBursting ? 'is-bursting' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--puff': puff,
         '--bubble-size': bubbleSize,
         '--combo': interaction.combo || 0,
-        backgroundImage: `url(${bunnyBackgroundAsset})`,
+        backgroundImage: previewForegroundOnly ? 'none' : `url(${bunnyBackgroundAsset})`,
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',

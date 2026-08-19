@@ -17487,7 +17487,9 @@ h1 {
 .routine-scene-preview-canvas .temple-garden-scene.is-practice-preview::after,
 .routine-scene-preview-canvas .whale-dream-scene.is-practice-preview::before,
 .routine-scene-preview-canvas .whale-dream-scene.is-practice-preview::after,
-.routine-scene-preview-canvas .popcorn-collector-scene.is-practice-preview::after {
+.routine-scene-preview-canvas .popcorn-collector-scene.is-practice-preview::after,
+.routine-scene-preview-canvas .bubble-bunny-scene.is-practice-preview::before,
+.routine-scene-preview-canvas .bubble-bunny-scene.is-practice-preview::after {
   display: none;
 }
 
