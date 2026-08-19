@@ -467,6 +467,7 @@ export default function App() {
         <CameraPermission
           autoStart={autoStartCamera}
           isOverlay
+          cameraError={cameraError}
           onCameraReady={handleCameraReady}
           onCameraError={handleCameraError}
           onBack={() => {

@@ -329,7 +329,7 @@ export default function RoutineScreen({
   const previewVideoRef = useRef(null);
   const stageRef = useRef(null);
   const cameraTrack = stream?.getVideoTracks()[0];
-  const isCameraUnavailable = (
+  const isCameraUnavailable = !isDemoMode && (
     !stream
     || !stream.active
     || !cameraTrack

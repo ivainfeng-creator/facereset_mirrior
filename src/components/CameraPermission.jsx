@@ -9,6 +9,7 @@ const CAMERA_PERMISSION_CLICK_EFFECT = Object.freeze({
 export default function CameraPermission({
   autoStart = false,
   isOverlay = false,
+  cameraError = '',
   onCameraReady,
   onCameraError,
   onBack,
@@ -33,9 +34,13 @@ export default function CameraPermission({
         audio: false,
       });
       onCameraReady(stream);
-    } catch {
+    } catch (error) {
       setCameraPhase('idle');
-      onCameraError('Camera permission is needed for the mirror experience. Please allow camera access and try again.');
+      onCameraError(
+        error?.name === 'NotAllowedError'
+          ? 'Camera access was blocked. Allow it in your browser settings, then try again.'
+          : 'The camera could not be started. Check that a camera is connected, then try again.',
+      );
     }
   };
 
@@ -65,9 +70,10 @@ export default function CameraPermission({
           <p className="camera-permission-kicker">ONE QUICK CHECK</p>
           <h1>TURN ON YOUR CAMERA</h1>
           <p>Allow camera access to start the game.</p>
+          {cameraError && <p role="alert">{cameraError}</p>}
         </div>
 
-        <button className="camera-retry-button" onClick={handleBack}>Got it</button>
+        <button className="camera-retry-button" type="button" onClick={enableCamera}>Turn on camera</button>
       </main>
     </section>
   );
