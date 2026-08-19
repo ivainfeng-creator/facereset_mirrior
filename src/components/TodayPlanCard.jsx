@@ -24,6 +24,7 @@ export default function TodayPlanCard({
   onViewHistory,
   isHistoryOpen = false,
   shouldAnimateCompletionFlow = false,
+  shouldAnimateCompletionBanner = true,
   className = '',
   isReadOnly = false,
   focusLabel = 'TODAY\'S FOCUS',
@@ -175,7 +176,10 @@ export default function TodayPlanCard({
 
       {isAllDone && showCompletion && (
         <>
-          <div className="challenge-v3-day-complete-banner" role="status">
+          <div
+            className={`challenge-v3-day-complete-banner${shouldAnimateCompletionBanner ? ' is-animated' : ''}`}
+            role="status"
+          >
             <span className="challenge-v3-banner-sheen" aria-hidden="true" />
             <div className="challenge-v3-banner-copy">
               <strong>Day {programDay} Complete</strong>

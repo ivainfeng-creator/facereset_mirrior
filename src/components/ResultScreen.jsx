@@ -66,6 +66,7 @@ export default function ResultScreen({
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
   const shareCardNodeRef = useRef(null);
+  const cardLayoutAnimationTimerRef = useRef(null);
   // Snapshots only ever come from the just-completed session's in-memory capture
   // (see App.jsx's sessionSnapshotsRef / mergeSessionSnapshots); dailyPlan.snapshots
   // is empty/undefined for any other historical day, so this naturally yields a
@@ -115,14 +116,37 @@ export default function ResultScreen({
     setIsHistoryOpen(false);
   };
 
+  const toggleHistory = () => {
+    setIsHistoryOpen((isOpen) => {
+      const nextIsOpen = !isOpen;
+      window.clearTimeout(cardLayoutAnimationTimerRef.current);
+
+      if (nextIsOpen) {
+        setIsCardLayoutAnimationActive(true);
+        cardLayoutAnimationTimerRef.current = window.setTimeout(
+          () => setIsCardLayoutAnimationActive(false),
+          CARD_LAYOUT_ENTRY_DURATION_MS,
+        );
+      } else {
+        setIsCardLayoutAnimationActive(false);
+      }
+
+      return nextIsOpen;
+    });
+  };
+
   useEffect(() => {
     if (!shouldAnimateCardLayout) return undefined;
 
     setCardOrder([0, 1, 2]);
     setIsHistoryOpen(true);
     setIsCardLayoutAnimationActive(true);
-    const timer = window.setTimeout(() => setIsCardLayoutAnimationActive(false), CARD_LAYOUT_ENTRY_DURATION_MS);
-    return () => window.clearTimeout(timer);
+    window.clearTimeout(cardLayoutAnimationTimerRef.current);
+    cardLayoutAnimationTimerRef.current = window.setTimeout(
+      () => setIsCardLayoutAnimationActive(false),
+      CARD_LAYOUT_ENTRY_DURATION_MS,
+    );
+    return () => window.clearTimeout(cardLayoutAnimationTimerRef.current);
     // Intentionally keyed only on cardLayoutAnimationKey (one animation trigger = one
     // key bump). App.jsx flips shouldAnimateCardLayout back to false ~800ms after
     // triggering it, close to this effect's own 780ms unlock timer; if that prop were
@@ -316,7 +340,7 @@ export default function ResultScreen({
           onTouchCancel={() => setCarouselTouchStartX(null)}
         >
           <div
-            className={`result-challenge-grid ${isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
+            className={`result-challenge-grid ${isHistoryOpen && isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
             key={cardLayoutAnimationKey}
           >
             <div
@@ -344,7 +368,14 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(1)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(1) !== 0}>
-                <TodayPlanCard className="result-focus-card" sceneResults={dailyPlan.sceneResults} programDay={programDay} onSessionSelect={onRestart} showCompletion />
+                <TodayPlanCard
+                  className="result-focus-card"
+                  sceneResults={dailyPlan.sceneResults}
+                  programDay={programDay}
+                  onSessionSelect={onRestart}
+                  showCompletion
+                  shouldAnimateCompletionBanner={cardOrder.indexOf(1) === 0}
+                />
               </div>
             </div>
             <div
@@ -394,7 +425,7 @@ export default function ResultScreen({
           aria-label={isHistoryOpen ? 'Close history' : 'View history'}
           aria-expanded={isHistoryOpen}
           data-label={isHistoryOpen ? 'Close history' : 'View history'}
-          onClick={() => setIsHistoryOpen((isOpen) => !isOpen)}
+          onClick={toggleHistory}
         >
           {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
         </button>
@@ -466,6 +497,7 @@ function ResultRadarPanel({ result }) {
     }, 2600);
     return () => window.clearInterval(timer);
   }, []);
+
   const pointFor = (value, index, extraRadius = 0) => {
     const angle = axes[index] * Math.PI / 180;
     const distance = extraRadius || (Math.max(0, Math.min(100, value)) / 100) * radius;
