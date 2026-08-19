@@ -148,12 +148,12 @@ export const sceneInteractionTuning = {
       range: 0.6,
     },
     signal: {
-      enterThreshold: 0.32,
-      releaseThreshold: 0.2,
-      activateMs: 130,
-      releaseMs: 220,
-      attackSeconds: 0.13,
-      releaseSeconds: 0.28,
+      enterThreshold: 0.58,
+      releaseThreshold: 0.38,
+      activateMs: 260,
+      releaseMs: 140,
+      attackSeconds: 0.16,
+      releaseSeconds: 0.16,
     },
     scoring: {
       growthBase: 0.07,

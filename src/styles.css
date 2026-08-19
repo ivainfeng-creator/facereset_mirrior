@@ -5520,7 +5520,7 @@ h1 {
  * beside the camera in the breakpoint block below. */
 .play-action-prompt {
   position: absolute;
-  bottom: clamp(36px, 5vh, 68px);
+  bottom: clamp(88px, 12vh, 120px);
   right: auto;
   left: 50%;
   z-index: 12;
@@ -5558,7 +5558,7 @@ h1 {
   .play-routine-screen .play-action-prompt {
     top: auto;
     right: auto;
-    bottom: calc(var(--play-hud-inset-block-end) + 3vh);
+    bottom: calc(var(--play-hud-inset-block-end) + 64px);
     left: 50%;
     max-width: none;
     padding: 8px 12px;

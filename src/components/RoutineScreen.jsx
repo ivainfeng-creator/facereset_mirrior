@@ -553,7 +553,12 @@ export default function RoutineScreen({
 
   useEffect(() => {
     const now = performance.now();
-    const currentInputs = latestInputsRef.current;
+    const currentInputs = hasLandmarks
+      ? latestInputsRef.current
+      : {
+        ...latestInputsRef.current,
+        features: null,
+      };
     const tuning = sceneTuning;
     const scoreInteraction = INTERACTION_SCORERS[scene.interaction] || INTERACTION_SCORERS.mouthOpening;
     const nextInteraction = scoreInteraction({
@@ -908,20 +913,6 @@ export default function RoutineScreen({
           <div className="play-action-prompt" aria-live="polite">
             {interaction.feedback || feedback.label}
           </div>
-
-          {!skipFaceScan && (
-            <div
-              className={`face-tracking-toast ${!isCameraUnavailable && !isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-              aria-hidden={isCameraUnavailable || isDemoMode || hasLandmarks}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7.6v5.2" />
-                <path d="M12 16.6h.01" />
-              </svg>
-              Face not detected. Move back into view.
-            </div>
-          )}
 
           <footer className="play-hud play-hud-bottom">
             <div className="play-score">
@@ -3577,12 +3568,13 @@ function getInitialFeedback(sceneId) {
 
 function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tuning }) {
   const scoring = tuning.scoring;
+  const hasCheekTracking = Boolean(features?.cheeks);
   const ratio = features?.cheeks?.puffRatio;
   const rawPuff = Number.isFinite(ratio) ? clamp((ratio - tuning.input.baseline) / tuning.input.range, 0, 1) : null;
   const signal = updateInteractionSignal(rawPuff, timestamp, progressState.signal, tuning.signal);
   const puff = signal.value;
-  const isPuffing = signal.active;
-  const isStable = signal.phase === 'holding';
+  const isPuffing = hasCheekTracking && signal.active;
+  const isStable = hasCheekTracking && signal.phase === 'holding';
   const elapsedSeconds = signal.deltaSeconds;
 
   if (isPuffing) {

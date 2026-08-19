@@ -171,8 +171,8 @@ export function createMockLandmarkData(mode = LANDMARK_MODES.mock, time = perfor
       browOuterUpRight: (Math.sin(time / 1000 + 0.1) + 1) * 0.28,
       mouthUpperUpLeft: (Math.sin(time / 720 + 0.3) + 1) * 0.28,
       mouthUpperUpRight: (Math.sin(time / 760 + 0.9) + 1) * 0.26,
-      cheekPuff: (Math.sin(time / 1100) + 1) * 0.46,
-      mouthPucker: (Math.sin(time / 1180 + 0.45) + 1) * 0.32,
+      cheekPuff: 0,
+      mouthPucker: 0,
     },
     detectedAt: time,
   };
