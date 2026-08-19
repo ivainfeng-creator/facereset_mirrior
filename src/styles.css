@@ -5565,6 +5565,7 @@ h1 {
   left: 24px;
   z-index: 2;
   width: 102px;
+  visibility: hidden;
   border: 0;
   border-radius: 8px;
   background: #111;
@@ -13989,6 +13990,22 @@ h1 {
   white-space: nowrap;
 }
 
+/* Keep leaderboard rows at their designed size when the FAB card stack is viewed in a short viewport. */
+.result-history-modal .result-leaderboard-card {
+  height: min(734px, calc(100svh - (2 * clamp(48px, 12vh, 144px))));
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.result-history-modal .result-leaderboard-card ol {
+  min-height: 0;
+}
+
+.result-history-modal .result-leaderboard-card li {
+  height: 42px;
+  min-height: 42px;
+}
+
 .result-dashboard-message {
   position: fixed;
   z-index: 5;
@@ -17391,10 +17408,16 @@ h1 {
 
 .practice-got-it span {
   position: absolute;
+  top: 50%;
   right: 10%;
+  transform: translateY(-50%);
   font-family: var(--fr-font-body);
   font-size: 1.28em;
   font-weight: 900;
+}
+
+.practice-got-it span svg {
+  display: block;
 }
 
 .practice-back:hover {
