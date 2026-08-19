@@ -88,6 +88,149 @@ export function updateInteractionSignal(rawValue, timestamp, state, options = {}
   };
 }
 
+export function createCalibratedCheekPuffState() {
+  return {
+    calibrated: false,
+    calibrationMs: 0,
+    samples: [],
+    baseline: null,
+    lastTimestamp: 0,
+  };
+}
+
+export function updateCalibratedCheekPuff(rawFeatures, timestamp, state, options = {}) {
+  const {
+    calibrationSeconds = 2,
+    minCalibrationSamples = 20,
+    neutralMaxCheekPuff = 0.16,
+    neutralMaxMouthOpen = 0.12,
+    cheekEffortRange = 0.2,
+    puckerSupportRange = 0.18,
+    funnelSupportRange = 0.18,
+    maxMouthOpen = 0.14,
+    minMouthConfidence = 0.45,
+    minCheekEffort = 0.16,
+    cheekWeight = 0.8,
+    mouthWeight = 0.2,
+  } = options;
+  const previousTimestamp = state.lastTimestamp || timestamp;
+  const deltaMs = Math.min(100, Math.max(0, timestamp - previousTimestamp));
+  state.lastTimestamp = timestamp;
+
+  const hasFeatures = rawFeatures && [
+    rawFeatures.cheekPuff,
+    rawFeatures.mouthPucker,
+    rawFeatures.mouthFunnel,
+    rawFeatures.mouthOpen,
+  ].every(Number.isFinite);
+
+  if (!hasFeatures) {
+    return {
+      value: null,
+      calibrated: state.calibrated,
+      calibrationProgress: state.calibrated ? 1 : 0,
+      baseline: state.baseline,
+      cheekEffort: 0,
+      mouthConfidence: 0,
+      rawCheekPuff: 0,
+      rawMouthPucker: 0,
+      rawMouthFunnel: 0,
+      rawMouthOpen: 0,
+      rejectionReason: 'tracking-lost',
+    };
+  }
+
+  const sample = {
+    cheekPuff: clamp(rawFeatures.cheekPuff, 0, 1),
+    mouthPucker: clamp(rawFeatures.mouthPucker, 0, 1),
+    mouthFunnel: clamp(rawFeatures.mouthFunnel, 0, 1),
+    mouthOpen: Math.max(0, rawFeatures.mouthOpen),
+  };
+
+  if (!state.calibrated) {
+    const isNeutral = sample.cheekPuff <= neutralMaxCheekPuff
+      && sample.mouthOpen <= neutralMaxMouthOpen;
+    if (isNeutral) {
+      state.samples.push(sample);
+      state.calibrationMs += deltaMs;
+    } else {
+      state.samples = [];
+      state.calibrationMs = 0;
+    }
+
+    const calibrationTargetMs = calibrationSeconds * 1000;
+    if (state.calibrationMs >= calibrationTargetMs && state.samples.length >= minCalibrationSamples) {
+      state.calibrated = true;
+      state.baseline = getCheekPuffBaseline(state.samples);
+      state.samples = [];
+    }
+
+    return {
+      value: 0,
+      calibrated: state.calibrated,
+      calibrationProgress: clamp(state.calibrationMs / calibrationTargetMs, 0, 1),
+      baseline: state.baseline,
+      cheekEffort: 0,
+      mouthConfidence: 0,
+      rawCheekPuff: sample.cheekPuff,
+      rawMouthPucker: sample.mouthPucker,
+      rawMouthFunnel: sample.mouthFunnel,
+      rawMouthOpen: sample.mouthOpen,
+      rejectionReason: state.calibrated ? null : isNeutral ? 'calibrating' : 'hold-neutral',
+    };
+  }
+
+  const baseline = state.baseline;
+  const cheekRange = Math.max(cheekEffortRange, baseline.cheekNoise * 3);
+  const cheekEffort = clamp((sample.cheekPuff - baseline.cheekPuff) / cheekRange, 0, 1);
+  const puckerSupport = clamp((sample.mouthPucker - baseline.mouthPucker) / puckerSupportRange, 0, 1);
+  const funnelSupport = clamp((sample.mouthFunnel - baseline.mouthFunnel) / funnelSupportRange, 0, 1);
+  const shapeSupport = Math.max(puckerSupport, funnelSupport);
+  const mouthConfidence = clamp((maxMouthOpen - sample.mouthOpen) / maxMouthOpen, 0, 1);
+
+  let rejectionReason = null;
+  if (mouthConfidence < minMouthConfidence) rejectionReason = 'mouth-open';
+  else if (cheekEffort < minCheekEffort) rejectionReason = 'weak-cheeks';
+
+  const supportingMouth = (mouthConfidence + shapeSupport) / 2;
+  const value = rejectionReason
+    ? 0
+    : clamp(cheekEffort * cheekWeight + supportingMouth * mouthWeight, 0, 1);
+
+  return {
+    value,
+    calibrated: true,
+    calibrationProgress: 1,
+    baseline,
+    cheekEffort,
+    mouthConfidence,
+    shapeSupport,
+    rawCheekPuff: sample.cheekPuff,
+    rawMouthPucker: sample.mouthPucker,
+    rawMouthFunnel: sample.mouthFunnel,
+    rawMouthOpen: sample.mouthOpen,
+    rejectionReason,
+  };
+}
+
+function getCheekPuffBaseline(samples) {
+  const cheekPuff = getMedian(samples.map((sample) => sample.cheekPuff));
+  return {
+    cheekPuff,
+    mouthPucker: getMedian(samples.map((sample) => sample.mouthPucker)),
+    mouthFunnel: getMedian(samples.map((sample) => sample.mouthFunnel)),
+    mouthOpen: getMedian(samples.map((sample) => sample.mouthOpen)),
+    cheekNoise: getMedian(samples.map((sample) => Math.abs(sample.cheekPuff - cheekPuff))),
+  };
+}
+
+function getMedian(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((first, second) => first - second);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
 export function consumeTimedEvents(progressState, key, ratePerSecond, deltaSeconds) {
   const accumulatorKey = `${key}Accumulator`;
   const nextAccumulator = (progressState[accumulatorKey] || 0) + Math.max(0, ratePerSecond) * deltaSeconds;
@@ -154,6 +297,7 @@ export function createSceneInteractionContract({
       text: interaction.feedback || '',
       level: getFeedbackLevel({ interaction, isActive, phase }),
     },
+    diagnostics: interaction.diagnostics || null,
   };
 }
 

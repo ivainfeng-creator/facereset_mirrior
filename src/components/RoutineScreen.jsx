@@ -67,8 +67,10 @@ import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
 import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
   consumeTimedEvents,
+  createCalibratedCheekPuffState,
   createInteractionSignalState,
   createSceneInteractionContract,
+  updateCalibratedCheekPuff,
   updateInteractionSignal,
 } from '../utils/interactionSignal.js';
 import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
@@ -1297,6 +1299,17 @@ function InteractionDebugPanel({ contract, onChange, onFinish, onReset, override
         : '不需要',
     ],
   ];
+    const diagnosticsRows = contract.diagnostics ? [
+      ['calibration', toPercent(contract.diagnostics.calibrationProgress)],
+      ['cheekEffort', toPercent(contract.diagnostics.cheekEffort)],
+      ['mouthConfidence', toPercent(contract.diagnostics.mouthConfidence)],
+      ['baselineCheekPuff', toPercent(contract.diagnostics.baseline?.cheekPuff)],
+      ['rawCheekPuff', toPercent(contract.diagnostics.rawCheekPuff)],
+      ['rawMouthPucker', toPercent(contract.diagnostics.rawMouthPucker)],
+      ['rawMouthFunnel', toPercent(contract.diagnostics.rawMouthFunnel)],
+      ['rawMouthOpen', toPercent(contract.diagnostics.rawMouthOpen)],
+      ['rejectionReason', formatBunnyRejectionReason(contract.diagnostics.rejectionReason)],
+    ] : [];
   const inputRows = getDebugRows(tuning?.input);
   const signalRows = getDebugRows(tuning?.signal);
   const scoringRows = getDebugRows(tuning?.scoring);
@@ -1329,7 +1342,7 @@ function InteractionDebugPanel({ contract, onChange, onFinish, onReset, override
         </div>
       </header>
       <div className="interaction-debug-body">
-        <DebugSection help="目前模型讀到的即時互動狀態，用來判斷動作是不是有被穩定抓到。" title="即時偵測" rows={contractRows} />
+        <DebugSection help="目前模型讀到的即時互動狀態，用來判斷動作是不是有被穩定抓到。" title="即時偵測" rows={[...contractRows, ...diagnosticsRows]} />
         {inputRows.length ? (
           <TuningSection
             help="把臉部偵測原始值轉成 0-100% 的互動強度。通常先調這區，會直接影響靈敏度。"
@@ -1464,6 +1477,17 @@ function formatSignalPhase(phase) {
   return labels[phase] || phase;
 }
 
+function formatBunnyRejectionReason(reason) {
+  const labels = {
+    calibrating: '正在校正',
+    'hold-neutral': '請維持自然表情',
+    'mouth-open': '嘴巴張開',
+    'weak-cheeks': '鼓腮力度不足',
+    'tracking-lost': '臉部追蹤遺失',
+  };
+  return labels[reason] || '通過';
+}
+
 function formatDebugDetectorMode(mode) {
   if (mode === 'real-landmark') return '真實 landmarks';
   if (mode === 'mock-landmark') return '模擬 landmarks';
@@ -1489,6 +1513,15 @@ function getDebugLabel(key) {
     gardenCycle: '花園循環',
     bubblePops: '泡泡爆破次數',
     justPopped: '剛剛爆破',
+    calibration: '校正進度',
+    cheekEffort: '鼓腮增量',
+    mouthConfidence: '閉嘴可信度',
+    baselineCheekPuff: '個人基準',
+    rawCheekPuff: '原始鼓腮值',
+    rawMouthPucker: '原始噘嘴值',
+    rawMouthFunnel: '原始收口值',
+    rawMouthOpen: '原始張嘴值',
+    rejectionReason: '判定結果',
     face: '臉部偵測',
     hand: '手勢偵測',
   };
@@ -1499,6 +1532,18 @@ function getTuningLabel(key) {
   const labels = {
     baseline: '基準值',
     range: '有效幅度',
+    calibrationSeconds: '校正秒數',
+    minCalibrationSamples: '校正最少取樣',
+    neutralMaxCheekPuff: '中性鼓腮上限',
+    neutralMaxMouthOpen: '中性張嘴上限',
+    cheekEffortRange: '鼓腮有效幅度',
+    puckerSupportRange: '噘嘴輔助幅度',
+    funnelSupportRange: '收口輔助幅度',
+    maxMouthOpen: '允許張嘴上限',
+    minMouthConfidence: '最低閉嘴可信度',
+    minCheekEffort: '最低鼓腮力度',
+    cheekWeight: '鼓腮權重',
+    mouthWeight: '嘴型輔助權重',
     wideThreshold: '大動作門檻',
     strongThreshold: '強動作門檻',
     enterThreshold: '開始觸發門檻',
@@ -2886,11 +2931,8 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
   const [isPopScoreVisible, setIsPopScoreVisible] = useState(false);
   const [isPuffFrame, setIsPuffFrame] = useState(false);
   const [popScoreAward, setPopScoreAward] = useState(0);
-  const bunnyFrame = isBursting
-    ? bunnyFrame4Asset
-    : interaction.isPuffing
-      ? null
-      : bunnyFrame1Asset;
+  const shouldAnimatePuff = interaction.isPuffing && interaction.phase !== 'holding' && !isBursting;
+  const bunnyFrame = isBursting ? bunnyFrame4Asset : interaction.isPuffing ? bunnyFrame2Asset : bunnyFrame1Asset;
   const balloonFrames = [
     bunnyBalloonFrame1Asset,
     bunnyBalloonFrame2Asset,
@@ -2943,14 +2985,14 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
   }, [bubblePops]);
 
   useEffect(() => {
-    if (!interaction.isPuffing || isBursting) {
+    if (!shouldAnimatePuff) {
       setIsPuffFrame(false);
       return undefined;
     }
 
     const timer = window.setInterval(() => setIsPuffFrame((current) => !current), 420);
     return () => window.clearInterval(timer);
-  }, [interaction.isPuffing, isBursting]);
+  }, [isBursting, shouldAnimatePuff]);
 
   return (
     <div
@@ -2994,7 +3036,7 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
       </div>
 
       <div className="bunny-character">
-        {interaction.isPuffing && !isBursting ? (
+        {shouldAnimatePuff ? (
           <>
             <img className={`bunny-frame bunny-puff-frame ${isPuffFrame ? '' : 'is-visible'}`} src={bunnyFrame2Asset} alt="" />
             <img className={`bunny-frame bunny-puff-frame ${isPuffFrame ? 'is-visible' : ''}`} src={bunnyFrame3Asset} alt="" />
@@ -3573,16 +3615,54 @@ function getInitialFeedback(sceneId) {
 
 function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tuning }) {
   const scoring = tuning.scoring;
-  const hasCheekTracking = Boolean(features?.cheeks);
-  const ratio = features?.cheeks?.puffRatio;
-  const rawPuff = Number.isFinite(ratio) ? clamp((ratio - tuning.input.baseline) / tuning.input.range, 0, 1) : null;
-  const signal = updateInteractionSignal(rawPuff, timestamp, progressState.signal, tuning.signal);
+  const cheekFeatures = features?.cheeks;
+  const calibratedPuff = updateCalibratedCheekPuff(
+    cheekFeatures && {
+      ...cheekFeatures,
+      // Some MediaPipe builds report cheek inflation through mouth pucker or
+      // funnel only. puffRatio already combines those signals for this case.
+      cheekPuff: cheekFeatures.puffRatio,
+    },
+    timestamp,
+    progressState.calibration,
+    tuning.input,
+  );
+  const signal = updateInteractionSignal(calibratedPuff.value, timestamp, progressState.signal, tuning.signal);
+  const hasCheekTracking = Boolean(cheekFeatures) && !signal.trackingLost;
+  const trackingUnavailable = calibratedPuff.rejectionReason === 'tracking-lost';
   const puff = signal.value;
-  const isPuffing = hasCheekTracking && signal.active;
-  const isStable = hasCheekTracking && signal.phase === 'holding';
+  const isPuffing = calibratedPuff.calibrated && hasCheekTracking && signal.active;
+  const isStable = isPuffing && signal.phase === 'holding';
   const elapsedSeconds = signal.deltaSeconds;
 
-  if (isPuffing) {
+  if (!calibratedPuff.calibrated) {
+    progressState.justPopped = false;
+    progressState.popScoreAward = 0;
+    return {
+      score: Math.round(progressState.score),
+      completion: progressState.bubbleSize,
+      feedback: getCheekPuffFeedback({ calibratedPuff, features, isPuffing: false, isStable: false, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
+      isOnTrack: false,
+      puff: 0,
+      bubbleSize: progressState.bubbleSize,
+      bubbleStage: progressState.stage,
+      bubblePops: progressState.bubblePops,
+      justPopped: false,
+      popScoreAward: 0,
+      combo: progressState.combo,
+      isPuffing: false,
+      holdSeconds: 0,
+      justActivated: false,
+      justReleased: false,
+      phase: calibratedPuff.rejectionReason === 'tracking-lost' ? 'tracking-lost' : 'calibrating',
+      calibrationProgress: calibratedPuff.calibrationProgress,
+      diagnostics: calibratedPuff,
+    };
+  }
+
+  if (trackingUnavailable) {
+    // Preserve bubble momentum during a sustained camera gap, but do not score it.
+  } else if (isPuffing) {
     progressState.bubbleSize = clamp(progressState.bubbleSize + (scoring.growthBase + puff * scoring.growthByValue) * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
   } else {
     progressState.bubbleSize = clamp(progressState.bubbleSize - scoring.decay * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
@@ -3593,7 +3673,7 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
     progressState.stage = nextStage;
   }
 
-  if (progressState.bubbleSize >= scoring.popThreshold) {
+  if (progressState.bubbleSize >= scoring.popThreshold && isStable) {
     progressState.maxHold += elapsedSeconds;
     if (progressState.maxHold >= scoring.popHoldSeconds) {
       progressState.bubbleSize = scoring.resetSize;
@@ -3622,7 +3702,7 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
   return {
     score: Math.round(progressState.score),
     completion: progressState.bubbleSize,
-    feedback: getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
+    feedback: getCheekPuffFeedback({ calibratedPuff, features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
     isOnTrack: isPuffing && isStable,
     puff,
     bubbleSize: progressState.bubbleSize,
@@ -3636,15 +3716,24 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
     justActivated: signal.justActivated,
     justReleased: signal.justReleased,
     phase: signal.phase,
+    calibrationProgress: calibratedPuff.calibrationProgress,
+    diagnostics: calibratedPuff,
   };
 }
 
-function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo }) {
+function getCheekPuffFeedback({ calibratedPuff, features, isPuffing, isStable, bubbleSize, combo }) {
   if (!features?.cheeks) return 'Find your face';
-  if (!isPuffing) return 'Puff your cheeks, then relax softly';
+  if (calibratedPuff?.rejectionReason === 'tracking-lost') return 'Face tracking paused - keep your face in frame';
+  if (!calibratedPuff?.calibrated) {
+    return calibratedPuff?.rejectionReason === 'hold-neutral'
+      ? 'Relax your face for calibration'
+      : 'Hold still while bunny learns your neutral face';
+  }
+  if (calibratedPuff.rejectionReason === 'mouth-open') return 'Close your lips, then puff your cheeks';
+  if (!isPuffing) return 'Puff both cheeks with your lips gently closed';
   if (!isStable) return 'Hold the bubble steady';
   if (combo >= 3) return 'Combo rhythm, bunny loves it';
-  if (bubbleSize > 0.78) return 'Big bubble sparkle bonus';
+  if (bubbleSize > 0.78) return 'Keep holding, the bubble is nearly full';
   return 'Nice puff, keep the bubble growing';
 }
 
@@ -3913,6 +4002,7 @@ function createBubbleProgress() {
     stage: 0,
     maxHold: 0,
     bubbleHoldAccumulator: 0,
+    calibration: createCalibratedCheekPuffState(),
     signal: createInteractionSignalState(),
   };
 }
