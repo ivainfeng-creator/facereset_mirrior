@@ -24,7 +24,7 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, skip
     isDemoMode,
   });
   const cameraTrack = stream?.getVideoTracks()[0];
-  const isCameraUnavailable = !isDemoMode && (
+  const isCameraUnavailable = (
     !stream
     || !stream.active
     || !cameraTrack

@@ -6,6 +6,7 @@ import {
   getSupabaseDisplayName,
   saveSupabaseDisplayName,
 } from '../utils/supabaseProgressAdapter.js';
+import { loadLeaderboardRows } from '../utils/progressAdapter.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 import TodayPlanCard from './TodayPlanCard.jsx';
@@ -16,6 +17,10 @@ const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
 const LEADERBOARD_SUBMIT_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
+  volume: 0.7,
+});
+const RESULT_CARD_FLIP_EFFECT = Object.freeze({
+  source: '/audio/Overall/Flip-1.mp3',
   volume: 0.7,
 });
 const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
@@ -94,6 +99,9 @@ export default function ResultScreen({
   );
   const bringCardToFront = (cardIndex) => {
     if (isCardLayoutAnimationActive) return;
+    if (cardOrder[0] === cardIndex) return;
+
+    playSceneEffect(RESULT_CARD_FLIP_EFFECT);
     setCardOrder((currentOrder) => [
       cardIndex,
       ...currentOrder.filter((index) => index !== cardIndex),
@@ -176,10 +184,11 @@ export default function ResultScreen({
     const loadLeaderboard = async () => {
       const rows = await fetchProgramDayLeaderboard(programDay);
       if (!isCurrent) return;
-      setLeaderboard(rows.map((row) => ({
+      const leaderboardRows = rows.length ? rows : loadLeaderboardRows(habit);
+      setLeaderboard(leaderboardRows.map((row) => ({
         rank: Number(row.rank),
-        name: row.display_name || 'Anonymous',
-        score: Math.max(0, Number(row.total_score) || 0),
+        name: row.display_name || row.name || 'Anonymous',
+        score: Math.max(0, Number(row.total_score ?? row.score) || 0),
       })));
       setIsLeaderboardLoading(false);
     };

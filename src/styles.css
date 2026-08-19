@@ -13910,7 +13910,7 @@ h1 {
 
 .result-leaderboard-card ol {
   display: block;
-  max-height: 126px;
+  max-height: 600px;
   margin: 6px 0 0;
   padding: 0;
   overflow-y: auto;
