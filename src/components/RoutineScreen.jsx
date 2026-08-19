@@ -316,6 +316,7 @@ export default function RoutineScreen({
   stream,
   isDemoMode,
   skipFaceScan,
+  initialCheekPuffCalibration = null,
   onComplete,
   onExit,
 }) {
@@ -339,7 +340,10 @@ export default function RoutineScreen({
     || cameraTrack.readyState !== 'live'
   );
   const interactionProgressRefs = useRef(Object.fromEntries(
-    Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [key, createProgress()]),
+    Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [
+      key,
+      key === 'cheekPuff' ? createProgress(initialCheekPuffCalibration) : createProgress(),
+    ]),
   ));
   const latestInputsRef = useRef({
     features: null,
@@ -366,6 +370,9 @@ export default function RoutineScreen({
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
+  const isSceneReadyToStart = scene.interaction !== 'cheekPuff'
+    || initialCheekPuffCalibration?.calibrated
+    || interaction.diagnostics?.calibrated;
 
   const traceWhaleAttempt = (event, details = {}) => {
     if (activeSceneId !== 'whaleDream' || !import.meta.env.DEV) return;
@@ -475,7 +482,7 @@ export default function RoutineScreen({
   });
 
   useEffect(() => {
-    if (isGuideOpen || isQuitOpen) return undefined;
+    if (isGuideOpen || isQuitOpen || !isSceneReadyToStart) return undefined;
     const timer = window.setInterval(() => {
       setElapsed((current) => {
         const next = Math.min(activeTotalSeconds, current + 1);
@@ -483,7 +490,7 @@ export default function RoutineScreen({
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [activeTotalSeconds, isGuideOpen, isQuitOpen]);
+  }, [activeTotalSeconds, isGuideOpen, isQuitOpen, isSceneReadyToStart]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);
@@ -535,9 +542,13 @@ export default function RoutineScreen({
 
   useEffect(() => {
     const createProgress = INTERACTION_PROGRESS_FACTORIES[scene.interaction];
-    if (createProgress) interactionProgressRefs.current[scene.interaction] = createProgress();
+    if (createProgress) {
+      interactionProgressRefs.current[scene.interaction] = scene.interaction === 'cheekPuff'
+        ? createProgress(initialCheekPuffCalibration)
+        : createProgress();
+    }
     setInteraction(createBaseInteraction(activeSceneId));
-  }, [activeSceneId, scene.interaction, stage.id]);
+  }, [activeSceneId, initialCheekPuffCalibration, scene.interaction, stage.id]);
 
   useEffect(() => {
     routineFinishedRef.current = false;
@@ -4007,7 +4018,7 @@ function createNoseProgress() {
   };
 }
 
-function createBubbleProgress() {
+function createBubbleProgress(initialCalibration = null) {
   return {
     score: 0,
     bubbleSize: 0.07,
@@ -4017,7 +4028,9 @@ function createBubbleProgress() {
     stage: 0,
     maxHold: 0,
     bubbleHoldAccumulator: 0,
-    calibration: createCalibratedCheekPuffState(),
+    calibration: initialCalibration?.calibrated && initialCalibration.baseline
+      ? { ...initialCalibration, samples: [], lastTimestamp: 0 }
+      : createCalibratedCheekPuffState(),
     signal: createInteractionSignalState(),
   };
 }

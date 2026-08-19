@@ -144,7 +144,7 @@ export const sceneInteractionTuning = {
     actionType: 'cheek_puff',
     feedbackInitial: 'Puff your cheeks to grow the bubble',
     input: {
-      calibrationSeconds: 2,
+      calibrationSeconds: 1,
       minCalibrationSamples: 20,
       neutralMaxCheekPuff: 0.16,
       neutralMaxMouthOpen: 0.12,
