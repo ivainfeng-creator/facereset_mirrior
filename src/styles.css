@@ -3842,7 +3842,7 @@ h1 {
   top: 49%;
   left: 50%;
   z-index: 4;
-  width: 395px;
+  width: 290.325px;
   aspect-ratio: 940 / 1088;
   transform: translate(-50%, calc(-42% + 48px));
 }
@@ -3872,8 +3872,8 @@ h1 {
 }
 
 .bunny-balloon {
-  top: 13px;
-  left: 154px;
+  top: -51px;
+  left: 84px;
   z-index: 1;
   width: 395px;
   height: 395px;
@@ -3881,8 +3881,8 @@ h1 {
 }
 
 .bunny-balloon.is-bursting {
-  top: 13px;
-  left: 154px;
+  top: -51px;
+  left: 84px;
   animation: bubbleBurstAppear 520ms ease-out both;
 }
 
@@ -3890,7 +3890,7 @@ h1 {
   position: absolute;
   top: 60%;
   left: 70%;
-  z-index: 3;
+  z-index: 7;
   color: #ffffff;
   font-family: var(--fr-font-display);
   font-size: clamp(2rem, 6vw, 4.5rem);
@@ -5501,7 +5501,7 @@ h1 {
  * beside the camera in the breakpoint block below. */
 .play-action-prompt {
   position: absolute;
-  bottom: clamp(88px, 12vh, 120px);
+  bottom: clamp(36px, 5vh, 68px);
   right: auto;
   left: 50%;
   z-index: 12;
@@ -5539,12 +5539,22 @@ h1 {
   .play-routine-screen .play-action-prompt {
     top: auto;
     right: auto;
-    bottom: calc(var(--play-hud-inset-block-end) + 64px);
+    bottom: calc(var(--play-hud-inset-block-end) + 3vh);
     left: 50%;
     max-width: none;
     padding: 8px 12px;
     text-align: center;
     transform: translateX(-50%);
+  }
+}
+
+[data-scene-id='bubbleGumBunny'] .play-action-prompt {
+  bottom: calc(clamp(36px, 5vh, 68px) + 3%);
+}
+
+@media (max-width: 559px) {
+  [data-scene-id='bubbleGumBunny'] .play-action-prompt {
+    bottom: calc(var(--play-hud-inset-block-end) + 6vh);
   }
 }
 
