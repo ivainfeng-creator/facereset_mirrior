@@ -187,7 +187,7 @@ const sceneDefinitions = [
   {
     id: SCENE_IDS.bubbleGumBunny,
     order: 5,
-    title: 'Bubble Gum Bunny',
+    title: 'Bunny Breathe',
     subtitle: 'Puff your cheeks and grow a soft pink bubble.',
     action: 'Cheek puff',
     area: 'Cheeks',

@@ -30,10 +30,16 @@
 
 body {
   margin: 0;
-  min-width: 320px;
   min-height: 100vh;
   min-height: 100svh;
   overflow-x: hidden;
+}
+
+html:has(.welcome-v3),
+body:has(.welcome-v3) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
 }
 
 button {
@@ -1943,13 +1949,6 @@ h1 {
 
   .vibe-radar-stage {
     margin-top: 24px;
-  }
-}
-
-@media (min-width: 980px) {
-  .routine-layout {
-    grid-template-columns: minmax(0, 1fr) 360px;
-    align-items: stretch;
   }
 
   .routine-mirror,
@@ -11092,14 +11091,14 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(10px, 2vh, 18px);
+  gap: 8px;
 }
 
 .welcome-v3-heading h1 {
   margin: 0;
   color: #1a1a1a;
   font-family: var(--fr-font-display);
-  font-size: min(18vw, 10vh);
+  font-size: max(68px, min(18vw, 10vh));
   font-weight: 400;
   letter-spacing: 0;
   line-height: 0.82;
@@ -11110,7 +11109,7 @@ h1 {
   margin: 0;
   color: #2b2b2b;
   font-family: var(--fr-font-body);
-  font-size: min(clamp(16px, 4.4vw, 24px), 2.4vh);
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.45;
@@ -11135,9 +11134,6 @@ h1 {
 .welcome-v3-sticker {
   position: absolute;
   --sticker-rot: 0deg;
-  overflow: visible;
-  border: 0;
-  opacity: 1;
 }
 
 .welcome-v3-sticker-motion {
@@ -11180,7 +11176,6 @@ h1 {
 }
 
 .welcome-v3-sticker-main {
-  --rot: 0deg;
   --sticker-rot: 1deg;
   inset: -5%;
   z-index: 4;
@@ -11198,12 +11193,7 @@ h1 {
   object-position: center 39%;
 }
 
-.welcome-v3-sticker-main .welcome-v3-sticker-surface {
-  overflow: hidden;
-}
-
 .welcome-v3-sticker-left {
-  --rot: 0deg;
   --sticker-rot: 10deg;
   top: -20%;
   left: -23%;
@@ -11214,7 +11204,6 @@ h1 {
 }
 
 .welcome-v3-sticker-right {
-  --rot: 0deg;
   --sticker-rot: -20deg;
   top: 50%;
   /* Overhang stays at the designed 39% of the composition box wherever there is
@@ -11248,7 +11237,6 @@ h1 {
   z-index: 4;
   width: 19%;
   height: auto;
-  opacity: 1;
   --rot: 14deg;
   animation: stickerin 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.56s both;
 }
@@ -11271,7 +11259,6 @@ h1 {
   line-height: 1;
   letter-spacing: 1.2px;
   white-space: nowrap;
-  opacity: 1;
   transform: rotate(var(--rot));
   animation: stickerin 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.68s both;
 }
@@ -11292,7 +11279,7 @@ h1 {
   background: #1a1a1a;
   box-shadow: 0 8px 18px rgba(26, 26, 26, 0.16);
   font-family: 'Instrument Sans', sans-serif;
-  font-size: clamp(18px, 4vw, 20px);
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: 1.4px;
   line-height: 1;
@@ -11312,8 +11299,8 @@ h1 {
 }
 
 @media (min-width: 700px) {
-  .welcome-v3-heading p {
-    font-size: min(2.1vh, 21px);
+  .welcome-v3-heading h1 br {
+    display: none;
   }
 }
 
@@ -14492,18 +14479,18 @@ h1 {
 
 .challenge-v3-start {
   display: inline-grid;
-  width: min(100%, 309px);
-  min-height: 52px;
+  width: min(309px, 100%);
+  height: 52px;
   place-items: center;
   justify-self: center;
-  margin-top: clamp(8px, 1.6svh, 14px);
-  padding: 14px 20px;
+  margin-top: 14px;
+  padding: 0 20px;
   border: 0;
   border-radius: 999px;
   color: #ffffff;
   background: #067abb;
   font-family: 'Instrument Sans', sans-serif;
-  font-size: clamp(18px, 4vw, 20px);
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: 1.4px;
   line-height: 1;
@@ -14962,28 +14949,52 @@ h1 {
 /* Overview v3 plan layout. */
 .challenge-v3-screen.today-plan-screen {
   display: block;
+  width: 100%;
   min-height: 100svh;
-  padding: clamp(22px, 4vh, 52px) clamp(16px, 4vw, 36px);
+  padding: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .challenge-v3-shell {
+  min-height: 100svh;
   width: 100%;
-  max-width: 552px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
+  padding: clamp(22px, 4vh, 52px) clamp(16px, 4vw, 36px);
+  box-sizing: border-box;
+  justify-content: center;
 }
 
 .challenge-v3-hero {
   display: flex;
-  height: min(clamp(30px, 9vw, 86px), 8.4vh);
   align-items: center;
   justify-content: center;
   flex: none;
 }
 
 .challenge-v3-hero h1 {
-  font-size: min(clamp(24px, 7.2vw, 72px), 7vh);
+  max-width: 100%;
+  font-size: 54px;
+  line-height: 0.82;
+  white-space: nowrap;
+}
+
+@media (max-width: 699px) {
+  .challenge-v3-shell {
+    width: 95%;
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+
+  .challenge-v3-hero h1 {
+    width: 95vw;
+    font-size: clamp(30px, 7.2vw, 54px);
+  }
+
+  .challenge-v3-replay {
+    display: none;
+  }
 }
 
 .challenge-v3-days {
@@ -15017,9 +15028,32 @@ h1 {
   font-size: 0.58rem;
 }
 
+@media (min-width: 700px) {
+  .challenge-v3-days {
+    gap: clamp(6.6px, 2.2vw, 15.4px);
+  }
+
+  .challenge-v3-day {
+    min-width: 37.4px;
+    height: 37.4px;
+    font-size: 14.3px;
+  }
+
+  .challenge-v3-day.is-current {
+    min-width: 68.2px;
+    padding-inline: 15.4px;
+  }
+
+  .challenge-v3-day i {
+    width: 16.5px;
+    height: 16.5px;
+  }
+}
+
 .challenge-v3-plan {
+  max-width: 552px;
   gap: 6px;
-  margin-top: clamp(16px, 3.4vh, 32px);
+  margin-top: 16px;
   padding: clamp(14px, 2.4vh, 20px) clamp(14px, 3.4vw, 20px);
   border-radius: 22px;
 }

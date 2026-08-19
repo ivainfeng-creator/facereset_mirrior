@@ -179,7 +179,7 @@ export default function TodayPlanCard({
             <span className="challenge-v3-banner-sheen" aria-hidden="true" />
             <div className="challenge-v3-banner-copy">
               <strong>Day {programDay} Complete</strong>
-              <span>Come back on your next active day for Day {programDay + 1}</span>
+              <span>Come back on your next active day</span>
             </div>
             <div className="challenge-v3-banner-calendar" aria-hidden="true">
               <i className="challenge-v3-banner-confetti-one" />
