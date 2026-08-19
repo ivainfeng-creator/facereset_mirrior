@@ -1069,6 +1069,7 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
   const previewScale = previewFrame.width && previewFrame.height
     ? Math.max(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
     : 0;
+  const scenePreviewScale = previewScale * (sourceViewport.width >= 600 ? 0.8 : 1);
 
   useEffect(() => {
     const syncPreviewFrame = () => {
@@ -1102,8 +1103,8 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
         style={{
           width: `${sourceViewport.width}px`,
           height: `${sourceViewport.height}px`,
-          opacity: previewScale ? 1 : 0,
-          transform: `translate(-50%, -50%) scale(${previewScale || 1})`,
+          opacity: scenePreviewScale ? 1 : 0,
+          transform: `translate(-50%, -50%) scale(${scenePreviewScale || 1})`,
         }}
       >
         <SceneRenderer interaction={interaction} previewForegroundOnly />

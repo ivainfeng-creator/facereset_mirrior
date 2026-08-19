@@ -17744,7 +17744,7 @@ h1 {
 
 .penguin-character {
   position: absolute;
-  bottom: calc(clamp(2%, 3vh, 5%) + 15%);
+  bottom: calc(clamp(2%, 3vh, 5%) + 12%);
   left: 45%;
   z-index: 3;
   width: 540px;
@@ -17772,7 +17772,7 @@ h1 {
 
 .penguin-catch-flash {
   position: absolute;
-  top: 25%;
+  top: 28%;
   left: 40%;
   z-index: 5;
   color: #123d6d;
