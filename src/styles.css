@@ -18203,3 +18203,73 @@ h1 {
   font-weight: 400;
   letter-spacing: 0.6px;
 }
+
+/* FAB result leaderboard ranking states. */
+.result-leaderboard-card li > span {
+  color: #b8b6b3;
+}
+
+.result-leaderboard-card li > i {
+  border: 0;
+  color: #8a8a8a;
+  background: #efeeec;
+}
+
+.result-leaderboard-card li.rank-1 > span,
+.result-leaderboard-card li.rank-2 > span,
+.result-leaderboard-card li.rank-3 > span,
+.result-leaderboard-card li.is-user > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.result-leaderboard-card li.rank-1 > span { background: #d9a417; }
+.result-leaderboard-card li.rank-2 > span { background: #a8adb5; }
+.result-leaderboard-card li.rank-3 > span { background: #c08457; }
+
+.result-leaderboard-card li.rank-1 > i,
+.result-leaderboard-card li.rank-2 > i,
+.result-leaderboard-card li.rank-3 > i {
+  border: 1.8px solid;
+  background: #fff;
+}
+
+.result-leaderboard-card li.rank-1 > i { border-color: #d9a417; color: #151514; }
+.result-leaderboard-card li.rank-2 > i { border-color: #a8adb5; color: #151514; }
+.result-leaderboard-card li.rank-3 > i { border-color: #c08457; color: #151514; }
+
+.result-leaderboard-card li.is-user {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  border: 0;
+  color: #075989;
+  background: #e4f0f8;
+}
+
+.result-leaderboard-card li.is-user > span,
+.result-leaderboard-card li.is-user > i {
+  border-color: #067abb;
+  color: #fff;
+  background: #067abb;
+}
+
+.result-leaderboard-card li.is-user > i {
+  border: 0;
+}
+
+.result-leaderboard-card li.is-user.rank-1 > span,
+.result-leaderboard-card li.is-user.rank-2 > span,
+.result-leaderboard-card li.is-user.rank-3 > span,
+.result-leaderboard-card li.is-user.rank-1 > i,
+.result-leaderboard-card li.is-user.rank-2 > i,
+.result-leaderboard-card li.is-user.rank-3 > i {
+  border-color: #067abb;
+  color: #fff;
+  background: #067abb;
+}

@@ -189,6 +189,7 @@ export default function ResultScreen({
         rank: Number(row.rank),
         name: row.display_name || row.name || 'Anonymous',
         score: Math.max(0, Number(row.total_score ?? row.score) || 0),
+        me: Boolean(row.me || row.isUser),
       })));
       setIsLeaderboardLoading(false);
     };
@@ -640,14 +641,22 @@ function ResultLeaderboard({ rows, programDay, score, isLoading }) {
         </div>
       </div>
       <ol>
-        {rows.slice(0, 10).map((row) => (
-          <li key={`${row.rank}-${row.name}`}>
-            <span>{row.rank}</span>
-            <i>{row.name.charAt(0).toUpperCase()}</i>
-            <strong>{row.name}</strong>
-            <b>{row.score}</b>
-          </li>
-        ))}
+        {rows.slice(0, 10).map((row) => {
+          const isUser = row.me || row.isUser;
+          const className = [
+            row.rank <= 3 ? `rank-${row.rank}` : '',
+            isUser ? 'is-user' : '',
+          ].filter(Boolean).join(' ');
+
+          return (
+            <li className={className} key={`${row.rank}-${row.name}`}>
+              <span>{row.rank}</span>
+              <i>{row.name.charAt(0).toUpperCase()}</i>
+              <strong>{row.name}</strong>
+              <b>{row.score}</b>
+            </li>
+          );
+        })}
         {!isLoading && !rows.length && (
           <li className="result-leaderboard-empty">Complete all 3 sessions to be the first on Day {programDay}.</li>
         )}
