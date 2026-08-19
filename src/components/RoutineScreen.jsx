@@ -2922,8 +2922,8 @@ function BubbleGumBunnyScene({ interaction }) {
     () =>
       Array.from({ length: 8 }, (_, index) => ({
         id: index,
-        x: 16 + ((index * 53) % 70),
-        y: 24 + ((index * 41) % 58),
+        x: 38 + ((index * 19) % 26),
+        y: 38 + ((index * 13) % 26),
         delay: (index % 6) * 0.22,
       })),
     [],

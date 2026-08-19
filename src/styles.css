@@ -3847,6 +3847,12 @@ h1 {
   transform: translate(-50%, calc(-42% + 48px));
 }
 
+@media (max-width: 559px) {
+  .bunny-character {
+    transform: translate(-50%, calc(-42% + 48px)) scale(0.81);
+  }
+}
+
 .bunny-frame,
 .bunny-balloon {
   position: absolute;
@@ -3900,12 +3906,25 @@ h1 {
   pointer-events: none;
 }
 
+@media (max-width: 559px) {
+  .bunny-pop-score {
+    font-size: clamp(3rem, 9vw, 6.75rem);
+  }
+}
+
 .bunny-sparkles,
 .bunny-hearts {
   position: absolute;
   inset: 0;
-  z-index: 3;
   pointer-events: none;
+}
+
+.bunny-sparkles {
+  z-index: 3;
+}
+
+.bunny-hearts {
+  z-index: 6;
 }
 
 .bunny-sparkles span {
@@ -5554,7 +5573,7 @@ h1 {
 
 @media (max-width: 559px) {
   [data-scene-id='bubbleGumBunny'] .play-action-prompt {
-    bottom: calc(var(--play-hud-inset-block-end) + 6vh);
+    bottom: calc(var(--play-hud-inset-block-end) + 9vh);
   }
 }
 
