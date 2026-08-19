@@ -14302,8 +14302,11 @@ h1 {
 
 .challenge-v3-plan {
   position: relative;
-  display: grid;
+  display: flex;
   width: 100%;
+  max-height: calc(100svh - clamp(144px, 19svh, 184px));
+  min-height: 0;
+  flex-direction: column;
   gap: 8px;
   margin-top: clamp(16px, 3.4svh, 32px);
   padding: clamp(14px, 2.4svh, 20px) clamp(14px, 3.4vw, 20px);
@@ -14371,7 +14374,12 @@ h1 {
 .challenge-v3-sessions {
   position: relative;
   display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
   gap: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .challenge-v3-sessions::before {
@@ -14521,6 +14529,8 @@ h1 {
   display: inline-grid;
   width: min(309px, 100%);
   height: 52px;
+  flex: none;
+  align-self: center;
   place-items: center;
   justify-self: center;
   margin-top: 14px;
@@ -14644,10 +14654,12 @@ h1 {
   position: relative;
   display: flex;
   width: 100%;
+  height: 90px;
+  flex: none;
   align-items: center;
   gap: clamp(12px, 3vw, 20px);
-  margin-top: clamp(6px, 1.2vh, 10px);
-  padding: clamp(12px, 2vh, 16px) clamp(14px, 3vw, 20px);
+  margin-top: 10px;
+  padding: 16px clamp(14px, 3vw, 20px);
   overflow: hidden;
   border-radius: 16px;
   border: 0;
@@ -14747,7 +14759,7 @@ h1 {
 .challenge-v3-banner-copy strong {
   color: #1a1a1a;
   font-family: var(--fr-font-display);
-  font-size: min(clamp(19px, 5vw, 24px), 3.2vh);
+  font-size: clamp(19px, 5vw, 24px);
   font-weight: 400;
   letter-spacing: 0.4px;
   line-height: 1.05;
@@ -14755,7 +14767,7 @@ h1 {
 
 .challenge-v3-banner-copy span {
   color: #8a8a8a;
-  font-size: min(clamp(12.5px, 3.2vw, 14px), 2vh);
+  font-size: clamp(12.5px, 3.2vw, 14px);
   line-height: 1.4;
 }
 
@@ -14794,7 +14806,7 @@ h1 {
   padding: 10px 0 4px;
   color: #1a1a1a;
   font-family: var(--fr-font-display);
-  font-size: min(clamp(24px, 6.4vw, 30px), 4vh);
+  font-size: clamp(24px, 6.4vw, 30px);
   font-weight: 400;
   line-height: 1;
   text-align: center;
@@ -15129,7 +15141,7 @@ h1 {
 
 .challenge-v3-plan-header h2 {
   margin-top: 4px;
-  font-size: min(clamp(20px, 4.6vw, 27px), 3.6vh);
+  font-size: clamp(20px, 4.6vw, 27px);
   letter-spacing: 0.5px;
   line-height: 1.1;
 }
@@ -15154,11 +15166,27 @@ h1 {
 .challenge-v3-sessions {
   gap: 4px;
   padding-top: 6px;
+  scrollbar-color: #e6e4e1 transparent;
+  scrollbar-width: thin;
+}
+
+.challenge-v3-sessions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.challenge-v3-sessions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.challenge-v3-sessions::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #e6e4e1;
 }
 
 .challenge-v3-sessions::before {
   top: 70px;
-  bottom: 70px;
+  bottom: auto;
+  height: 186px;
   left: 54px;
   width: 0;
   border-left: 3px dashed #e6e4e1;
@@ -15166,7 +15194,7 @@ h1 {
 
 .challenge-v3-session {
   display: flex;
-  min-height: clamp(88px, 12vh, 104px);
+  min-height: 104px;
   align-items: center;
   gap: clamp(12px, 3vw, 16px);
   padding: 10px 12px;
@@ -15257,7 +15285,7 @@ h1 {
 .challenge-v3-session-copy strong {
   display: block;
   color: inherit;
-  font-size: min(clamp(16px, 4.2vw, 18px), 2.5vh);
+  font-size: clamp(16px, 4.2vw, 18px);
   font-weight: 600;
   letter-spacing: 0.1px;
   line-height: 1.25;
@@ -15267,7 +15295,7 @@ h1 {
   display: block;
   margin-top: 2px;
   color: #9a9895;
-  font-size: min(clamp(13px, 3.4vw, 14px), 2vh);
+  font-size: clamp(13px, 3.4vw, 14px);
   font-weight: 400;
 }
 
