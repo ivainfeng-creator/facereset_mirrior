@@ -2930,8 +2930,9 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
   const [isBursting, setIsBursting] = useState(false);
   const [isPopScoreVisible, setIsPopScoreVisible] = useState(false);
   const [isPuffFrame, setIsPuffFrame] = useState(false);
+  const [balloonFrameIndex, setBalloonFrameIndex] = useState(0);
   const [popScoreAward, setPopScoreAward] = useState(0);
-  const shouldAnimatePuff = interaction.isPuffing && interaction.phase !== 'holding' && !isBursting;
+  const shouldAnimatePuff = interaction.isPuffing && !isBursting;
   const bunnyFrame = isBursting ? bunnyFrame4Asset : interaction.isPuffing ? bunnyFrame2Asset : bunnyFrame1Asset;
   const balloonFrames = [
     bunnyBalloonFrame1Asset,
@@ -2941,9 +2942,7 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
   ];
   const balloonFrame = isBursting
     ? bunnyBalloonFrame5Asset
-    : isPuffFrame
-      ? bunnyBalloonFrame3Asset
-    : balloonFrames[Math.min(3, Math.floor(bubbleSize * 4))];
+    : balloonFrames[balloonFrameIndex];
   const lastBubblePopsRef = useRef(bubblePops);
   const sparkles = useMemo(
     () =>
@@ -2993,6 +2992,22 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
     const timer = window.setInterval(() => setIsPuffFrame((current) => !current), 420);
     return () => window.clearInterval(timer);
   }, [isBursting, shouldAnimatePuff]);
+
+  useEffect(() => {
+    if (!shouldAnimatePuff) {
+      setBalloonFrameIndex(0);
+      return undefined;
+    }
+
+    const frames = [1, 2, 3, 2];
+    let framePosition = 0;
+    setBalloonFrameIndex(frames[framePosition]);
+    const timer = window.setInterval(() => {
+      framePosition = (framePosition + 1) % frames.length;
+      setBalloonFrameIndex(frames[framePosition]);
+    }, 420);
+    return () => window.clearInterval(timer);
+  }, [shouldAnimatePuff]);
 
   return (
     <div
@@ -3044,9 +3059,7 @@ function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
         ) : (
           <img className="bunny-frame" src={bunnyFrame} alt="" />
         )}
-        {(interaction.isPuffing || isBursting) && (
-          <img className={`bunny-balloon ${isBursting ? 'is-bursting' : ''}`} src={balloonFrame} alt="" />
-        )}
+        <img className={`bunny-balloon ${isBursting ? 'is-bursting' : ''}`} src={balloonFrame} alt="" />
       </div>
       {isPopScoreVisible && popScoreAward > 0 && (
         <span className="bunny-pop-score" key={bubblePops}>+{popScoreAward}</span>
@@ -3665,7 +3678,9 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
   } else if (isPuffing) {
     progressState.bubbleSize = clamp(progressState.bubbleSize + (scoring.growthBase + puff * scoring.growthByValue) * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
   } else {
-    progressState.bubbleSize = clamp(progressState.bubbleSize - scoring.decay * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
+    progressState.bubbleSize = scoring.minBubbleSize;
+    progressState.stage = scoring.resetStage;
+    progressState.maxHold = 0;
   }
 
   const nextStage = Math.min(4, Math.floor(progressState.bubbleSize * scoring.stageMultiplier));
