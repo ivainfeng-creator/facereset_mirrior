@@ -17924,7 +17924,8 @@ h1 {
   }
 
   .play-routine-screen.penguin-viewport-routine .play-action-prompt {
-    top: 77%;
+    top: auto;
+    bottom: calc(24px + 9vh);
     right: auto;
     left: 50%;
     max-width: min(78vw, 330px);
