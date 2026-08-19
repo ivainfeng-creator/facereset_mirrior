@@ -15183,7 +15183,7 @@ h1 {
 .challenge-v3-sessions {
   gap: 4px;
   padding-top: 6px;
-  scrollbar-color: #e6e4e1 transparent;
+  scrollbar-color: transparent transparent;
   scrollbar-width: thin;
 }
 
@@ -15197,6 +15197,15 @@ h1 {
 
 .challenge-v3-sessions::-webkit-scrollbar-thumb {
   border-radius: 999px;
+  background: transparent;
+  transition: background 180ms ease;
+}
+
+.challenge-v3-sessions.is-scrolling {
+  scrollbar-color: #e6e4e1 transparent;
+}
+
+.challenge-v3-sessions.is-scrolling::-webkit-scrollbar-thumb {
   background: #e6e4e1;
 }
 

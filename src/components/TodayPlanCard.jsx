@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getDailyScenesForProgramDay } from '../data/scenes.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 
@@ -32,6 +32,8 @@ export default function TodayPlanCard({
   const historyButtonRef = useRef(null);
   const previousHistoryWidthRef = useRef(null);
   const previousHistoryOpenRef = useRef(isHistoryOpen);
+  const sessionsScrollTimerRef = useRef(null);
+  const [isSessionsScrolling, setIsSessionsScrolling] = useState(false);
   const dailyScenes = getDailyScenesForProgramDay(programDay);
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
@@ -45,6 +47,16 @@ export default function TodayPlanCard({
     playSceneEffect(isHistoryOpen ? HISTORY_CLOSE_EFFECT : SESSION_SELECT_EFFECT);
     onViewHistory?.();
   };
+
+  const handleSessionsScroll = () => {
+    setIsSessionsScrolling(true);
+    window.clearTimeout(sessionsScrollTimerRef.current);
+    sessionsScrollTimerRef.current = window.setTimeout(() => {
+      setIsSessionsScrolling(false);
+    }, 700);
+  };
+
+  useEffect(() => () => window.clearTimeout(sessionsScrollTimerRef.current), []);
 
   useLayoutEffect(() => {
     const button = historyButtonRef.current;
@@ -92,7 +104,10 @@ export default function TodayPlanCard({
         </div>
       </div>
 
-      <div className="challenge-v3-sessions">
+      <div
+        className={`challenge-v3-sessions${isSessionsScrolling ? ' is-scrolling' : ''}`}
+        onScroll={handleSessionsScroll}
+      >
         {dailyScenes.map((scene, index) => {
           const result = resultsBySceneId.get(scene.id);
           const isDone = completedScenes.has(scene.id);
