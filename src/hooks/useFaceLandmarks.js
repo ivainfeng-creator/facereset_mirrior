@@ -5,7 +5,9 @@ import {
   createMockLandmarkData,
   extractFaceFeatures,
   getAlignmentState,
+  getGatePositionChecks,
   getVideoDisplayRect,
+  isFallbackEligible,
   normalizeLandmarkData,
 } from '../utils/faceLandmarks.js';
 
@@ -13,10 +15,23 @@ const INITIAL_SIZE = { width: 0, height: 0 };
 const FALLBACK_VIDEO_SIZE = { width: 720, height: 960 };
 const DEFAULT_VIDEO_SIZE = { width: 1280, height: 720 };
 const LANDMARK_COMMIT_INTERVAL_MS = 50;
-// Calibration only needs a brief run of valid landmarks. Scene interactions
-// retain their own precise per-frame tracking requirements.
-const CALIBRATION_CONFIRM_MS = 180;
+// The pre-scene gate is a lightweight camera-readiness check, not a precise
+// calibration: a roughly-positioned face just needs to hold for ~700ms.
+// Scene interactions retain their own precise per-frame tracking requirements.
+export const CALIBRATION_CONFIRM_MS = 700;
+// Brief 1-2 frame drop-outs (jitter, a blink, a quick head turn) shouldn't
+// restart the confirm timer — only a sustained loss should.
+const POSITION_GRACE_MS = 260;
 const TRACKING_LOSS_GRACE_MS = 280;
+// Soft max-wait fallback: once a usable face has been broadly present this
+// long, the gate stops waiting on the strict conditions and passes. This is a
+// wall-clock deadline measured from `firstEligibleAt` (see below) and decided
+// in MirrorScreen's interval — never an accumulator, so it cannot be stalled
+// by detection-event gaps or a frozen video element.
+export const FALLBACK_MAX_WAIT_MS = 2500;
+// Eligibility has to lapse for this long before the deadline restarts, so
+// short detection/video gaps are tolerated rather than resetting the wait.
+export const FALLBACK_ELIGIBILITY_GRACE_MS = 600;
 
 export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   const [landmarkData, setLandmarkData] = useState(null);
@@ -30,13 +45,13 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   const landmarkerRef = useRef(null);
   const lastVideoTimeRef = useRef(-1);
   const lastLandmarkCommitRef = useRef(0);
-  const stabilityRef = useRef({
-    lastCenter: null,
-    lastScale: null,
-    lastTime: null,
-    stabilityMs: 0,
-  });
+  const stabilityRef = useRef({ lastTime: null, ms: 0 });
   const stabilityLossTimerRef = useRef(null);
+  // Raw wall-clock marks for the soft max-wait fallback. Only timestamps are
+  // recorded here; the ~2.5s decision itself is made against `performance.now()`
+  // in MirrorScreen's interval, so it stays correct even if landmark events
+  // stop arriving entirely.
+  const fallbackPresenceRef = useRef({ firstEligibleAt: null, lastEligibleAt: null });
 
   useEffect(() => () => window.clearTimeout(stabilityLossTimerRef.current), []);
 
@@ -187,60 +202,67 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
 
   useEffect(() => {
     const now = performance.now();
-    if (!features) {
-      const previous = stabilityRef.current;
-      const age = previous.lastTime ? now - previous.lastTime : Infinity;
 
-      // Keep a short landmark-loss grace period so a dropped camera frame does
-      // not force someone to restart an otherwise valid alignment scan.
-      if (age <= TRACKING_LOSS_GRACE_MS) {
+    // --- Soft max-wait fallback: record wall-clock marks only. ---
+    // Restart the deadline only after eligibility has been absent for a
+    // sustained window, so short detection/video gaps don't reset the wait
+    // while a long genuine absence still does.
+    if (isFallbackEligible(features, containerSize)) {
+      const fallback = fallbackPresenceRef.current;
+      const lapsed = fallback.lastEligibleAt === null
+        || now - fallback.lastEligibleAt > FALLBACK_ELIGIBILITY_GRACE_MS;
+      if (fallback.firstEligibleAt === null || lapsed) {
+        fallback.firstEligibleAt = now;
+      }
+      fallback.lastEligibleAt = now;
+    }
+
+    // --- Strict fast path: unchanged 700ms roughly-positioned confirm. ---
+    const positionChecks = getGatePositionChecks(features, containerSize);
+    const positionOk = positionChecks.requiredLandmarks
+      && positionChecks.eyesVisible
+      && positionChecks.mouthAndChinVisible
+      && positionChecks.closeEnough
+      && positionChecks.notTooClose
+      && positionChecks.centered;
+
+    const commitStability = (stabilityMs) => {
+      const next = { stable: stabilityMs >= CALIBRATION_CONFIRM_MS, stabilityMs };
+      setLandmarkStability((current) => (
+        current.stable === next.stable && current.stabilityMs === next.stabilityMs
+          ? current
+          : next
+      ));
+    };
+
+    const previous = stabilityRef.current;
+    if (!positionOk) {
+      const age = previous.lastTime ? now - previous.lastTime : Infinity;
+      // No face at all gets the longer tracking-loss grace; a face that's
+      // present but briefly out of position gets the shorter one, so a 1-2
+      // frame jitter doesn't restart the confirm timer.
+      const grace = features ? POSITION_GRACE_MS : TRACKING_LOSS_GRACE_MS;
+
+      if (age <= grace) {
         window.clearTimeout(stabilityLossTimerRef.current);
         stabilityLossTimerRef.current = window.setTimeout(() => {
-          stabilityRef.current = {
-            lastCenter: null,
-            lastScale: null,
-            lastTime: null,
-            stabilityMs: 0,
-          };
-          setLandmarkStability((current) => (
-            !current.stable && current.stabilityMs === 0
-              ? current
-              : { stable: false, stabilityMs: 0 }
-          ));
-        }, TRACKING_LOSS_GRACE_MS - age);
+          stabilityRef.current = { lastTime: null, ms: 0 };
+          commitStability(0);
+        }, grace - age);
         return;
       }
 
-      stabilityRef.current = { lastCenter: null, lastScale: null, lastTime: null, stabilityMs: 0 };
-      setLandmarkStability((current) => (
-        !current.stable && current.stabilityMs === 0
-          ? current
-          : { stable: false, stabilityMs: 0 }
-      ));
+      stabilityRef.current = { lastTime: null, ms: 0 };
+      commitStability(0);
       return;
     }
 
     window.clearTimeout(stabilityLossTimerRef.current);
-    const previous = stabilityRef.current;
     const elapsedMs = previous.lastTime ? Math.min(120, now - previous.lastTime) : 0;
-    const stabilityMs = Math.min(2400, previous.stabilityMs + elapsedMs);
-
-    stabilityRef.current = {
-      lastCenter: features.bounds.center,
-      lastScale: features.faceScale,
-      lastTime: now,
-      stabilityMs,
-    };
-    const nextStability = {
-      stable: stabilityMs >= CALIBRATION_CONFIRM_MS,
-      stabilityMs,
-    };
-    setLandmarkStability((current) => (
-      current.stable === nextStability.stable && current.stabilityMs === nextStability.stabilityMs
-        ? current
-        : nextStability
-    ));
-  }, [features]);
+    const stabilityMs = Math.min(2400, previous.ms + elapsedMs);
+    stabilityRef.current = { lastTime: now, ms: stabilityMs };
+    commitStability(stabilityMs);
+  }, [features, containerSize]);
 
   const alignment = useMemo(
     () => getAlignmentState(features, containerSize, landmarkStability),
@@ -254,6 +276,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
     features,
     alignment,
     landmarkStability,
+    fallbackPresenceRef,
     containerSize,
     displayRect,
     hasLandmarks: Boolean(features),

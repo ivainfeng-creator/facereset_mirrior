@@ -62,6 +62,7 @@ export default function ChallengeScreen({
       selectedScene={selectedScene}
       habit={habit}
       dailyPlan={dailyPlan}
+      result={result}
       daySelector={daySelector}
       onSelect={onSelect}
       onViewHistory={canViewHistory ? onViewHistory : undefined}

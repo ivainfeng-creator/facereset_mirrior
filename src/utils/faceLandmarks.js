@@ -91,7 +91,14 @@ export async function createFaceLandmarker() {
           });
         }
       },
-    );
+    ).catch((error) => {
+      // Drop the cached rejection so a transient failure (offline CDN during
+      // the "Let's go" preload, for example) doesn't poison the singleton for
+      // the whole session — the next Face Detection entry retries cleanly.
+      // A successful load is still cached and reused as before.
+      faceLandmarkerPromise = null;
+      throw error;
+    });
   }
 
   return faceLandmarkerPromise;
@@ -435,6 +442,73 @@ export function getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, face
   };
 }
 
+// Pre-scene readiness gate only: loose "is a face roughly inside the guide
+// circle" bounds, not a precise calibration. Widened so the gate is a quick
+// camera-readiness check rather than requiring near-perfect centering.
+const GATE_CENTER_X_MIN = 0.2;
+const GATE_CENTER_X_MAX = 0.8;
+const GATE_CENTER_Y_MIN = 0.14;
+const GATE_CENTER_Y_MAX = 0.82;
+const GATE_MIN_WIDTH = 0.12;
+const GATE_MIN_HEIGHT = 0.18;
+const GATE_MIN_EYE_DISTANCE = 0.08;
+const GATE_MAX_WIDTH = 0.86;
+const GATE_MAX_HEIGHT = 0.95;
+const GATE_MAX_EYE_DISTANCE = 0.46;
+
+export function getGatePositionChecks(features, containerSize) {
+  if (!features || !containerSize?.width || !containerSize?.height) {
+    return {
+      centered: false,
+      closeEnough: false,
+      notTooClose: false,
+      eyesVisible: false,
+      mouthAndChinVisible: false,
+      requiredLandmarks: false,
+    };
+  }
+
+  const width = features.bounds.width / containerSize.width;
+  const height = features.bounds.height / containerSize.height;
+  const eyeDistance = distance(features.leftEye.center, features.rightEye.center) / containerSize.width;
+  const centerX = features.face.noseCenter.x / containerSize.width;
+  const centerY = features.face.noseCenter.y / containerSize.height;
+
+  return {
+    centered: centerX > GATE_CENTER_X_MIN && centerX < GATE_CENTER_X_MAX
+      && centerY > GATE_CENTER_Y_MIN && centerY < GATE_CENTER_Y_MAX,
+    closeEnough: width > GATE_MIN_WIDTH && height > GATE_MIN_HEIGHT && eyeDistance > GATE_MIN_EYE_DISTANCE,
+    notTooClose: width < GATE_MAX_WIDTH && height < GATE_MAX_HEIGHT && eyeDistance < GATE_MAX_EYE_DISTANCE,
+    eyesVisible: isUsableEye(features.leftEye) && isUsableEye(features.rightEye),
+    mouthAndChinVisible: isPoint(features.mouth.leftCorner) && isPoint(features.mouth.rightCorner) && isPoint(features.jaw.chin),
+    requiredLandmarks: features.hasRequiredLandmarks,
+  };
+}
+
+// Soft max-wait fallback eligibility — a camera-readiness safety net, nothing
+// more. Deliberately depends on NOTHING that flickers: no hasRequiredLandmarks,
+// no eyesVisible / mouthAndChinVisible, no eye distance, no precise centering,
+// no strict alignment quality. A non-null `features` already means MediaPipe
+// returned a face this frame; the rest is just "roughly in frame, not a sliver
+// and not filling the whole picture".
+const FALLBACK_FRAME_MARGIN = 0.05;
+const FALLBACK_MIN_SIZE_FRACTION = 0.05;
+const FALLBACK_MAX_SIZE_FRACTION = 0.98;
+
+export function isFallbackEligible(features, containerSize) {
+  if (!features || !containerSize?.width || !containerSize?.height) return false;
+
+  const centerX = features.bounds.center.x / containerSize.width;
+  const centerY = features.bounds.center.y / containerSize.height;
+  const faceWidth = features.bounds.width / containerSize.width;
+  const faceHeight = features.bounds.height / containerSize.height;
+
+  return centerX > FALLBACK_FRAME_MARGIN && centerX < 1 - FALLBACK_FRAME_MARGIN
+    && centerY > FALLBACK_FRAME_MARGIN && centerY < 1 - FALLBACK_FRAME_MARGIN
+    && faceWidth > FALLBACK_MIN_SIZE_FRACTION && faceWidth < FALLBACK_MAX_SIZE_FRACTION
+    && faceHeight > FALLBACK_MIN_SIZE_FRACTION && faceHeight < FALLBACK_MAX_SIZE_FRACTION;
+}
+
 export function getAlignmentState(features, containerSize, stability = {}) {
   return getFaceAlignmentStatus(features, containerSize, stability);
 }
@@ -449,17 +523,14 @@ export function getFaceAlignmentStatus(features, containerSize, stability = {}) 
     };
   }
 
-  const width = features.bounds.width / containerSize.width;
-  const height = features.bounds.height / containerSize.height;
-  const eyeDistance = distance(features.leftEye.center, features.rightEye.center) / containerSize.width;
-  const centerX = features.face.noseCenter.x / containerSize.width;
-  const centerY = features.face.noseCenter.y / containerSize.height;
-  const centered = centerX > 0.31 && centerX < 0.69 && centerY > 0.24 && centerY < 0.67;
-  const closeEnough = width > 0.16 && height > 0.24 && eyeDistance > 0.105;
-  const notTooClose = width < 0.78 && height < 0.9 && eyeDistance < 0.4;
-  const eyesVisible = isUsableEye(features.leftEye) && isUsableEye(features.rightEye);
-  const mouthAndChinVisible = isPoint(features.mouth.leftCorner) && isPoint(features.mouth.rightCorner) && isPoint(features.jaw.chin);
-  const requiredLandmarks = features.hasRequiredLandmarks;
+  const {
+    centered,
+    closeEnough,
+    notTooClose,
+    eyesVisible,
+    mouthAndChinVisible,
+    requiredLandmarks,
+  } = getGatePositionChecks(features, containerSize);
   const stable = Boolean(stability.stable);
   const stabilityMs = stability.stabilityMs || 0;
 
@@ -474,6 +545,10 @@ export function getFaceAlignmentStatus(features, containerSize, stability = {}) 
   const passed = Object.values(checks).filter(Boolean).length;
   const quality = Math.round(24 + passed * 14 + Math.min(18, stabilityMs / 90));
 
+  // This function describes the strict fast path only. The soft max-wait
+  // fallback is deliberately NOT evaluated here — it is a wall-clock decision
+  // made in MirrorScreen's interval, so it cannot be blocked by any of the
+  // per-frame hard-fail returns below or stalled by detection-event gaps.
   if (!requiredLandmarks || !eyesVisible || !mouthAndChinVisible) {
     return { label: 'Looking for landmarks', quality: Math.max(26, quality), ready: false, checks };
   }

@@ -5012,11 +5012,39 @@ h1 {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * SHARED GAMEPLAY HUD SYSTEM
+ *
+ * Every gameplay scene renders the exact same HUD markup from RoutineScreen:
+ *   <header class="play-hud play-hud-top">   camera preview + timer/info/exit
+ *   <footer class="play-hud play-hud-bottom"> score
+ *
+ * Position and size therefore live here once, expressed through the tokens
+ * below, and scenes must NOT re-position or re-size the HUD themselves — a
+ * scene-scoped `.<scene>-viewport-routine .camera-preview` rule is what used to
+ * make the camera jump between scenes. Breakpoints change the token values;
+ * ownership of the geometry rules never moves.
+ * ------------------------------------------------------------------------- */
+.play-routine-screen {
+  /* Safe spacing shared by the upper-left camera and the upper-right toolbar. */
+  --play-hud-inset-inline: clamp(24px, 2.2vw, 32px);
+  --play-hud-inset-block: clamp(24px, 2.2vw, 32px);
+  --play-hud-inset-block-end: clamp(28px, 2.6vw, 40px);
+  --play-hud-gap: 16px;
+  /* Height of the upper-right timer/info/exit pill, derived from the timer so
+   * the two can never drift apart. */
+  --play-hud-actions-height: calc(clamp(34px, 3.4vw, 41px) + 12px);
+  --play-camera-width: clamp(124px, 9vw, 140px);
+  --play-camera-aspect: 1 / 1.45;
+  /* First x that is guaranteed to be clear of the camera preview. Scene copy
+   * and the mobile coaching message both anchor to this. */
+  --play-camera-clear-left: calc(
+    var(--play-hud-inset-inline) + var(--play-camera-width) + var(--play-hud-gap)
+  );
+}
+
+/* Skin only — geometry is owned by the shared HUD rule further down. */
 .play-routine-mirror .camera-preview {
-  top: 30px;
-  left: 30px;
-  right: auto;
-  width: 102px;
   border: 0;
   border-radius: 8px;
   box-shadow: none;
@@ -5029,8 +5057,12 @@ h1 {
   display: none;
 }
 
+/* The visible camera frame. This box — not the .camera-preview wrapper — is the
+ * user-visible viewport, so it is the stable reference for effects that need to
+ * anchor to what the player actually sees (see data-camera-frame in
+ * RoutineScreen's CameraPreview). */
 .play-routine-mirror .preview-video-shell {
-  aspect-ratio: 1 / 1.45;
+  aspect-ratio: var(--play-camera-aspect);
 }
 
 .play-routine-mirror .preview-video,
@@ -5040,8 +5072,8 @@ h1 {
 
 .play-hud {
   position: absolute;
-  right: 24px;
-  left: 24px;
+  right: var(--play-hud-inset-inline, 24px);
+  left: var(--play-hud-inset-inline, 24px);
   z-index: 12;
   display: flex;
   align-items: center;
@@ -5054,12 +5086,12 @@ h1 {
 }
 
 .play-hud-top {
-  top: 24px;
+  top: var(--play-hud-inset-block, 24px);
   display: block;
 }
 
 .play-hud-bottom {
-  bottom: 24px;
+  bottom: var(--play-hud-inset-block-end, 24px);
   align-items: end;
 }
 
@@ -5075,7 +5107,6 @@ h1 {
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
 }
 
-.play-hud .camera-preview,
 .play-hud .play-sound-toggle,
 .play-hud .play-close-button,
 .play-hud .play-timer,
@@ -5084,13 +5115,19 @@ h1 {
   inset: auto;
 }
 
-.play-hud .camera-preview {
+/* Camera preview — upper-left on every scene and every breakpoint. This is the
+ * single rule that positions and sizes it; it deliberately outranks the generic
+ * `.camera-preview` defaults used by the mirror/practice screens. */
+.play-routine-screen .play-hud-top .camera-preview {
   position: absolute;
   top: 0;
+  right: auto;
+  bottom: auto;
   left: 0;
-  width: 86px;
+  width: var(--play-camera-width);
 }
 
+/* Timer / info / exit — upper-right, sharing the camera's top safe margin. */
 .play-hud-top .play-hud-actions {
   position: absolute;
   top: 0;
@@ -5099,7 +5136,7 @@ h1 {
 
 .play-hud .play-timer {
   display: grid;
-  height: clamp(34px, 3.4vw, 41px);
+  height: calc(var(--play-hud-actions-height, 46px) - 12px);
   place-items: center;
   padding: 0 13px;
   box-sizing: border-box;
@@ -5428,9 +5465,13 @@ h1 {
   text-align: center;
 }
 
+/* Coaching / instruction message.
+ * Desktop keeps the established top-centre hierarchy; mobile re-anchors it
+ * beside the camera in the breakpoint block below. */
 .play-action-prompt {
   position: absolute;
   top: clamp(112px, 16vh, 158px);
+  right: auto;
   left: 50%;
   z-index: 12;
   max-width: min(78vw, 330px);
@@ -5446,6 +5487,36 @@ h1 {
   text-align: center;
   text-transform: uppercase;
   transform: translateX(-50%);
+}
+
+/* ---------------------------------------------------------------------------
+ * SHARED GAMEPLAY HUD — MOBILE BREAKPOINT
+ * Same HUD, same rules, different token values. 559px is the breakpoint the
+ * rest of .play-routine-screen already uses for phone portrait.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 559px) {
+  .play-routine-screen {
+    --play-hud-inset-inline: 16px;
+    --play-hud-inset-block: 16px;
+    --play-hud-inset-block-end: 24px;
+    --play-hud-gap: 10px;
+    --play-camera-width: clamp(84px, 24vw, 96px);
+  }
+
+  /* The instruction must never cover the camera preview, so on phones it is
+   * anchored to the first x that clears the camera and dropped below the
+   * timer/info/exit pill. It keeps the full remaining width and may wrap. */
+  .play-routine-screen .play-action-prompt {
+    top: calc(
+      var(--play-hud-inset-block) + var(--play-hud-actions-height) + var(--play-hud-gap)
+    );
+    right: var(--play-hud-inset-inline);
+    left: var(--play-camera-clear-left);
+    max-width: none;
+    padding: 8px 12px;
+    text-align: left;
+    transform: none;
+  }
 }
 
 .face-tracking-toast {
@@ -8670,18 +8741,12 @@ h1 {
   border-radius: 0;
 }
 
-.play-routine-screen .camera-preview {
-  top: 0;
-  right: auto;
-  left: 0;
-  width: 102px;
-}
-
-/* Keep every scene title aligned with the top edge of the camera preview. */
+/* Keep every scene title aligned with the top edge of the camera preview, and
+ * clear of it however wide the shared HUD makes the camera. */
 .play-routine-screen :is(.temple-copy, .whale-copy, .flower-copy, .bunny-copy, .lemon-copy) {
   top: 30px;
   right: 54px;
-  left: 146px;
+  left: var(--play-camera-clear-left);
 }
 
 .play-routine-screen :is(.temple-copy, .whale-copy, .flower-copy, .bunny-copy, .lemon-copy) h1 {
@@ -8712,16 +8777,10 @@ h1 {
     height: 100svh;
   }
 
-  .play-routine-screen .camera-preview {
-    top: 0;
-    left: 0;
-    width: 102px;
-  }
-
   .play-routine-screen :is(.temple-copy, .whale-copy, .flower-copy, .bunny-copy, .lemon-copy) {
     top: 24px;
     right: 52px;
-    left: 146px;
+    left: var(--play-camera-clear-left);
   }
 
   .play-close-button {
@@ -11063,7 +11122,12 @@ h1 {
   top: 55%;
   left: 50%;
   z-index: 2;
-  width: min(72vw, 38vh);
+  /* One responsive box drives the whole three-sticker composition. The vw term
+     leaves room for the side stickers that hang outside it; the svh term keeps
+     the group tied to the visible viewport (on iOS `vh` is the *large*
+     viewport, so `vh` alone renders the group oversized on a real phone). */
+  width: min(63vw - 16px, 38vh);
+  width: min(63vw - 16px, 38svh);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
 }
@@ -11096,13 +11160,22 @@ h1 {
 }
 
 .welcome-v3-mascot-frame {
+  /* `--mascot-zoom` is the art's size as a fraction of the circle's inner box,
+     and it drives the offset and the circular crop as well, so the character
+     and its frame always scale together. The art clips itself instead of
+     leaning on the parent's rounded `overflow`: iOS Safari drops that clip for
+     descendants once an ancestor runs a transform animation (both wrappers
+     here do), which is what let the character escape the circle on device. */
+  --mascot-zoom: 0.86;
   position: absolute;
-  inset: 7%;
+  top: calc((1 - var(--mascot-zoom)) * 50%);
+  left: calc((1 - var(--mascot-zoom)) * 50%);
   display: block;
-  width: 86%;
-  height: 86%;
+  width: calc(var(--mascot-zoom) * 100%);
+  height: calc(var(--mascot-zoom) * 100%);
   object-fit: contain;
   object-position: center;
+  clip-path: circle(calc(50% / var(--mascot-zoom)));
   filter: drop-shadow(0 8px 10px rgba(34, 106, 157, 0.14));
 }
 
@@ -11121,11 +11194,7 @@ h1 {
 }
 
 .welcome-v3-sticker-main .welcome-v3-mascot-frame {
-  inset: auto;
-  top: -12%;
-  left: -12%;
-  width: 124%;
-  height: 124%;
+  --mascot-zoom: 1.24;
   object-position: center 39%;
 }
 
@@ -11148,7 +11217,11 @@ h1 {
   --rot: 0deg;
   --sticker-rot: -20deg;
   top: 50%;
-  right: -39%;
+  /* Overhang stays at the designed 39% of the composition box wherever there is
+     room, and is otherwise clamped to whatever still leaves a 12px gutter, so
+     this sticker can never be cut off by the right edge. The percentages here
+     resolve against the composition box, `50vw` against the viewport. */
+  right: calc(-1 * min(39%, 50vw - 12px - 50%));
   z-index: 5;
   width: 50%;
   aspect-ratio: 1;
@@ -11251,7 +11324,8 @@ h1 {
 
   .welcome-v3-mascots {
     top: 54%;
-    width: min(66vw, 36vh);
+    width: min(63vw - 16px, 36vh);
+    width: min(63vw - 16px, 36svh);
   }
 
   .welcome-v3-start {
@@ -15492,16 +15566,6 @@ h1 {
   bottom: auto;
 }
 
-.popcorn-viewport-routine .play-score {
-  bottom: clamp(28px, 4vh, 52px);
-  left: clamp(28px, 4vw, 64px);
-}
-
-.popcorn-viewport-routine .camera-preview {
-  top: clamp(26px, 4vh, 48px);
-  left: clamp(28px, 4vw, 64px);
-}
-
 @keyframes popcornIdleFloat {
   0%,
   100% {
@@ -15641,10 +15705,6 @@ h1 {
     min-height: 24%;
   }
 
-  .popcorn-viewport-routine .camera-preview {
-    width: 89.76px;
-  }
-
   .collector-popcorn {
     width: clamp(25px, 9vw, 48px);
   }
@@ -15710,11 +15770,6 @@ h1 {
   bottom: auto;
 }
 
-.cloud-garden-viewport-routine .play-score {
-  bottom: clamp(28px, 4vh, 52px);
-  left: clamp(28px, 4vw, 64px);
-}
-
 .cloud-garden-viewport-routine .temple-copy {
   top: clamp(30px, 4vh, 52px);
   right: auto;
@@ -15754,11 +15809,6 @@ h1 {
     transform: translateX(-57%);
   }
 
-  .whale-viewport-routine .camera-preview {
-    top: clamp(26px, 4vh, 48px);
-    left: clamp(28px, 4vw, 64px);
-  }
-
   .whale-viewport-routine .whale-copy {
     top: clamp(26px, 4vh, 48px);
     right: auto;
@@ -15768,11 +15818,6 @@ h1 {
   .whale-viewport-routine .play-close-button {
     top: clamp(28px, 4vh, 52px);
     right: clamp(28px, 4vw, 64px);
-  }
-
-  .whale-viewport-routine .play-score {
-    bottom: clamp(28px, 4vh, 52px);
-    left: clamp(28px, 4vw, 64px);
   }
 
   .whale-viewport-routine .play-timer.timer-ring {
@@ -17618,22 +17663,9 @@ h1 {
   aspect-ratio: auto;
 }
 
-/* IRMA's camera now lives in the shared HUD. Keep its visible frame aligned
- * with the scene-space coordinates used by the Popcorn camera-rim interaction. */
-.full-viewport-routine .play-hud-top .camera-preview {
-  top: 32px;
-  right: auto;
-  left: 32px;
-  width: 102px;
-}
-
-@media (max-width: 559px) {
-  .full-viewport-routine .play-hud-top .camera-preview {
-    top: 32px;
-    left: 32px;
-    width: 89.76px;
-  }
-}
+/* The camera preview is positioned and sized only by the shared HUD system
+ * (see "SHARED GAMEPLAY HUD SYSTEM" above). Full-viewport scenes deliberately
+ * add nothing here. */
 
 .app-shell:has(.routine-screen .penguin-viewport-routine) {
   background: #087db9;
@@ -17873,4 +17905,215 @@ h1 {
     bottom: 11%;
     width: 540px;
   }
+}
+
+/* Share Card (ported from the share-card-preview-export donor branch).
+   The intrinsic .share-card node is always 1080x1350 and is scaled down purely
+   via the wrapper's transform, so the exported PNG never captures a scaled node.
+   These rules are self-contained under the share-card-* namespace and don't
+   touch any existing .result-* card/carousel styling. */
+.share-card-scaler {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.share-card-scale-inner {
+  transform-origin: top left;
+}
+
+.share-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: #f3e6d2;
+  background-image:
+    radial-gradient(circle, rgba(26, 26, 26, 0.14) 3px, transparent 3px);
+  background-size: 28px 28px;
+  background-position: -6px -6px;
+  font-family: var(--fr-font-body);
+}
+
+.share-card-slogan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 56px 0;
+  text-align: center;
+}
+
+.share-card-slogan strong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #181818;
+  font-family: var(--fr-font-display);
+  font-size: 98px;
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: 0.2px;
+}
+
+.share-card-slogan strong span {
+  display: block;
+}
+
+.share-card-slogan .share-card-subtitle {
+  color: #2a2a2a;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.share-card-photos {
+  position: relative;
+  flex: 1;
+  margin: -8px 0 0;
+}
+
+/* Historical days without persisted snapshots fall back to a photo-less card:
+   center the mascot instead of leaving partially-populated/broken photo slots. */
+.share-card-photos.is-photoless {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-card-photos.is-photoless .share-card-mascot {
+  position: static;
+  width: 46%;
+}
+
+.share-card-photo {
+  position: absolute;
+  margin: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 20px 44px rgba(60, 40, 10, 0.18);
+}
+
+.share-card-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The large hero photo anchors the collage; the two supporting photos overlap
+   its top-left and bottom-right corners, matching the target composition.
+   Sizes/positions were corrected after a post-merge regression left all three
+   circles slightly oversized, with the bottom-right one sitting flush against
+   (left:725px + width:355px === the card's 1080px width) the right edge, so
+   its box-shadow blur visibly bled past the card boundary. */
+.share-card-photo-main {
+  z-index: 2;
+  top: 129px;
+  left: 179px;
+  width: 722px;
+  height: 722px;
+  padding: 18px;
+}
+
+.share-card-photo-top-left {
+  z-index: 3;
+  top: 26px;
+  left: 48px;
+  width: 322px;
+  height: 322px;
+  padding: 14px;
+  transform: rotate(-6deg);
+}
+
+.share-card-photo-bottom-right {
+  z-index: 3;
+  top: 605px;
+  left: 700px;
+  width: 316px;
+  height: 316px;
+  padding: 14px;
+  transform: rotate(6deg);
+}
+
+.share-card-photo figcaption {
+  position: absolute;
+  right: 2%;
+  bottom: 2%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 11px 24px 11px 13px;
+  color: #1a1a1a;
+  background: var(--fr-yellow);
+  box-shadow: 0 8px 18px rgba(60, 40, 10, 0.2);
+  font-size: 29px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.share-card-photo figcaption b {
+  display: grid;
+  width: 37px;
+  height: 37px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--fr-yellow);
+  background: #181818;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.share-card-photo-top-left figcaption {
+  top: auto;
+  bottom: -8%;
+  right: 8%;
+}
+
+.share-card-photo-main figcaption {
+  top: 30%;
+  right: -4%;
+  bottom: auto;
+  left: auto;
+}
+
+.share-card-mascot {
+  position: absolute;
+  z-index: 4;
+  bottom: 90px;
+  left: 90px;
+  width: 29%;
+  height: auto;
+  transform: rotate(-5deg);
+  /* Layered zero-blur drop-shadows fake a sticker-style white stroke around the
+     transparent mascot PNG; the final shadow keeps the original soft depth cue. */
+  filter:
+    drop-shadow(0 4px 0 #fff) drop-shadow(0 -4px 0 #fff)
+    drop-shadow(4px 0 0 #fff) drop-shadow(-4px 0 0 #fff)
+    drop-shadow(3px 3px 0 #fff) drop-shadow(-3px 3px 0 #fff)
+    drop-shadow(3px -3px 0 #fff) drop-shadow(-3px -3px 0 #fff)
+    drop-shadow(0 16px 22px rgba(60, 40, 10, 0.22));
+}
+
+.share-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 60px 44px;
+}
+
+.share-card-branding {
+  margin: 0;
+  border-radius: 999px;
+  padding: 14px 34px;
+  color: #fff;
+  background: #181818;
+  font-family: var(--fr-font-display);
+  font-size: 29px;
+  font-weight: 400;
+  letter-spacing: 0.6px;
 }

@@ -1,4 +1,6 @@
 import { sceneAssetGroups } from './sceneAssets.js';
+import { SCENE_IDS } from './sceneIds.js';
+import { FIRST_SCHEDULED_DAY, getScheduledSceneIds } from './scheduleConfig.js';
 import lemonBackgroundAudio from '../../references/Lemon/Lemon-bg-4.mp3';
 import lemonDropAudio from '../../references/Lemon/Drop-1.mp3';
 import lemonSqueezeAudio from '../../references/Lemon/Squeeze.mp3';
@@ -12,15 +14,7 @@ import penguinFishAudio from '../../references/Penguin/Fish.mp3';
 import penguinPullAudio from '../../references/Penguin/Pull.mp3';
 import penguinYoAudio from '../../references/Penguin/Yo.mp3';
 
-export const SCENE_IDS = Object.freeze({
-  whaleDream: 'whaleDream',
-  whaleDream2: 'whaleDream2',
-  templeGarden: 'templeGarden',
-  flowerCollector: 'flowerCollector',
-  bubbleGumBunny: 'bubbleGumBunny',
-  lemonSqueeze: 'lemonSqueeze',
-  penguinFishing: 'penguinFishing',
-});
+export { SCENE_IDS };
 
 const FULL_VIEWPORT_LAYOUT = Object.freeze({
   mode: 'full-viewport',
@@ -336,29 +330,6 @@ export const interactionScenes = Object.freeze(sceneDefinitions
 
 export const DEFAULT_SCENE_ID = interactionScenes[0].id;
 
-export const dailyScenes = Object.freeze(interactionScenes
-  .filter((scene) => Number.isFinite(scene.dailyOrder))
-  .sort((left, right) => left.dailyOrder - right.dailyOrder));
-
-export const TODAY_SCENE_IDS = Object.freeze(dailyScenes.map((scene) => scene.id));
-
-const PROGRAM_DAY_SCENE_IDS = Object.freeze({
-  2: Object.freeze([
-    SCENE_IDS.lemonSqueeze,
-    SCENE_IDS.bubbleGumBunny,
-    SCENE_IDS.penguinFishing,
-  ]),
-});
-
-export function getDailyScenes(programDay = 1) {
-  const sceneIds = PROGRAM_DAY_SCENE_IDS[programDay] || TODAY_SCENE_IDS;
-  return sceneIds.map((sceneId) => getSceneById(sceneId));
-}
-
-export function getDailySceneIds(programDay = 1) {
-  return getDailyScenes(programDay).map((scene) => scene.id);
-}
-
 export function getSceneById(sceneId) {
   return interactionScenes.find((scene) => scene.id === sceneId) || interactionScenes[0];
 }
@@ -376,6 +347,23 @@ export function getUpcomingScenes(sceneId, count = 1, scenes = interactionScenes
 export function getNextScene(sceneId, scenes = interactionScenes) {
   return getUpcomingScenes(sceneId, 1, scenes)[0] || null;
 }
+
+// Resolves "today's 3 scenes" for a given Program Day from the centralized
+// schedule in scheduleConfig.js — the schedule's array order is preserved
+// as-is (the actual session order), never re-sorted or shuffled here.
+export function getDailySceneIdsForProgramDay(programDay) {
+  return getScheduledSceneIds(programDay);
+}
+
+export function getDailyScenesForProgramDay(programDay) {
+  return getDailySceneIdsForProgramDay(programDay).map((sceneId) => getSceneById(sceneId));
+}
+
+// Legacy Day-1 defaults, kept for the few call sites that have no Program Day
+// context (e.g. a dev-only result preview). Prefer getDailyScenesForProgramDay
+// / getDailySceneIdsForProgramDay wherever a Program Day is available.
+export const dailyScenes = Object.freeze(getDailyScenesForProgramDay(FIRST_SCHEDULED_DAY));
+export const TODAY_SCENE_IDS = Object.freeze(getDailySceneIdsForProgramDay(FIRST_SCHEDULED_DAY));
 
 export function getUpcomingDailyScenes(sceneId, count = 1) {
   return getUpcomingScenes(sceneId, count, dailyScenes);

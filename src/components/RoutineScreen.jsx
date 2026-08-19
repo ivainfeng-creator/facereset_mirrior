@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { lemonBackgroundStyle } from '../../references/Lemon/lemon-background.js';
 import {
   clearSceneTuningOverrides,
@@ -2395,6 +2395,93 @@ function WhaleDream2Scene({ interaction }) {
   );
 }
 
+// Measures the camera the player actually sees and returns its box in the
+// scene's own coordinate space.
+//
+// The camera's position and size are owned by the shared HUD tokens in
+// styles.css, so mirroring them in JS is what let the popcorn ring drift away
+// from the camera in the first place. `[data-camera-frame]` (the
+// `.preview-video-shell` inside CameraPreview) is measured instead, making the
+// visible frame the single source of truth.
+//
+// Only the gameplay stage owns a camera the scene shares a coordinate space
+// with. RoutineScenePreview renders this same scene inside its own scaled
+// canvas, and the practice camera lives outside that canvas at a different
+// scale — so the lookup is scoped to `.play-routine-mirror` and the preview
+// keeps its existing fallback geometry.
+function useCameraFrameBounds(sceneRef, enabled) {
+  const [bounds, setBounds] = useState(null);
+
+  useLayoutEffect(() => {
+    const sceneElement = sceneRef.current;
+    const cameraElement = enabled
+      ? sceneElement?.closest('.play-routine-mirror')?.querySelector('[data-camera-frame]')
+      : null;
+
+    if (!sceneElement || !cameraElement || typeof window === 'undefined') {
+      setBounds((current) => (current === null ? current : null));
+      return undefined;
+    }
+
+    const measure = () => {
+      if (!sceneElement.isConnected || !cameraElement.isConnected) return;
+
+      const sceneRect = sceneElement.getBoundingClientRect();
+      const cameraRect = cameraElement.getBoundingClientRect();
+      // A collapsed box (display:none, pre-layout) would yield nonsense bounds.
+      if (!sceneRect.width || !sceneRect.height || !cameraRect.width || !cameraRect.height) return;
+
+      // getBoundingClientRect reports viewport pixels after transforms, while
+      // .popcorn-field is inset:0 in the scene root and its pieces are placed
+      // in untransformed CSS pixels. So rebase on the scene origin and divide
+      // out whatever scale an ancestor applies to the scene box.
+      const measuredScale = sceneElement.offsetWidth > 0
+        ? sceneRect.width / sceneElement.offsetWidth
+        : 1;
+      const scale = measuredScale > 0.001 ? measuredScale : 1;
+      const next = {
+        left: (cameraRect.left - sceneRect.left) / scale,
+        top: (cameraRect.top - sceneRect.top) / scale,
+        width: cameraRect.width / scale,
+        height: cameraRect.height / scale,
+      };
+
+      // Sub-pixel jitter must not re-render the whole popcorn field.
+      setBounds((current) => (current
+        && Math.abs(current.left - next.left) < 0.5
+        && Math.abs(current.top - next.top) < 0.5
+        && Math.abs(current.width - next.width) < 0.5
+        && Math.abs(current.height - next.height) < 0.5
+        ? current
+        : next));
+    };
+
+    measure();
+
+    // Edge-triggered only — never per animation frame. The observers catch
+    // camera/stage resizes (breakpoints, orientation, svh changes); the window
+    // listeners catch the camera *moving without resizing*, which happens above
+    // 559px where --play-hud-inset-inline tracks vw while --play-camera-width
+    // stays clamped; visualViewport catches mobile browser chrome.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(sceneElement);
+    observer?.observe(cameraElement);
+    const visualViewport = window.visualViewport;
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    visualViewport?.addEventListener('resize', measure);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+      visualViewport?.removeEventListener('resize', measure);
+    };
+  }, [enabled, sceneRef]);
+
+  return bounds;
+}
+
 function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
   const sniff = clamp(interaction.sniff || 0, 0, 1);
   const collectedCount = interaction.flowerCount || 0;
@@ -2404,6 +2491,8 @@ function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
     height: typeof window === 'undefined' ? 720 : window.innerHeight,
   }));
   const [release, setRelease] = useState({ version: 0, total: 0, retained: 0, lost: 0 });
+  const sceneRef = useRef(null);
+  const measuredCameraFrame = useCameraFrameBounds(sceneRef, !previewForegroundOnly);
   const previousSniffingRef = useRef(isSniffing);
   const releaseTimerRef = useRef(null);
   const flightSequenceRef = useRef(0);
@@ -2470,16 +2559,21 @@ function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
       }),
     [],
   );
-  const cameraLeft = clamp(viewport.width * 0.04, 28, 64);
-  const cameraTop = clamp(viewport.height * 0.04, 26, 48);
   const isNarrowViewport = viewport.width <= 559;
+  // Governs rim padding, ring spacing and cluster piece size only — never the
+  // frame itself, so popcorn keeps its established size and spacing.
   const cameraGroupScale = isNarrowViewport ? POPCORN_MOBILE_CAMERA_SCALE : 1;
-  const cameraFrame = {
-    left: cameraLeft,
-    top: cameraTop,
+  // Used only where there is no gameplay camera to measure: the practice
+  // preview, and the paint before the first measurement lands. Gameplay always
+  // resolves to the real frame, so this approximation never drives the scene
+  // the player interacts with.
+  const fallbackCameraFrame = {
+    left: clamp(viewport.width * 0.04, 28, 64),
+    top: clamp(viewport.height * 0.04, 26, 48),
     width: 102 * cameraGroupScale,
     height: 148 * cameraGroupScale,
   };
+  const cameraFrame = measuredCameraFrame || fallbackCameraFrame;
   const cameraRimPadding = 13 * cameraGroupScale;
   const accumulatedCount = Math.min(POPCORN_CLUSTER_LIMIT, Math.floor(collectedCount * 0.72));
   const availableCount = Math.max(0, accumulatedCount - release.lost);
@@ -2608,6 +2702,7 @@ function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
 
   return (
     <div
+      ref={sceneRef}
       className={`popcorn-collector-scene ${isSniffing ? 'is-sniffing' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--sniff': sniff,
@@ -2971,6 +3066,12 @@ function TrackingVideo({ videoRef, isDemoMode }) {
   return <video ref={videoRef} className="tracking-video" autoPlay playsInline muted />;
 }
 
+// The shared gameplay camera. Its position and size come entirely from the
+// shared HUD system in styles.css, so every scene gets the same camera.
+// `data-camera-frame` marks the visible video box — the wrapper also carries the
+// header/status rows on non-gameplay screens — so scene effects that need to
+// anchor to what the player actually sees can measure that element instead of
+// hard-coding scene-space numbers.
 export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnavailable, previewVideoRef, compact = false }) {
   return (
     <div className={`camera-preview ${compact ? 'camera-preview-compact' : ''}`} aria-label="Front camera preview">
@@ -2978,7 +3079,7 @@ export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnav
         <span className="preview-dot" />
         <span>Front camera</span>
       </div>
-      <div className="preview-video-shell">
+      <div className="preview-video-shell" data-camera-frame="">
         {isCameraUnavailable ? (
           <span className="scene-camera-off" aria-hidden="true">
             <svg viewBox="0 -960 960 960" focusable="false">

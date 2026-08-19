@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { getSceneById } from '../data/scenes.js';
+import { getDailyScenesForProgramDay } from '../data/scenes.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 
 const SESSION_SELECT_EFFECT = Object.freeze({
@@ -31,7 +31,7 @@ export default function TodayPlanCard({
   const historyButtonRef = useRef(null);
   const previousHistoryWidthRef = useRef(null);
   const previousHistoryOpenRef = useRef(isHistoryOpen);
-  const dailyScenes = sceneResults.map((result) => getSceneById(result.sceneId));
+  const dailyScenes = getDailyScenesForProgramDay(programDay);
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
     sceneResults.filter((result) => result.completed).map((result) => result.sceneId),

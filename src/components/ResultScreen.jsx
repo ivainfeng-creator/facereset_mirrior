@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toBlob } from 'html-to-image';
 import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
 import {
   fetchProgramDayLeaderboard,
@@ -8,6 +9,8 @@ import {
 import { playSceneEffect } from '../utils/audioManager.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 import TodayPlanCard from './TodayPlanCard.jsx';
+import ShareCardPreview, { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH } from './ShareCardPreview.jsx';
+import { pickRandom, SHARE_CARD_MASCOTS, SHARE_CARD_SLOGANS } from '../data/shareCardContent.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
@@ -62,6 +65,29 @@ export default function ResultScreen({
   const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
+  const shareCardNodeRef = useRef(null);
+  // Snapshots only ever come from the just-completed session's in-memory capture
+  // (see App.jsx's sessionSnapshotsRef / mergeSessionSnapshots); dailyPlan.snapshots
+  // is empty/undefined for any other historical day, so this naturally yields a
+  // clean no-photo fallback for history and never leaks today's photos onto another day.
+  const shareCardInstanceKey = `${programDay}-${dailyPlan.date || ''}`;
+  const { slogan: shareCardSlogan, mascot: shareCardMascot } = useMemo(
+    () => ({ slogan: pickRandom(SHARE_CARD_SLOGANS), mascot: pickRandom(SHARE_CARD_MASCOTS) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shareCardInstanceKey],
+  );
+  const shareCardPhotos = useMemo(() => {
+    const snapshotByScene = new Map(
+      (dailyPlan.snapshots || []).filter((snapshot) => snapshot?.image).map((snapshot) => [snapshot.sceneId, snapshot]),
+    );
+    return (dailyPlan.sceneResults || [])
+      .map((entry) => {
+        const snapshot = snapshotByScene.get(entry.sceneId);
+        return snapshot ? { sceneId: entry.sceneId, image: snapshot.image } : null;
+      })
+      .filter(Boolean);
+  }, [dailyPlan.sceneResults, dailyPlan.snapshots]);
+  const shareCardFilename = `facerest-day-${programDay}-share-card.png`;
   const qualifiesForLeaderboard = !isLeaderboardLoading && (
     leaderboard.length < 10 || score >= (leaderboard[9]?.score ?? 0)
   );
@@ -97,7 +123,15 @@ export default function ResultScreen({
     setIsCardLayoutAnimationActive(true);
     const timer = window.setTimeout(() => setIsCardLayoutAnimationActive(false), CARD_LAYOUT_ENTRY_DURATION_MS);
     return () => window.clearTimeout(timer);
-  }, [cardLayoutAnimationKey, shouldAnimateCardLayout]);
+    // Intentionally keyed only on cardLayoutAnimationKey (one animation trigger = one
+    // key bump). App.jsx flips shouldAnimateCardLayout back to false ~800ms after
+    // triggering it, close to this effect's own 780ms unlock timer; if that prop were
+    // also a dependency, that later flip would re-run this effect, its cleanup would
+    // cancel the pending unlock timer, and the guard clause above (shouldAnimateCardLayout
+    // now false) would return without ever unlocking — leaving cards stuck unclickable
+    // whenever the two timers raced. Reading the prop only via closure avoids that.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardLayoutAnimationKey]);
 
   useEffect(() => {
     if (!isHistoryOpen) return undefined;
@@ -212,45 +246,54 @@ export default function ResultScreen({
     setLeaderboardRefreshKey((value) => value + 1);
   };
 
-  const downloadVideo = async () => {
+  const renderShareCardBlob = async () => {
+    const node = shareCardNodeRef.current;
+    if (!node) throw new Error('Share card is not ready yet.');
+    const exportOptions = { width: SHARE_CARD_WIDTH, height: SHARE_CARD_HEIGHT, pixelRatio: 1, cacheBust: true };
+    // toBlob embeds @font-face CSS by fetching it over the network; if that stalls
+    // (offline, blocked font host, slow proxy) it would otherwise hang indefinitely,
+    // so the whole render (including the no-embedded-fonts retry) is time-bounded.
+    const render = toBlob(node, exportOptions).catch(() => toBlob(node, { ...exportOptions, skipFonts: true }));
+    return withTimeout(render, 12000);
+  };
+
+  const downloadShareCard = async () => {
     setIsExporting(true);
-    setExportMessage('Creating your animated reset video...');
+    setExportMessage('Creating your Share Card...');
     try {
-      const video = await createResultVideo({ result: dailyPlan, habit });
-      downloadBlob(video.blob, `face-reset-vibe.${video.extension}`);
-      setExportMessage(`Downloaded ${video.extension.toUpperCase()} video.`);
+      const blob = await renderShareCardBlob();
+      downloadBlob(blob, shareCardFilename);
+      setExportMessage('Share Card downloaded.');
     } catch {
-      const image = await createResultImage({ result: dailyPlan, habit });
-      downloadBlob(image.blob, 'face-reset-vibe.png');
-      setExportMessage('Video export was not supported here, so a PNG was downloaded.');
+      setExportMessage('Could not create the Share Card. Please try again.');
     } finally {
       setIsExporting(false);
     }
   };
 
-  const shareVideo = async () => {
+  const shareShareCard = async () => {
     setIsExporting(true);
-    setExportMessage('Preparing video for Photos or Instagram...');
+    setExportMessage('Preparing your Share Card...');
     try {
-      const video = await createResultVideo({ result: dailyPlan, habit });
-      const file = new File([video.blob], `face-reset-vibe.${video.extension}`, { type: video.mimeType });
+      const blob = await renderShareCardBlob();
+      const file = new File([blob], shareCardFilename, { type: 'image/png' });
 
       if (navigator.canShare?.({ files: [file] }) && navigator.share) {
         await navigator.share({
           files: [file],
-          title: 'Face Reset Mirror',
-          text: 'My Face Reset vibe today.',
+          title: 'FaceRest',
+          text: shareCardSlogan.join(' '),
         });
-        setExportMessage('Share sheet opened. On iPhone, choose Save Video or Instagram if available.');
+        setExportMessage('Share sheet opened.');
       } else {
-        downloadBlob(video.blob, `face-reset-vibe.${video.extension}`);
-        setExportMessage('This browser cannot save to Photos directly. Video downloaded for manual upload.');
+        downloadBlob(blob, shareCardFilename);
+        setExportMessage('This browser cannot open the share sheet directly. Share Card downloaded instead.');
       }
     } catch (error) {
       if (error?.name === 'AbortError') {
         setExportMessage('Share cancelled.');
       } else {
-        setExportMessage('Sharing was not available here. Try downloading the video instead.');
+        setExportMessage('Sharing was not available here. Try downloading the Share Card instead.');
       }
     } finally {
       setIsExporting(false);
@@ -282,12 +325,16 @@ export default function ResultScreen({
             >
               <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
                 {qualifiesForLeaderboard ? (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
                 ) : (
                   <ResultShareCard
+                    cardRef={shareCardNodeRef}
+                    slogan={shareCardSlogan}
+                    mascot={shareCardMascot}
+                    photos={shareCardPhotos}
                     isExporting={isExporting}
-                    onDownload={downloadVideo}
-                    onShare={shareVideo}
+                    onDownload={downloadShareCard}
+                    onShare={shareShareCard}
                   />
                 )}
               </div>
@@ -307,12 +354,16 @@ export default function ResultScreen({
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
                 {qualifiesForLeaderboard ? (
                   <ResultShareCard
+                    cardRef={shareCardNodeRef}
+                    slogan={shareCardSlogan}
+                    mascot={shareCardMascot}
+                    photos={shareCardPhotos}
                     isExporting={isExporting}
-                    onDownload={downloadVideo}
-                    onShare={shareVideo}
+                    onDownload={downloadShareCard}
+                    onShare={shareShareCard}
                   />
                 ) : (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
+                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
                 )}
               </div>
             </div>
@@ -565,10 +616,10 @@ function ResultLeaderboard({ rows, programDay, score, isLoading }) {
   );
 }
 
-function ResultShareCard({ isExporting, onDownload, onShare }) {
+function ResultShareCard({ cardRef, slogan, mascot, photos, isExporting, onDownload, onShare }) {
   return (
     <section className="result-summary-card">
-      <img className="result-card-image" src="/assets/Result_Card.png" alt="Face Reset challenge result" />
+      <ShareCardPreview ref={cardRef} slogan={slogan} mascot={mascot} photos={photos} />
       <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
         <button onClick={onDownload} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
         <button onClick={onShare} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
@@ -671,156 +722,6 @@ function getRadarAxisPoint(index, total, radius) {
   };
 }
 
-async function createResultImage({ result, habit }) {
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  const width = 900;
-  const height = 1200;
-  const score = result?.score ?? 88;
-  const snapshots = result?.snapshots || [];
-  const radar = normalizeDownloadRadar(result?.radar);
-  const images = await Promise.all(snapshots.slice(0, 5).map((snapshot) => loadImage(snapshot.image)));
-  const hero = images[Math.floor(images.length / 2)];
-  canvas.width = width;
-  canvas.height = height;
-
-  drawResultFrame(context, {
-    habit,
-    hero,
-    progress: 1,
-    radar,
-    result,
-    score,
-    showPlay: true,
-    width,
-    height,
-  });
-
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve({ blob, extension: 'png', mimeType: 'image/png' }), 'image/png');
-  });
-}
-
-async function createResultVideo({ result, habit }) {
-  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
-    throw new Error('Video export is not supported in this browser.');
-  }
-
-  const width = 900;
-  const height = 1200;
-  const durationMs = 4200;
-  const fps = 30;
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  const snapshots = result?.snapshots || [];
-  const images = await Promise.all(snapshots.slice(0, 5).map((snapshot) => loadImage(snapshot.image)));
-  const usableImages = images.filter(Boolean);
-  const radar = normalizeDownloadRadar(result?.radar);
-  const score = result?.score ?? 88;
-  const mimeType = pickVideoMimeType();
-
-  if (!mimeType) {
-    throw new Error('No supported video mime type.');
-  }
-
-  canvas.width = width;
-  canvas.height = height;
-
-  const stream = canvas.captureStream(fps);
-  const recorder = new MediaRecorder(stream, {
-    mimeType,
-    videoBitsPerSecond: 5_500_000,
-  });
-  const chunks = [];
-  recorder.ondataavailable = (event) => {
-    if (event.data?.size) chunks.push(event.data);
-  };
-
-  const stopped = new Promise((resolve) => {
-    recorder.onstop = resolve;
-  });
-  recorder.start();
-
-  await renderVideoFrames({
-    context,
-    durationMs,
-    fps,
-    frame: (progress) => {
-      const image = usableImages.length
-        ? usableImages[Math.floor(progress * durationMs / 480) % usableImages.length]
-        : null;
-      drawResultFrame(context, {
-        habit,
-        hero: image,
-        progress,
-        radar,
-        result,
-        score,
-        showPlay: false,
-        width,
-        height,
-      });
-    },
-  });
-
-  recorder.stop();
-  stream.getTracks().forEach((track) => track.stop());
-  await stopped;
-
-  return {
-    blob: new Blob(chunks, { type: mimeType }),
-    extension: mimeType.includes('mp4') ? 'mp4' : 'webm',
-    mimeType,
-  };
-}
-
-function drawResultFrame(context, { habit, hero, progress, radar, result, score, showPlay = false, width, height }) {
-  context.clearRect(0, 0, width, height);
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, width, height);
-
-  context.fillStyle = '#0f1111';
-  context.textAlign = 'center';
-  context.font = '900 58px Inter, sans-serif';
-  context.fillText('Full reset complete', width / 2, 108);
-  context.font = '600 28px Inter, sans-serif';
-  context.fillText('Three sessions, one softer face.', width / 2, 154);
-
-  drawRadar(context, radar, width / 2, 560, 330, progress);
-
-  if (hero) {
-    const pulse = 1 + Math.sin(progress * Math.PI * 10) * 0.018;
-    const size = 284 * pulse;
-    drawPortraitCutout(context, hero, width / 2 - size / 2, 560 - size / 2, size, size);
-  } else {
-    context.fillStyle = '#eef6f3';
-    roundRect(context, width / 2 - 142, 418, 284, 284, 72);
-    context.fill();
-  }
-
-  if (showPlay) {
-    drawPlayButton(context, width / 2, 560, 84);
-  }
-
-  context.fillStyle = '#0f1111';
-  context.textAlign = 'left';
-  context.font = '900 42px Inter, sans-serif';
-  context.fillText(`Score ${score}`, 76, 1040);
-  context.font = '800 26px Inter, sans-serif';
-  context.fillText(`Top ${getTopPercent(score)}%`, 76, 1080);
-
-  context.fillStyle = '#515b59';
-  context.font = '500 24px Inter, sans-serif';
-  wrapText(
-    context,
-    result?.comment || 'Today’s three Face Reset sessions are complete.',
-    76,
-    1124,
-    748,
-    34,
-  );
-}
-
 function getTopPercent(score) {
   const normalizedScore = getScorePercent(score);
   return Math.max(3, Math.min(18, Math.round(24 - normalizedScore * 0.2)));
@@ -830,116 +731,6 @@ function getScorePercent(score) {
   const numeric = Number(score);
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.min(100, (numeric / MAX_RESULT_SCORE) * 100));
-}
-
-function roundRect(context, x, y, width, height, radius) {
-  context.beginPath();
-  context.moveTo(x + radius, y);
-  context.arcTo(x + width, y, x + width, y + height, radius);
-  context.arcTo(x + width, y + height, x, y + height, radius);
-  context.arcTo(x, y + height, x, y, radius);
-  context.arcTo(x, y, x + width, y, radius);
-  context.closePath();
-}
-
-function drawPortraitCutout(context, image, x, y, width, height) {
-  context.save();
-  context.beginPath();
-  context.moveTo(x + width * 0.5, y + height * 0.02);
-  context.bezierCurveTo(x + width * 0.94, y + height * 0.02, x + width, y + height * 0.34, x + width * 0.86, y + height * 0.66);
-  context.bezierCurveTo(x + width * 0.72, y + height, x + width * 0.18, y + height * 0.92, x + width * 0.08, y + height * 0.62);
-  context.bezierCurveTo(x - width * 0.02, y + height * 0.32, x + width * 0.08, y + height * 0.02, x + width * 0.5, y + height * 0.02);
-  context.closePath();
-  context.clip();
-  context.drawImage(image, x, y, width, height);
-  context.restore();
-
-  context.save();
-  context.lineWidth = 10;
-  context.strokeStyle = 'rgba(255,255,255,0.9)';
-  context.beginPath();
-  context.moveTo(x + width * 0.5, y + height * 0.02);
-  context.bezierCurveTo(x + width * 0.94, y + height * 0.02, x + width, y + height * 0.34, x + width * 0.86, y + height * 0.66);
-  context.bezierCurveTo(x + width * 0.72, y + height, x + width * 0.18, y + height * 0.92, x + width * 0.08, y + height * 0.62);
-  context.bezierCurveTo(x - width * 0.02, y + height * 0.32, x + width * 0.08, y + height * 0.02, x + width * 0.5, y + height * 0.02);
-  context.closePath();
-  context.stroke();
-  context.restore();
-}
-
-function drawPlayButton(context, centerX, centerY, radius) {
-  context.save();
-  context.fillStyle = 'rgba(255,255,255,0.76)';
-  context.beginPath();
-  context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = 'rgba(15,17,17,0.54)';
-  context.beginPath();
-  context.moveTo(centerX - radius * 0.18, centerY - radius * 0.34);
-  context.lineTo(centerX - radius * 0.18, centerY + radius * 0.34);
-  context.lineTo(centerX + radius * 0.38, centerY);
-  context.closePath();
-  context.fill();
-  context.restore();
-}
-
-function drawRadar(context, metrics, centerX, centerY, radius, progress = 1) {
-  const points = metrics.map((metric, index) => {
-    const angle = -Math.PI / 2 + (index / metrics.length) * Math.PI * 2;
-    const animatedValue = (metric.value || 0) * Math.min(1, 0.38 + progress * 1.2);
-    return {
-      ...metric,
-      angle,
-      x: centerX + Math.cos(angle) * radius * (animatedValue / 100),
-      y: centerY + Math.sin(angle) * radius * (animatedValue / 100),
-      axisX: centerX + Math.cos(angle) * radius,
-      axisY: centerY + Math.sin(angle) * radius,
-      labelX: centerX + Math.cos(angle) * (radius + 44),
-      labelY: centerY + Math.sin(angle) * (radius + 44),
-    };
-  });
-
-  context.save();
-  context.strokeStyle = 'rgba(20,24,24,0.24)';
-  context.lineWidth = 2.2;
-  [0.34, 0.67, 1].forEach((level) => {
-    context.beginPath();
-    context.arc(centerX, centerY, radius * level, 0, Math.PI * 2);
-    if (level < 1) context.setLineDash([4, 8]);
-    else context.setLineDash([]);
-    context.stroke();
-  });
-  context.setLineDash([]);
-
-  points.forEach((point) => {
-    context.beginPath();
-    context.moveTo(centerX, centerY);
-    context.lineTo(point.axisX, point.axisY);
-    context.stroke();
-  });
-
-  context.beginPath();
-  points.forEach((point, index) => {
-    if (index === 0) context.moveTo(point.x, point.y);
-    else context.lineTo(point.x, point.y);
-  });
-  context.closePath();
-  context.fillStyle = 'rgba(118,183,198,0.16)';
-  context.strokeStyle = 'rgba(216,123,156,0.7)';
-  context.lineWidth = 7;
-  context.fill();
-  context.stroke();
-
-  context.fillStyle = '#4e5554';
-  context.font = '760 23px Inter, sans-serif';
-  context.textAlign = 'center';
-  points.forEach((point) => {
-    context.beginPath();
-    context.arc(point.x, point.y, 7, 0, Math.PI * 2);
-    context.fill();
-    context.fillText(point.label, point.labelX, point.labelY);
-  });
-  context.restore();
 }
 
 function normalizeDownloadRadar(radar) {
@@ -964,46 +755,6 @@ function normalizeDownloadRadar(radar) {
   }));
 }
 
-function loadImage(src) {
-  return new Promise((resolve) => {
-    if (!src) {
-      resolve(null);
-      return;
-    }
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => resolve(null);
-    image.src = src;
-  });
-}
-
-function renderVideoFrames({ context, durationMs, fps, frame }) {
-  const frameCount = Math.ceil((durationMs / 1000) * fps);
-  return new Promise((resolve) => {
-    let index = 0;
-    const render = () => {
-      const progress = index / Math.max(1, frameCount - 1);
-      frame(progress, context);
-      index += 1;
-      if (index <= frameCount) {
-        window.setTimeout(render, 1000 / fps);
-      } else {
-        resolve();
-      }
-    };
-    render();
-  });
-}
-
-function pickVideoMimeType() {
-  return [
-    'video/mp4;codecs=h264',
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
-}
-
 function downloadBlob(blob, filename) {
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
@@ -1013,21 +764,12 @@ function downloadBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 800);
 }
 
-function wrapText(context, text, x, y, maxWidth, lineHeight) {
-  const characters = Array.from(text);
-  let line = '';
-  let currentY = y;
-
-  characters.forEach((character) => {
-    const testLine = line + character;
-    if (context.measureText(testLine).width > maxWidth && line) {
-      context.fillText(line, x, currentY);
-      line = character;
-      currentY += lineHeight;
-    } else {
-      line = testLine;
-    }
+function withTimeout(promise, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('Export timed out.')), timeoutMs);
+    promise.then(
+      (value) => { window.clearTimeout(timer); resolve(value); },
+      (error) => { window.clearTimeout(timer); reject(error); },
+    );
   });
-
-  context.fillText(line, x, currentY);
 }
