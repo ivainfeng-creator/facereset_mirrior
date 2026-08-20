@@ -33,7 +33,7 @@ export const FALLBACK_MAX_WAIT_MS = 2500;
 // short detection/video gaps are tolerated rather than resetting the wait.
 export const FALLBACK_ELIGIBILITY_GRACE_MS = 600;
 
-export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
+export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode, paused = false }) {
   const [landmarkData, setLandmarkData] = useState(null);
   const [detectorMode, setDetectorMode] = useState(
     isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock,
@@ -97,6 +97,8 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
   }, [isDemoMode, videoRef, stream]);
 
   useEffect(() => {
+    if (paused) return undefined;
+
     let isCancelled = false;
     let animationFrame = 0;
     lastLandmarkCommitRef.current = 0;
@@ -182,7 +184,7 @@ export function useFaceLandmarks({ videoRef, stageRef, stream, isDemoMode }) {
       isCancelled = true;
       cancelAnimationFrame(animationFrame);
     };
-  }, [isDemoMode, stream, videoRef]);
+  }, [isDemoMode, paused, stream, videoRef]);
 
   const effectiveVideoSize = useMemo(() => {
     if (isDemoMode || !stream) {

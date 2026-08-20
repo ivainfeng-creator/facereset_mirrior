@@ -76,6 +76,7 @@ import { preloadSceneAssets, preloadUpcomingScenes } from '../utils/scenePreload
 import {
   getSceneBackgroundDiagnostics,
   pauseSceneBackground,
+  pauseSceneEffect,
   playSceneEffect,
   resetSceneBackground,
   resumeSceneBackground,
@@ -361,6 +362,7 @@ export default function RoutineScreen({
   const [tuningRevision, setTuningRevision] = useState(0);
   const [isQuitOpen, setIsQuitOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const isScenePaused = isGuideOpen || isQuitOpen;
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
@@ -465,11 +467,18 @@ export default function RoutineScreen({
     resumeSceneBackground(backgroundConfig);
   }, [activeSceneId, isGuideOpen, isQuitOpen, scene.audio]);
 
+  useEffect(() => {
+    if (!isScenePaused) return;
+
+    Object.values(scene.audio?.effects || {}).forEach((effect) => pauseSceneEffect(effect));
+  }, [isScenePaused, scene.audio]);
+
   const { containerSize, detectorMode, displayRect, features, hasLandmarks } = useFaceLandmarks({
     videoRef,
     stageRef,
     stream,
     isDemoMode,
+    paused: isScenePaused,
   });
 
   useEffect(() => {
@@ -484,9 +493,10 @@ export default function RoutineScreen({
   }, [activeTotalSeconds, isGuideOpen, isQuitOpen]);
 
   useEffect(() => {
+    if (isScenePaused) return undefined;
     const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [isScenePaused]);
 
   const stageIndex = Math.min(routineStages.length - 1, Math.floor(elapsed / activeStageSeconds));
   const stage = routineStages[stageIndex];
@@ -519,6 +529,7 @@ export default function RoutineScreen({
     stream,
     isDemoMode,
     displayRect,
+    paused: isScenePaused,
     trajectories: {
       temple: templeTrajectories,
       lemon: lemonTrajectories,
@@ -848,8 +859,8 @@ export default function RoutineScreen({
       data-scene-layout={scene.layout?.mode || 'portrait'}
     >
       <div className="routine-layout play-routine-layout">
-        <div className="mirror-stage routine-mirror play-routine-mirror" ref={stageRef}>
-          <SceneRenderer interaction={interaction} targets={templeTargets} />
+        <div className={`mirror-stage routine-mirror play-routine-mirror ${isScenePaused ? 'is-scene-paused' : ''}`} ref={stageRef}>
+          <SceneRenderer interaction={interaction} targets={templeTargets} paused={isScenePaused} />
           <TrackingVideo videoRef={videoRef} isDemoMode={isDemoMode} />
 
           <header className="play-hud play-hud-top">
@@ -2868,7 +2879,7 @@ function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
   );
 }
 
-function BubbleGumBunnyScene({ interaction }) {
+function BubbleGumBunnyScene({ interaction, paused = false }) {
   const puff = clamp(interaction.puff || 0, 0, 1);
   const bubbleSize = clamp(interaction.bubbleSize || 0.07, 0.05, 1);
   const bubblePops = interaction.bubblePops || 0;
@@ -2925,14 +2936,14 @@ function BubbleGumBunnyScene({ interaction }) {
   }, [bubblePops]);
 
   useEffect(() => {
-    if (!interaction.isPuffing || isBursting) {
-      setIsPuffFrame(false);
+    if (paused || !interaction.isPuffing || isBursting) {
+      if (!paused) setIsPuffFrame(false);
       return undefined;
     }
 
     const timer = window.setInterval(() => setIsPuffFrame((current) => !current), 420);
     return () => window.clearInterval(timer);
-  }, [interaction.isPuffing, isBursting]);
+  }, [interaction.isPuffing, isBursting, paused]);
 
   return (
     <div

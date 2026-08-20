@@ -8,7 +8,7 @@ import {
   normalizeAllHandLandmarks,
 } from '../utils/handTracking.js';
 
-export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, trajectories }) {
+export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, trajectories, paused = false }) {
   const [fingertip, setFingertip] = useState(null);
   const [fingertips, setFingertips] = useState({ left: null, right: null, all: [] });
   const [handMode, setHandMode] = useState(isDemoMode ? LANDMARK_MODES.demo : LANDMARK_MODES.mock);
@@ -21,6 +21,8 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
   }, [trajectories]);
 
   useEffect(() => {
+    if (paused) return undefined;
+
     let isCancelled = false;
     let animationFrame = 0;
     let landmarker = null;
@@ -110,7 +112,7 @@ export function useHandTracking({ videoRef, stream, isDemoMode, displayRect, tra
       isCancelled = true;
       cancelAnimationFrame(animationFrame);
     };
-  }, [displayRect, isDemoMode, stream, videoRef]);
+  }, [displayRect, isDemoMode, paused, stream, videoRef]);
 
   return {
     fingertip,
