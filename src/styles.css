@@ -13074,6 +13074,7 @@ h1 {
   justify-content: center;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: clamp(24px, 6vh, 72px) clamp(14px, 4vw, 48px);
   background: rgba(10, 13, 18, 0.88);
   box-sizing: border-box;
@@ -13258,7 +13259,7 @@ h1 {
 }
 
 .result-leaderboard-summary .result-score-display {
-  padding-top: 8px;
+  padding-top: 16px;
 }
 
 .result-summary-top {
@@ -13940,7 +13941,7 @@ h1 {
 .result-leaderboard-card {
   display: grid;
   grid-template-rows: auto auto;
-  padding: 14px 12px 12px;
+  padding: 18px 24px;
 }
 
 .result-leaderboard-card header {
@@ -13948,15 +13949,21 @@ h1 {
   border-bottom: 1px dashed #e2e1de;
 }
 
+/* The rank list scrolls without a visible scrollbar; the card's own height rule
+   below decides how many rows are on screen. */
 .result-leaderboard-card ol {
   display: block;
-  max-height: 126px;
+  max-height: 600px;
   margin: 6px 0 0;
   padding: 0;
   overflow-y: auto;
-  scrollbar-color: #cac7c1 transparent;
-  scrollbar-width: thin;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   list-style: none;
+}
+
+.result-leaderboard-card ol::-webkit-scrollbar {
+  display: none;
 }
 
 .result-leaderboard-card li {
@@ -14027,6 +14034,23 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Keep leaderboard rows at their designed size when the FAB card stack is viewed
+   in a short viewport. */
+.result-history-modal .result-leaderboard-card {
+  height: min(734px, calc(100svh - (2 * clamp(48px, 12vh, 144px))));
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.result-history-modal .result-leaderboard-card ol {
+  min-height: 0;
+}
+
+.result-history-modal .result-leaderboard-card li {
+  height: 42px;
+  min-height: 42px;
 }
 
 .result-dashboard-message {
@@ -16390,6 +16414,19 @@ h1 {
   text-align: center;
 }
 
+/* Rankings can exceed a handset viewport; keep every row and action reachable. */
+.leaderboard-screen {
+  height: 100svh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.leaderboard-card {
+  min-height: 100svh;
+  overflow: visible;
+}
+
 .result-dashboard-actions {
   width: min(100%, 1120px);
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -18270,4 +18307,75 @@ h1 {
   font-size: 29px;
   font-weight: 400;
   letter-spacing: 0.6px;
+}
+
+/* FAB result leaderboard ranking states. */
+.result-leaderboard-card li > span {
+  color: #b8b6b3;
+}
+
+.result-leaderboard-card li > i {
+  border: 0;
+  color: #8a8a8a;
+  background: #efeeec;
+}
+
+.result-leaderboard-card li.rank-1 > span,
+.result-leaderboard-card li.rank-2 > span,
+.result-leaderboard-card li.rank-3 > span,
+.result-leaderboard-card li.is-user > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.result-leaderboard-card li.rank-1 > span { background: #d9a417; }
+.result-leaderboard-card li.rank-2 > span { background: #a8adb5; }
+.result-leaderboard-card li.rank-3 > span { background: #c08457; }
+
+.result-leaderboard-card li.rank-1 > i,
+.result-leaderboard-card li.rank-2 > i,
+.result-leaderboard-card li.rank-3 > i {
+  border: 1.8px solid;
+  background: #fff;
+}
+
+.result-leaderboard-card li.rank-1 > i { border-color: #d9a417; color: #151514; }
+.result-leaderboard-card li.rank-2 > i { border-color: #a8adb5; color: #151514; }
+.result-leaderboard-card li.rank-3 > i { border-color: #c08457; color: #151514; }
+
+/* The player's own row stays pinned in view while the rest of the list scrolls. */
+.result-leaderboard-card li.is-user {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  border: 0;
+  color: #075989;
+  background: #e4f0f8;
+}
+
+.result-leaderboard-card li.is-user > span,
+.result-leaderboard-card li.is-user > i {
+  border-color: #067abb;
+  color: #fff;
+  background: #067abb;
+}
+
+.result-leaderboard-card li.is-user > i {
+  border: 0;
+}
+
+.result-leaderboard-card li.is-user.rank-1 > span,
+.result-leaderboard-card li.is-user.rank-2 > span,
+.result-leaderboard-card li.is-user.rank-3 > span,
+.result-leaderboard-card li.is-user.rank-1 > i,
+.result-leaderboard-card li.is-user.rank-2 > i,
+.result-leaderboard-card li.is-user.rank-3 > i {
+  border-color: #067abb;
+  color: #fff;
+  background: #067abb;
 }
