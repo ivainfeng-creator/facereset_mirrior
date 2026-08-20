@@ -219,8 +219,12 @@ export default function TodayPlanCard({
               aria-expanded={isHistoryOpen}
               onClick={toggleHistory}
             >
-              {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
-              <span>{isHistoryOpen ? 'Close' : 'View history'}</span>
+              <span className="history-fab-icon" key={`icon-${isHistoryOpen ? 'close' : 'history'}`}>
+                {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
+              </span>
+              <span className="history-fab-label" key={`label-${isHistoryOpen ? 'close' : 'history'}`}>
+                {isHistoryOpen ? 'Close' : 'View history'}
+              </span>
             </button>
           )}
         </>

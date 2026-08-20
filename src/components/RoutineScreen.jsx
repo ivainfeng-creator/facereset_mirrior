@@ -909,20 +909,6 @@ export default function RoutineScreen({
             {interaction.feedback || feedback.label}
           </div>
 
-          {!skipFaceScan && (
-            <div
-              className={`face-tracking-toast ${!isCameraUnavailable && !isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-              aria-hidden={isCameraUnavailable || isDemoMode || hasLandmarks}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7.6v5.2" />
-                <path d="M12 16.6h.01" />
-              </svg>
-              Face not detected. Move back into view.
-            </div>
-          )}
-
           <footer className="play-hud play-hud-bottom">
             <div className="play-score">
               <strong>{displayScore}</strong>

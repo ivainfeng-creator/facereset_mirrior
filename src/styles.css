@@ -11405,7 +11405,7 @@ h1 {
   min-height: 100svh;
   place-items: center;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
   background: #f7f7f7;
 }
 
@@ -12942,6 +12942,23 @@ h1 {
   flex: 0 0 auto;
 }
 
+.history-fab-icon,
+.history-fab-label {
+  animation: history-fab-content-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes history-fab-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .history-fab.is-completion-entering {
   animation: history-fab-float-in 460ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both;
 }
@@ -13124,11 +13141,11 @@ h1 {
 }
 
 .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(2) {
-  animation: result-card-settle-left 620ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
+  animation: result-card-settle-left 620ms cubic-bezier(0.22, 1, 0.36, 1) 500ms both;
 }
 
 .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(3) {
-  animation: result-card-settle-right 620ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
+  animation: result-card-settle-right 620ms cubic-bezier(0.22, 1, 0.36, 1) 1000ms both;
 }
 
 .result-challenge-grid.is-card-layout-entering > .result-card-stack {
@@ -13155,7 +13172,7 @@ h1 {
 
 @keyframes result-card-settle-left {
   from {
-    opacity: 0.9;
+    opacity: 0;
     transform: translateX(calc(0px - min(31vw, 258px))) translateY(16px) rotate(-5deg) scale(0.9);
   }
 
@@ -13172,7 +13189,7 @@ h1 {
 
 @keyframes result-card-settle-right {
   from {
-    opacity: 0.78;
+    opacity: 0;
     transform: translateX(min(31vw, 258px)) translateY(32px) rotate(3deg) scale(0.86);
   }
 
@@ -13915,9 +13932,13 @@ h1 {
   margin: 6px 0 0;
   padding: 0;
   overflow-y: auto;
-  scrollbar-color: #cac7c1 transparent;
-  scrollbar-width: thin;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   list-style: none;
+}
+
+.result-leaderboard-card ol::-webkit-scrollbar {
+  display: none;
 }
 
 .result-leaderboard-card li {
@@ -14028,33 +14049,6 @@ h1 {
     white-space: normal;
     text-align: center;
   }
-
-  .result-card-stack {
-    align-self: center;
-  }
-
-  .result-summary-card,
-  .result-focus-card,
-  .result-leaderboard-card {
-    width: auto;
-    justify-self: stretch;
-  }
-
-  .result-card-stack.is-stack-1 {
-    transform: translateX(calc(0px - min(24vw, 168px))) translateY(11px) rotate(-5deg) scale(0.7);
-  }
-
-  .result-card-stack.is-stack-2 {
-    transform: translateX(min(24vw, 168px)) translateY(22px) rotate(3deg) scale(0.7);
-  }
-
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(2) {
-    animation: result-card-settle-left-mobile 620ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
-  }
-
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(3) {
-    animation: result-card-settle-right-mobile 620ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -14065,39 +14059,10 @@ h1 {
   .history-fab.is-completion-entering {
     animation: none;
   }
-}
 
-@keyframes result-card-settle-left-mobile {
-  from {
-    opacity: 0.9;
-    transform: translateX(calc(0px - min(24vw, 168px))) translateY(11px) rotate(-5deg) scale(0.66);
-  }
-
-  72% {
-    opacity: 0.9;
-    transform: translateX(calc(0px - min(24vw, 168px))) translateY(11px) rotate(-5deg) scale(0.74);
-  }
-
-  to {
-    opacity: 0.9;
-    transform: translateX(calc(0px - min(24vw, 168px))) translateY(11px) rotate(-5deg) scale(0.7);
-  }
-}
-
-@keyframes result-card-settle-right-mobile {
-  from {
-    opacity: 0.78;
-    transform: translateX(min(24vw, 168px)) translateY(22px) rotate(3deg) scale(0.62);
-  }
-
-  72% {
-    opacity: 0.78;
-    transform: translateX(min(24vw, 168px)) translateY(22px) rotate(3deg) scale(0.74);
-  }
-
-  to {
-    opacity: 0.78;
-    transform: translateX(min(24vw, 168px)) translateY(22px) rotate(3deg) scale(0.7);
+  .history-fab-icon,
+  .history-fab-label {
+    animation: none;
   }
 }
 
@@ -15035,6 +15000,7 @@ h1 {
   padding: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
 }
 
 .challenge-v3-shell {

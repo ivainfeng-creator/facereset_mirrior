@@ -98,19 +98,6 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, skip
           <div className="practice-stage-art" aria-hidden="true">
             <RoutineScenePreview selectedScene={scene.id} />
           </div>
-          {!skipFaceScan && (
-            <div
-              className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-              aria-hidden={isDemoMode || hasLandmarks}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7.6v5.2" />
-                <path d="M12 16.6h.01" />
-              </svg>
-              Face not detected. Move back into view.
-            </div>
-          )}
         </div>
       </main>
     </section>

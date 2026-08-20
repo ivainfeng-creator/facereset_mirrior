@@ -23,7 +23,7 @@ const RESULT_CARD_FLIP_EFFECT = Object.freeze({
   source: '/audio/Overall/Flip-1.mp3',
   volume: 0.7,
 });
-const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
+const CARD_LAYOUT_ENTRY_DURATION_MS = 1620;
 
 export default function ResultScreen({
   result,
