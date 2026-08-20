@@ -18,6 +18,10 @@ const LEADERBOARD_SUBMIT_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
   volume: 0.7,
 });
+const RESULT_CARD_FLIP_EFFECT = Object.freeze({
+  source: '/audio/Overall/Flip-1.mp3',
+  volume: 0.7,
+});
 const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
 
 export default function ResultScreen({
@@ -92,6 +96,8 @@ export default function ResultScreen({
   );
   const bringCardToFront = (cardIndex) => {
     if (isCardLayoutAnimationActive) return;
+    if (cardOrder[0] !== cardIndex) playSceneEffect(RESULT_CARD_FLIP_EFFECT);
+
     setCardOrder((currentOrder) => [
       cardIndex,
       ...currentOrder.filter((index) => index !== cardIndex),
