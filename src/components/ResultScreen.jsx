@@ -62,7 +62,6 @@ export default function ResultScreen({
   const score = dailyPlan.score;
   const sceneTitle = dailyPlan.sceneTitle;
   const focusLabel = dailyPlan.area;
-  const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
   const shareCardNodeRef = useRef(null);
@@ -133,16 +132,40 @@ export default function ResultScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardLayoutAnimationKey]);
 
+  // The history overlay scrolls internally; locking the page behind it stops the
+  // background from scrolling away under the card stack on touch devices.
+  useEffect(() => {
+    if (!isHistoryOpen) return undefined;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+    };
+  }, [isHistoryOpen]);
+
   useEffect(() => {
     let isCurrent = true;
     const loadLeaderboard = async () => {
       const rows = await fetchProgramDayLeaderboard(programDay);
       if (!isCurrent) return;
-      setLeaderboard(rows.map((row) => ({
-        rank: Number(row.rank),
-        name: row.display_name || 'Anonymous',
-        score: Math.max(0, Number(row.total_score) || 0),
-      })));
+      // Supabase has no "is me" flag, so the player's own row is matched on the
+      // display name they submitted with. Falls back to no highlight when the
+      // player has not named themselves yet.
+      const ownName = getDisplayName(habit);
+      setLeaderboard(rows.map((row) => {
+        const name = row.display_name || 'Anonymous';
+        return {
+          rank: Number(row.rank),
+          name,
+          score: Math.max(0, Number(row.total_score) || 0),
+          me: Boolean(ownName) && normalizeDisplayName(name) === ownName,
+        };
+      }));
       setIsLeaderboardLoading(false);
     };
 
@@ -151,7 +174,7 @@ export default function ResultScreen({
     return () => {
       isCurrent = false;
     };
-  }, [programDay, habit?.updatedAt, leaderboardRefreshKey]);
+  }, [programDay, habit?.displayName, habit?.updatedAt, leaderboardRefreshKey]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -326,7 +349,14 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(1)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(1) !== 0}>
-                <TodayPlanCard className="result-focus-card" sceneResults={dailyPlan.sceneResults} programDay={programDay} onSessionSelect={onRestart} showCompletion />
+                <TodayPlanCard
+                  className="result-focus-card"
+                  sceneResults={dailyPlan.sceneResults}
+                  programDay={programDay}
+                  onSessionSelect={onRestart}
+                  showCompletion
+                  shouldAnimateCompletionBanner={cardOrder.indexOf(1) === 0}
+                />
               </div>
             </div>
             <div
@@ -334,7 +364,7 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
-                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
               </div>
             </div>
           </div>
@@ -555,36 +585,35 @@ function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
   );
 }
 
-function ResultLeaderboard({ rows, programDay, score, topPercent, isLoading }) {
+function ResultLeaderboard({ rows, programDay, score, isLoading }) {
   return (
     <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
       <div className="result-leaderboard-summary">
-        <p className="result-eyebrow">PROGRAM DAY {programDay} SCORE</p>
+        <p className="result-eyebrow">DAY {programDay} &middot; SCOREBOARD</p>
         <div className="result-score-display">
           <strong>{score}</strong>
           <span>/ 300</span>
         </div>
-        <div className="result-achievement-row">
-          <strong className="result-ranking-pill"><TrophyIcon />TOP {topPercent} %</strong>
-          <span>Better than {Math.max(1, 100 - topPercent)}% of players</span>
-        </div>
         <div className="result-delta-row">
-          <span><i><UpIcon /></i><strong>+{Math.max(1, score - 268)} pts</strong> from yesterday</span>
           <b><PersonalBestIcon />NEW PERSONAL BEST</b>
         </div>
       </div>
-      <header>
-        <span>DAY {programDay} LEADERBOARD</span>
-      </header>
       <ol>
-        {rows.slice(0, 10).map((row) => (
-          <li key={`${row.rank}-${row.name}`}>
-            <span>{row.rank}</span>
-            <i>{row.name.charAt(0).toUpperCase()}</i>
-            <strong>{row.name}</strong>
-            <b>{row.score}</b>
-          </li>
-        ))}
+        {rows.slice(0, 10).map((row) => {
+          const className = [
+            row.rank <= 3 ? `rank-${row.rank}` : '',
+            row.me ? 'is-user' : '',
+          ].filter(Boolean).join(' ');
+
+          return (
+            <li className={className} key={`${row.rank}-${row.name}`}>
+              <span>{row.rank}</span>
+              <i>{row.name.charAt(0).toUpperCase()}</i>
+              <strong>{row.name}</strong>
+              <b>{row.score}</b>
+            </li>
+          );
+        })}
         {!isLoading && !rows.length && (
           <li className="result-leaderboard-empty">Complete all 3 sessions to be the first on Day {programDay}.</li>
         )}
@@ -653,27 +682,10 @@ function CloseIcon() {
   );
 }
 
-function TrophyIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 960 960">
-      <path d="M280 880v-80h160V676q-49-11-87.5-41.5T296 556q-75-9-125.5-65.5T120 360v-40q0-33 23.5-56.5T200 240h80v-80h400v80h80q33 0 56.5 23.5T840 320v40q0 74-50.5 130.5T664 556q-18 48-56.5 78.5T520 676v124h160v80H280Zm0-408V320h-80v40q0 38 22 68.5t58 43.5Zm400 0q36-13 58-43.5t22-68.5v-40h-80v152Z" />
-    </svg>
-  );
-}
-
-function UpIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M12 19V6" />
-      <path d="m6 11.5 6-6 6 6" />
-    </svg>
-  );
-}
-
 function PersonalBestIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 960 960">
-      <path d="m354 713 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143Zm126 167q-83 0-156-31.5T197 763q-54-54-85.5-127T80 480q0-83 31.5-156T197 197q54-54 127-85.5T480 80q83 0 156 31.5T763 197q54 54 85.5 127T880 480q0 83-31.5 156T763 763q-54 54-127 85.5T480 880Z" />
+    <svg aria-hidden="true" height="12px" width="12px" viewBox="0 -960 960 960" fill="currentColor">
+      <path d="M320-240l160-122 160 122-60-198 160-114H544l-64-208-64 208H220l160 114-60 198ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z" />
     </svg>
   );
 }
@@ -698,11 +710,6 @@ function getRadarAxisPoint(index, total, radius) {
     x: 210 + Math.cos(angle) * radius,
     y: 210 + Math.sin(angle) * radius,
   };
-}
-
-function getTopPercent(score) {
-  const normalizedScore = getScorePercent(score);
-  return Math.max(3, Math.min(18, Math.round(24 - normalizedScore * 0.2)));
 }
 
 function getScorePercent(score) {
