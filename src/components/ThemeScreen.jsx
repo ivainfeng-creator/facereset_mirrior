@@ -3,7 +3,7 @@ import TodayPlanCard from './TodayPlanCard.jsx';
 import ResultScreen from './ResultScreen.jsx';
 import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
 
-export default function ThemeScreen({
+export default function ㄕThemeScreen({
   habit,
   dailyPlan,
   result,

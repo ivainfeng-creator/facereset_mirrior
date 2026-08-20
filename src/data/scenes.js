@@ -3,6 +3,7 @@ import { SCENE_IDS } from './sceneIds.js';
 import { FIRST_SCHEDULED_DAY, getScheduledSceneIds } from './scheduleConfig.js';
 import lemonBackgroundAudio from '../../references/Lemon/Lemon-bg-4.mp3';
 import lemonDropAudio from '../../references/Lemon/Drop-1.mp3';
+import lemonIceAudio from '../../references/Lemon/Ice.mp3';
 import lemonSqueezeAudio from '../../references/Lemon/Squeeze.mp3';
 import bunnyBackgroundAudio from '../../references/Bunny/bunny-bg-2.mp3';
 import bunnyBlowAudio from '../../references/Bunny/Below.mp3';
@@ -262,6 +263,10 @@ const sceneDefinitions = [
         lemonDrop: {
           source: lemonDropAudio,
           volume: 0.72,
+        },
+        lemonIce: {
+          source: lemonIceAudio,
+          volume: 0.68,
         },
       },
     },

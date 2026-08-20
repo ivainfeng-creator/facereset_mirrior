@@ -72,7 +72,12 @@ import {
   createSceneInteractionContract,
   updateInteractionSignal,
 } from '../utils/interactionSignal.js';
-import { RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
+import {
+  RAW_SCENE_SCORE_MAX,
+  SCENE_SCORE_MAX,
+  SCORE_CURVE_EXPONENT,
+  toFinalSceneScore,
+} from '../utils/scoring.js';
 import { preloadSceneAssets, preloadUpcomingScenes } from '../utils/scenePreload.js';
 import {
   getSceneBackgroundDiagnostics,
@@ -124,6 +129,7 @@ const PENGUIN_ICE_STAGE_ASSETS = [
   penguinIceStage4Asset,
 ];
 const PENGUIN_CELEBRATION_MS = 2000;
+const LEMONADE_COMPLETION_BUFFER_MS = 1000;
 
 const POPCORN_SOURCE_COUNT = 46;
 const POPCORN_CLUSTER_LIMIT = 220;
@@ -345,6 +351,7 @@ export default function RoutineScreen({
   const snapshotTargetsRef = useRef([0.12, 0.3, 0.48, 0.66, 0.84]);
   const popcornSfxRef = useRef({ eventSequence: 0, lastPlayedAt: 0 });
   const bunnyBalloonSfxRef = useRef({ frame: 0 });
+  const lemonSfxRef = useRef({ lemonadeCompleteCount: 0 });
   const penguinSfxRef = useRef({ catchCount: 0, specialCatchCount: 0, wasFishing: false });
   const gardenRainSfxRef = useRef(false);
   const routineFinishedRef = useRef(false);
@@ -357,6 +364,7 @@ export default function RoutineScreen({
   const [tuningRevision, setTuningRevision] = useState(0);
   const [isQuitOpen, setIsQuitOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [hasRoutineTimerStarted, setHasRoutineTimerStarted] = useState(() => skipFaceScan || isDemoMode);
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
   const activeStageSeconds = activeTotalSeconds / routineStages.length;
@@ -461,7 +469,14 @@ export default function RoutineScreen({
     resumeSceneBackground(backgroundConfig);
   }, [activeSceneId, isGuideOpen, isQuitOpen, scene.audio]);
 
-  const { containerSize, detectorMode, displayRect, features, hasLandmarks } = useFaceLandmarks({
+  const {
+    containerSize,
+    detectorMode,
+    displayRect,
+    features,
+    hasLandmarks,
+    landmarkStability,
+  } = useFaceLandmarks({
     videoRef,
     stageRef,
     stream,
@@ -469,7 +484,13 @@ export default function RoutineScreen({
   });
 
   useEffect(() => {
-    if (isGuideOpen || isQuitOpen) return undefined;
+    if (skipFaceScan || isDemoMode || landmarkStability.stable) {
+      setHasRoutineTimerStarted(true);
+    }
+  }, [isDemoMode, landmarkStability.stable, skipFaceScan]);
+
+  useEffect(() => {
+    if (!hasRoutineTimerStarted || isGuideOpen || isQuitOpen) return undefined;
     const timer = window.setInterval(() => {
       setElapsed((current) => {
         const next = Math.min(activeTotalSeconds, current + 1);
@@ -477,7 +498,7 @@ export default function RoutineScreen({
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [activeTotalSeconds, isGuideOpen, isQuitOpen]);
+  }, [activeTotalSeconds, hasRoutineTimerStarted, isGuideOpen, isQuitOpen]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setInteractionTick((current) => current + 1), 50);
@@ -661,11 +682,31 @@ export default function RoutineScreen({
 
   useEffect(() => {
     if (activeSceneId !== 'lemonSqueeze') return;
-    if (!interaction.squeezeEventCount) return;
+    if (!interaction.lemonLeftAnimationCount) return;
 
     playSceneEffect(scene.audio?.effects?.lemonSqueeze);
+  }, [activeSceneId, interaction.lemonLeftAnimationCount, scene.audio]);
+
+  useEffect(() => {
+    if (activeSceneId !== 'lemonSqueeze') return;
+    if (!interaction.squeezeEventCount) return;
+
     playSceneEffect(scene.audio?.effects?.lemonDrop);
   }, [activeSceneId, interaction.squeezeEventCount, scene.audio]);
+
+  useEffect(() => {
+    const sfxState = lemonSfxRef.current;
+    if (activeSceneId !== 'lemonSqueeze') {
+      sfxState.lemonadeCompleteCount = 0;
+      return;
+    }
+
+    const lemonadeCompleteCount = interaction.lemonadeCompleteCount || 0;
+    if (lemonadeCompleteCount > sfxState.lemonadeCompleteCount) {
+      playSceneEffect(scene.audio?.effects?.lemonIce);
+    }
+    sfxState.lemonadeCompleteCount = lemonadeCompleteCount;
+  }, [activeSceneId, interaction.lemonadeCompleteCount, scene.audio]);
 
   useEffect(() => {
     const sfxState = bunnyBalloonSfxRef.current;
@@ -1038,6 +1079,9 @@ function createBaseInteraction(sceneId) {
     sip: 0,
     isSqueezing: false,
     squeezeEventCount: 0,
+    lemonLeftAnimationCount: 0,
+    lemonadeCompleteCount: 0,
+    justCompletedLemonade: false,
     sniff: 0,
     flowerCount: 0,
     isSniffing: false,
@@ -1754,6 +1798,7 @@ function TempleGardenScene({ interaction, previewForegroundOnly = false }) {
 function LemonSqueezeScene({ interaction }) {
   const squeeze = clamp(interaction.squeeze || 0, 0, 1);
   const sodaLevel = clamp(interaction.sodaLevel || 0.16, 0.1, 0.94);
+  const lemonadeSegment = Math.min(3, interaction.squeezeEventCount || 0);
   const fizz = useMemo(
     () =>
       Array.from({ length: 18 }, (_, index) => ({
@@ -1790,17 +1835,26 @@ function LemonSqueezeScene({ interaction }) {
       </div>
       <div className="lemon-horizon" />
       <div className="lemon-shore" />
-      <LemonLeftSprite isAnimating={interaction.isSqueezing || interaction.hasSqueezeMotion} />
+      <LemonLeftSprite animationKey={interaction.lemonLeftAnimationCount} />
       <MilkySprite />
-      <LemonSodaGlass fill={sodaLevel} />
+      <LemonSodaGlass
+        segment={lemonadeSegment}
+        animationKey={interaction.squeezeEventCount}
+      />
+      {interaction.justCompletedLemonade && (
+        <div className="lemonade-complete-flash" key={interaction.lemonadeCompleteCount}>
+          <span className="lemonade-complete-score">+20</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function LemonLeftSprite({ isAnimating }) {
+function LemonLeftSprite({ animationKey }) {
   return (
     <div
-      className={`lemon-left-sprite ${isAnimating ? 'is-animating' : ''}`}
+      key={animationKey}
+      className={`lemon-left-sprite ${animationKey ? 'is-animating' : ''}`}
       style={{ backgroundImage: `url(${lemonLeftSpriteAsset})` }}
     />
   );
@@ -1810,15 +1864,16 @@ function MilkySprite() {
   return <div className="milky-sprite" style={{ backgroundImage: `url(${milkySpriteAsset})` }} />;
 }
 
-const LemonSodaGlass = forwardRef(function LemonSodaGlass({ fill }, ref) {
-  const frame = Math.round(clamp(fill, 0, 1) * 15);
+const LemonSodaGlass = forwardRef(function LemonSodaGlass({ segment, animationKey }, ref) {
+  const frame = segment * 5;
   const column = frame % 4;
   const row = Math.floor(frame / 4);
 
   return (
     <div
       ref={ref}
-      className="lemon-soda-glass"
+      key={animationKey}
+      className={`lemon-soda-glass ${segment ? `is-playing segment-${segment}` : ''}`}
       style={{
         '--lemonade-x': `${(column / 3) * 100}%`,
         '--lemonade-y': `${(row / 3) * 100}%`,
@@ -3288,10 +3343,32 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
   const balanced = 1 - Math.min(1, Math.abs(left.value - right.value));
   const squeeze = clamp((left.value + right.value) / 2, 0, 1);
   const elapsedSeconds = Math.max(left.deltaSeconds, right.deltaSeconds);
-
-  if (left.justActivated || right.justActivated) {
-    progressState.squeezeEventCount += 1;
+  if (progressState.lemonadeResetAt && timestamp >= progressState.lemonadeResetAt) {
+    progressState.squeezeEventCount = 0;
+    progressState.lemonadeResetAt = 0;
   }
+  let isLemonadeComplete = timestamp < (progressState.lemonadeResetAt || 0);
+  let justCompletedLemonade = false;
+
+  if (!isLemonadeComplete && confirmedSqueeze && !progressState.wasConfirmedSqueeze) {
+    progressState.lemonLeftAnimationCount += 1;
+    progressState.squeezeEventCount += 1;
+    progressState.combo = Math.min(12, progressState.combo + 1);
+
+    if (progressState.squeezeEventCount % 3 === 0) {
+      progressState.lemonadeCompleteCount += 1;
+      const currentFinalScore = toFinalSceneScore(progressState.score);
+      const rewardedFinalScore = Math.min(SCENE_SCORE_MAX, currentFinalScore + 20);
+      progressState.score = Math.max(
+        progressState.score,
+        RAW_SCENE_SCORE_MAX * Math.pow(rewardedFinalScore / SCENE_SCORE_MAX, 1 / SCORE_CURVE_EXPONENT),
+      );
+      progressState.lemonadeResetAt = timestamp + LEMONADE_COMPLETION_BUFFER_MS;
+      isLemonadeComplete = true;
+      justCompletedLemonade = true;
+    }
+  }
+  progressState.wasConfirmedSqueeze = confirmedSqueeze;
 
   if (confirmedSqueeze) {
     progressState.sodaLevel = clamp(
@@ -3322,8 +3399,7 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
 
   if (left.justReleased || right.justReleased) {
     const completedBoth = left.holdSeconds >= scoring.completedHoldSeconds && right.holdSeconds >= scoring.completedHoldSeconds;
-    if (completedBoth) {
-      progressState.combo = Math.min(12, progressState.combo + 1);
+    if (completedBoth && !isLemonadeComplete) {
       progressState.score += scoring.releaseScore + (balanced > scoring.syncBonusThreshold ? scoring.syncBonusScore : 0);
     }
   }
@@ -3360,6 +3436,9 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
     hasSqueezeMotion: onePressing,
     isSqueezing: confirmedSqueeze,
     squeezeEventCount: progressState.squeezeEventCount,
+    lemonLeftAnimationCount: progressState.lemonLeftAnimationCount,
+    lemonadeCompleteCount: progressState.lemonadeCompleteCount,
+    justCompletedLemonade: justCompletedLemonade || isLemonadeComplete,
     holdSeconds: dwellSeconds,
     justActivated: left.justActivated || right.justActivated,
     justReleased: left.justReleased || right.justReleased,
@@ -3726,6 +3805,10 @@ function createLemonProgress() {
     nextSipLevel: 0.8,
     combo: 0,
     squeezeEventCount: 0,
+    lemonLeftAnimationCount: 0,
+    lemonadeCompleteCount: 0,
+    lemonadeResetAt: 0,
+    wasConfirmedSqueeze: false,
     leftSignal: createInteractionSignalState(),
     rightSignal: createInteractionSignalState(),
   };

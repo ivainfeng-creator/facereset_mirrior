@@ -4526,7 +4526,7 @@ h1 {
 
 .lemon-squeeze-prompt {
   position: absolute;
-  top: 20.5%;
+  top: 15.5%;
   left: 50%;
   z-index: 7;
   padding: 11px 28px;
@@ -4542,11 +4542,11 @@ h1 {
 
 .lemon-left-sprite {
   position: absolute;
-  top: 28%;
   left: 50%;
   z-index: 6;
-  width: min(48vmin, 420px);
-  aspect-ratio: 1598 / 1143;
+  width: min(48vh, 377.6px);
+  top: 20%;
+  aspect-ratio: 109 / 65;
   background-position: 0 0;
   background-repeat: no-repeat;
   background-size: 400% 400%;
@@ -4555,7 +4555,7 @@ h1 {
 }
 
 .lemon-left-sprite.is-animating {
-  animation: lemonLeftSprite 1.6s steps(1) infinite;
+  animation: lemonLeftSprite 1.6s steps(1) both;
 }
 
 .milky-sprite {
@@ -4883,12 +4883,77 @@ h1 {
   left: 50%;
   z-index: 5;
   width: min(60vh, 472px);
-  aspect-ratio: 32 / 25;
+  aspect-ratio: 20 / 13;
   background-position: var(--lemonade-x) var(--lemonade-y);
   background-repeat: no-repeat;
   background-size: 400% 400%;
   filter: drop-shadow(0 12px 22px rgba(60, 90, 60, 0.16));
   transform: translateX(-50%);
+}
+
+.lemon-soda-glass.is-playing {
+  animation-duration: 540ms;
+  animation-timing-function: steps(1);
+  animation-fill-mode: both;
+}
+
+.lemon-soda-glass.segment-1 {
+  animation-name: lemonadeSegmentOne;
+}
+
+.lemon-soda-glass.segment-2 {
+  animation-name: lemonadeSegmentTwo;
+}
+
+.lemon-soda-glass.segment-3 {
+  animation-name: lemonadeSegmentThree;
+}
+
+.lemonade-complete-flash {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  z-index: 7;
+  color: #fff;
+  font-family: 'Luckiest Guy', 'Instrument Sans', sans-serif;
+  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translate(-50%, calc(-50% - 40px));
+  animation: penguinCatchFlash 2s ease-out both;
+}
+
+.lemonade-complete-score {
+  display: block;
+}
+
+@keyframes lemonadeSegmentOne {
+  0%, 19.99% { background-position: 0 0; }
+  20%, 39.99% { background-position: 33.333% 0; }
+  40%, 59.99% { background-position: 66.667% 0; }
+  60%, 79.99% { background-position: 100% 0; }
+  80%, 99.99% { background-position: 0 33.333%; }
+  100% { background-position: 33.333% 33.333%; }
+}
+
+@keyframes lemonadeSegmentTwo {
+  0%, 19.99% { background-position: 33.333% 33.333%; }
+  20%, 39.99% { background-position: 66.667% 33.333%; }
+  40%, 59.99% { background-position: 100% 33.333%; }
+  60%, 79.99% { background-position: 0 66.667%; }
+  80%, 99.99% { background-position: 33.333% 66.667%; }
+  100% { background-position: 66.667% 66.667%; }
+}
+
+@keyframes lemonadeSegmentThree {
+  0%, 19.99% { background-position: 66.667% 66.667%; }
+  20%, 39.99% { background-position: 100% 66.667%; }
+  40%, 59.99% { background-position: 0 100%; }
+  60%, 79.99% { background-position: 33.333% 100%; }
+  80%, 99.99% { background-position: 66.667% 100%; }
+  100% { background-position: 100% 100%; }
 }
 
 .lemon-soda-surface {
