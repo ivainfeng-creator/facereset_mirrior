@@ -339,6 +339,7 @@ export default function RoutineScreen({
   const interactionProgressRefs = useRef(Object.fromEntries(
     Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [key, createProgress()]),
   ));
+  const lemonTargetsRef = useRef(null);
   const latestInputsRef = useRef({
     features: null,
     fingertips: { left: null, right: null, all: [] },
@@ -506,9 +507,22 @@ export default function RoutineScreen({
     () => createTemplePressTrajectories(templeTargets, containerSize),
     [containerSize, templeTargets],
   );
+  const lemonTuning = useMemo(
+    () => getSceneTuning('lemonSqueeze'),
+    [tuningRevision],
+  );
   const lemonTargets = useMemo(
-    () => createLemonPressTargets(features, containerSize),
-    [containerSize, features],
+    () => {
+      const nextTargets = createLemonPressTargets(features, containerSize, lemonTuning.input);
+      const stabilizedTargets = stabilizeLemonPressTargets(
+        lemonTargetsRef.current,
+        nextTargets,
+        lemonTuning.input.targetFollowRate,
+      );
+      lemonTargetsRef.current = stabilizedTargets;
+      return stabilizedTargets;
+    },
+    [containerSize, features, lemonTuning.input],
   );
   const lemonTrajectories = useMemo(
     () => createLemonPressTrajectories(lemonTargets, containerSize),
@@ -3301,15 +3315,17 @@ function createTemplePressTrajectories(targets, size) {
   return { left, right, all: [left, right] };
 }
 
-function createLemonPressTargets(features, size) {
+function createLemonPressTargets(features, size, input = {}) {
   const width = size.width || 375;
   const height = size.height || 812;
   const fallbackY = height * 0.3;
+  const fallbackToleranceX = Math.max(52, width * 0.16);
+  const fallbackToleranceY = Math.max(38, width * 0.11);
 
   if (!features?.face?.noseCenter || !features?.leftEye?.center || !features?.rightEye?.center) {
     return {
-      left: { x: width * 0.42, y: fallbackY, tolerance: Math.max(52, width * 0.16) },
-      right: { x: width * 0.58, y: fallbackY, tolerance: Math.max(52, width * 0.16) },
+      left: { x: width * 0.42, y: fallbackY, tolerance: fallbackToleranceX, toleranceX: fallbackToleranceX, toleranceY: fallbackToleranceY },
+      right: { x: width * 0.58, y: fallbackY, tolerance: fallbackToleranceX, toleranceX: fallbackToleranceX, toleranceY: fallbackToleranceY },
     };
   }
 
@@ -3317,21 +3333,53 @@ function createLemonPressTargets(features, size) {
   const faceScale = features.faceScale || Math.max(width * 0.42, 150);
   const sideOffset = clamp(eyeDistance * 0.22, 24, 52);
   const lift = clamp(faceScale * 0.08, 12, 34);
-  const tolerance = clamp(faceScale * 0.22, 58, 108);
+  const toleranceX = clamp(
+    faceScale * (input.horizontalToleranceScale || 0.23),
+    input.minimumHorizontalTolerance || 48,
+    input.maximumHorizontalTolerance || 84,
+  );
+  const toleranceY = clamp(
+    faceScale * (input.verticalToleranceScale || 0.16),
+    input.minimumVerticalTolerance || 36,
+    input.maximumVerticalTolerance || 64,
+  );
   const nose = features.face.noseCenter;
 
   return {
     left: {
       x: clamp(nose.x - sideOffset, 18, width - 18),
       y: clamp(nose.y - lift, 34, height - 34),
-      tolerance,
+      tolerance: toleranceX,
+      toleranceX,
+      toleranceY,
     },
     right: {
       x: clamp(nose.x + sideOffset, 18, width - 18),
       y: clamp(nose.y - lift, 34, height - 34),
-      tolerance,
+      tolerance: toleranceX,
+      toleranceX,
+      toleranceY,
     },
   };
+}
+
+function stabilizeLemonPressTargets(previousTargets, nextTargets, followRate = 0.3) {
+  if (!previousTargets) return nextTargets;
+
+  const rate = clamp(followRate, 0.05, 1);
+  const stabilize = (side) => {
+    const previous = previousTargets[side];
+    const next = nextTargets[side];
+    if (!previous || !next) return next;
+
+    return {
+      ...next,
+      x: previous.x + (next.x - previous.x) * rate,
+      y: previous.y + (next.y - previous.y) * rate,
+    };
+  };
+
+  return { left: stabilize('left'), right: stabilize('right') };
 }
 
 function createLemonPressTrajectories(targets, size) {
@@ -3461,12 +3509,14 @@ function getTemplePressFeedback({ features, fingertips, bothPressing, onePressin
 
 function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressState, stageProgress, tuning }) {
   const scoring = tuning.scoring;
-  const leftRaw = scoreTempleSide({ point: fingertips.left, target: targets?.left });
-  const rightRaw = scoreTempleSide({ point: fingertips.right, target: targets?.right });
+  const leftRaw = scoreLemonPressSide({ point: fingertips.left, target: targets?.left, input: tuning.input });
+  const rightRaw = scoreLemonPressSide({ point: fingertips.right, target: targets?.right, input: tuning.input });
   const left = updateInteractionSignal(leftRaw.available ? leftRaw.press : null, timestamp, progressState.leftSignal, tuning.signal);
   const right = updateInteractionSignal(rightRaw.available ? rightRaw.press : null, timestamp, progressState.rightSignal, tuning.signal);
   const bothPressing = left.active && right.active;
   const onePressing = left.active || right.active || left.value > scoring.oneSideHintThreshold || right.value > scoring.oneSideHintThreshold;
+  const dwellSeconds = Math.min(left.holdSeconds, right.holdSeconds);
+  const confirmedSqueeze = bothPressing && dwellSeconds >= scoring.engagementDwellSeconds;
   const balanced = 1 - Math.min(1, Math.abs(left.value - right.value));
   const squeeze = clamp((left.value + right.value) / 2, 0, 1);
   const elapsedSeconds = Math.max(left.deltaSeconds, right.deltaSeconds);
@@ -3475,7 +3525,7 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
     progressState.squeezeEventCount += 1;
   }
 
-  if (bothPressing) {
+  if (confirmedSqueeze) {
     progressState.sodaLevel = clamp(
       progressState.sodaLevel + (scoring.sodaBase + squeeze * scoring.sodaBySqueeze + balanced * scoring.sodaByBalance) * elapsedSeconds,
       scoring.minSodaLevel,
@@ -3526,8 +3576,8 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
   return {
     score: Math.round(progressState.score),
     completion: clamp(progressState.sodaLevel, 0, 1),
-    feedback: getLemonSqueezeFeedback({ features, fingertips, bothPressing, onePressing, balanced, sodaLevel: progressState.sodaLevel, tuning }),
-    isOnTrack: bothPressing && balanced > scoring.balanceHintThreshold,
+    feedback: getLemonSqueezeFeedback({ features, fingertips, bothPressing, confirmedSqueeze, onePressing, balanced, sodaLevel: progressState.sodaLevel, tuning }),
+    isOnTrack: confirmedSqueeze && balanced > scoring.balanceHintThreshold,
     leftPress: left.value,
     rightPress: right.value,
     squeeze,
@@ -3540,21 +3590,52 @@ function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressS
     combo: progressState.combo,
     flow: progressState.sodaLevel,
     hasSqueezeMotion: onePressing,
-    isSqueezing: bothPressing,
+    isSqueezing: confirmedSqueeze,
     squeezeEventCount: progressState.squeezeEventCount,
-    holdSeconds: Math.min(left.holdSeconds, right.holdSeconds),
+    holdSeconds: dwellSeconds,
     justActivated: left.justActivated || right.justActivated,
     justReleased: left.justReleased || right.justReleased,
-    phase: bothPressing ? 'holding' : onePressing ? 'detecting' : 'idle',
+    phase: confirmedSqueeze ? 'holding' : bothPressing ? 'confirming' : onePressing ? 'detecting' : 'idle',
   };
 }
 
-function getLemonSqueezeFeedback({ features, fingertips, bothPressing, onePressing, balanced, sodaLevel, tuning }) {
+function scoreLemonPressSide({ point, target, input = {} }) {
+  if (!point || !target) {
+    return { press: 0, distance: Infinity, available: false };
+  }
+
+  const toleranceX = target.toleranceX || target.tolerance || 54;
+  const toleranceY = target.toleranceY || target.tolerance || 54;
+  const normalizedDistance = Math.hypot(
+    (point.x - target.x) / toleranceX,
+    (point.y - target.y) / toleranceY,
+  );
+  const innerZone = input.innerZone || 0.42;
+  const engagementZone = Math.max(innerZone + 0.01, input.engagementZone || 0.72);
+  const approachZone = Math.max(engagementZone + 0.01, input.approachZone || 1);
+  const engagementValue = clamp(input.engagementValue || 0.7, 0, 1);
+  let press = 0;
+
+  if (normalizedDistance <= innerZone) {
+    press = 1;
+  } else if (normalizedDistance <= engagementZone) {
+    const progress = (normalizedDistance - innerZone) / (engagementZone - innerZone);
+    press = 1 - (1 - engagementValue) * progress;
+  } else if (normalizedDistance <= approachZone) {
+    const progress = (normalizedDistance - engagementZone) / (approachZone - engagementZone);
+    press = engagementValue * (1 - progress);
+  }
+
+  return { press, distance: normalizedDistance, available: true };
+}
+
+function getLemonSqueezeFeedback({ features, fingertips, bothPressing, confirmedSqueeze, onePressing, balanced, sodaLevel, tuning }) {
   if (!features?.face?.noseCenter) return 'Find your face';
   if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
   if (!fingertips.left || !fingertips.right) return 'Use both fingers beside your nose';
   if (!onePressing) return 'Move fingers beside your nose bridge';
   if (!bothPressing) return 'Squeeze both lemon halves together';
+  if (!confirmedSqueeze) return 'Hold both sides steady';
   if (balanced < tuning.scoring.balanceHintThreshold) return 'Balance left and right squeeze';
   if (sodaLevel > tuning.scoring.sipHintLevel) return 'Tiny friend is stealing a sip';
   return 'Fresh squeeze, bubbles rising';
