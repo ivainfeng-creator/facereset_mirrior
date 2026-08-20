@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import lemonBackgroundAsset from '../../references/Lemon/Lemon-background.png';
+import lemonForegroundAsset from '../../references/Lemon/lemon-background-1.png';
 import lemonLeftSpriteAsset from '../../references/Lemon/Lemon-left.png';
 import lemonadeSpriteAsset from '../../references/Lemon/Lemonade.png';
 import milkySpriteAsset from '../../references/Lemon/Milky.png';
@@ -1835,12 +1836,18 @@ function LemonSqueezeScene({ interaction }) {
       </div>
       <div className="lemon-horizon" />
       <div className="lemon-shore" />
+      <div className="lemon-bottom-layer">
+        <div
+          className="lemon-bottom-background"
+          style={{ backgroundImage: `url(${lemonForegroundAsset})` }}
+        />
+        <MilkySprite />
+        <LemonSodaGlass
+          segment={lemonadeSegment}
+          animationKey={interaction.squeezeEventCount}
+        />
+      </div>
       <LemonLeftSprite animationKey={interaction.lemonLeftAnimationCount} />
-      <MilkySprite />
-      <LemonSodaGlass
-        segment={lemonadeSegment}
-        animationKey={interaction.squeezeEventCount}
-      />
       {interaction.justCompletedLemonade && (
         <div className="lemonade-complete-flash" key={interaction.lemonadeCompleteCount}>
           <span className="lemonade-complete-score">+20</span>

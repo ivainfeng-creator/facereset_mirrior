@@ -4540,6 +4540,12 @@ h1 {
   transform: translateX(-50%) scale(calc(1 + var(--squeeze) * 0.07));
 }
 
+@media (min-width: 768px) {
+  .lemon-squeeze-prompt {
+    top: 10%;
+  }
+}
+
 .lemon-left-sprite {
   position: absolute;
   left: 50%;
@@ -4558,18 +4564,39 @@ h1 {
   animation: lemonLeftSprite 1.6s steps(1) both;
 }
 
+.lemon-bottom-layer {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  z-index: 4;
+  width: 1274.48px;
+  height: 240px;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.lemon-bottom-background {
+  position: absolute;
+  inset: 0;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
 .milky-sprite {
   position: absolute;
-  right: clamp(16px, 4vw, 72px);
-  bottom: 64px;
-  z-index: 4;
-  width: min(36vmin, 300px);
+  top: calc(-50% - 19px);
+  right: 28%;
+  z-index: 1;
+  width: 300px;
   aspect-ratio: 205 / 142;
   background-position: 0 0;
   background-repeat: no-repeat;
   background-size: 400% 400%;
   filter: drop-shadow(0 12px 22px rgba(60, 90, 60, 0.16));
-  animation: lemonLeftSprite 2s steps(1) infinite;
+  transform: rotate(2deg);
+  animation: lemonLeftSprite 2.4s steps(1) infinite;
 }
 
 @keyframes lemonLeftSprite {
@@ -4759,9 +4786,7 @@ h1 {
 .lemon-queue-left { right: calc(50% + 112px); }
 .lemon-queue-right { left: calc(50% + 112px); transform: scaleX(-1); }
 
-@media (min-width: 600px) {
-  .lemon-queue { top: calc(33% - 8px); }
-}
+.lemon-queue { top: calc(33% - 8px); }
 
 .lemon-queue-track {
   display: flex;
@@ -4879,10 +4904,10 @@ h1 {
 
 .lemon-soda-glass {
   position: absolute;
-  bottom: 64px;
+  top: -50%;
   left: 50%;
-  z-index: 5;
-  width: min(60vh, 472px);
+  z-index: 2;
+  width: 472px;
   aspect-ratio: 20 / 13;
   background-position: var(--lemonade-x) var(--lemonade-y);
   background-repeat: no-repeat;
@@ -4914,7 +4939,7 @@ h1 {
   top: 42%;
   left: 50%;
   z-index: 7;
-  color: #f6b827;
+  color: #ffffff;
   font-family: 'Luckiest Guy', 'Instrument Sans', sans-serif;
   font-size: clamp(2.5rem, 7vw, 5.5rem);
   line-height: 0.9;
@@ -5014,25 +5039,53 @@ h1 {
 .lemon-soda-ice.is-visible,
 .lemon-soda-slice.is-visible { opacity: 1; transform: translateY(0) rotate(0deg); }
 
-@media (max-width: 599px) {
-  .lemon-queue {
-    top: calc(33% + 24px);
+@media (max-width: 767px) {
+  .play-routine-mirror:has(.lemon-squeeze-scene) {
+    background: #8fdaf3;
   }
 
-  .lemon-press-board {
-    right: 0;
-    left: 0;
-    width: max-content;
-    margin-inline: auto;
+  .lemon-squeeze-scene {
+    inset: 0;
+    width: auto;
+    height: auto;
     transform: none;
   }
 
+  .lemon-bottom-layer {
+    width: 100%;
+    height: 180px;
+  }
+
+  .lemon-bottom-background {
+    background-size: cover;
+  }
+
+  .lemon-left-sprite {
+    top: 25%;
+    width: 300px;
+  }
+
   .lemon-soda-glass {
-    bottom: 64px;
-    right: 0;
-    left: 0;
-    margin-inline: auto;
-    transform: translateY(-56px);
+    top: -42%;
+    width: 340px;
+  }
+
+  .milky-sprite {
+    top: -45%;
+    right: 8%;
+    width: 190px;
+  }
+
+  .lemon-queue {
+    --queue-size: 64px;
+    --queue-gap: 8px;
+    top: 31%;
+  }
+
+  .lemon-squeeze-prompt {
+    top: 12%;
+    padding: 9px 20px;
+    font-size: 0.85rem;
   }
 }
 
