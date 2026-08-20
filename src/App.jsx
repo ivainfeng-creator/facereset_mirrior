@@ -113,6 +113,7 @@ export default function App() {
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [guideOverlay, setGuideOverlay] = useState(null);
+  const [cheekPuffCalibration, setCheekPuffCalibration] = useState(null);
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
@@ -303,6 +304,7 @@ export default function App() {
   // playable.
   const enterSceneFlow = (sceneId, { selectedDate = null, returnView = 'plan' } = {}) => {
     setSelectedScene(sceneId);
+    setCheekPuffCalibration(null);
     setSessionDate(selectedDate);
     setRoutineReturnView(returnView);
 
@@ -575,6 +577,8 @@ export default function App() {
           stream={cameraStream}
           isDemoMode={isDemoMode}
           isOverlay
+          selectedScene={selectedScene}
+          onCheekPuffCalibrated={setCheekPuffCalibration}
           onBegin={finishGuideScan}
           onBack={() => {
             setGuideOverlay(null);
@@ -589,6 +593,7 @@ export default function App() {
           isDemoMode={isDemoMode}
           skipFaceScan={skipFaceScan}
           selectedScene={selectedScene}
+          initialCheekPuffCalibration={cheekPuffCalibration}
           sessionDate={sessionDate}
           onComplete={finishRoutine}
           onExit={() => {

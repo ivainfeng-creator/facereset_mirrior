@@ -5,7 +5,15 @@ import {
   FALLBACK_MAX_WAIT_MS,
   useFaceLandmarks,
 } from '../hooks/useFaceLandmarks.js';
+import { getSceneById } from '../data/scenes.js';
+import { getSceneTuning } from '../data/interactionTuning.js';
 import { playSceneEffect } from '../utils/audioManager.js';
+import { createCalibratedCheekPuffState, updateCalibratedCheekPuff } from '../utils/interactionSignal.js';
+
+// Bubble Gum Bunny learns a neutral cheek baseline during the scan. It must
+// never be able to hold the gate open: if it has not converged by this point
+// the scan proceeds uncalibrated and the scene calibrates in-place instead.
+const CHEEK_PUFF_CALIBRATION_MAX_WAIT_MS = 4000;
 
 const SCAN_COMPLETE_EFFECT = Object.freeze({
   source: '/audio/Overall/Scanning.mp3',
@@ -20,15 +28,23 @@ const SCAN_CTA_EFFECT = Object.freeze({
   volume: 0.7,
 });
 
-export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOverlay = false }) {
+export default function MirrorScreen({ stream, isDemoMode, selectedScene, onCheekPuffCalibrated, onBegin, onBack, isOverlay = false }) {
   const videoRef = useRef(null);
   const stageRef = useRef(null);
   const alignmentRef = useRef(null);
   const featuresRef = useRef(null);
   const stabilityRef = useRef(null);
   const completedRef = useRef(false);
+  const cheekPuffCalibrationRef = useRef(createCalibratedCheekPuffState());
+  const hasReportedCheekPuffCalibrationRef = useRef(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [isScanComplete, setIsScanComplete] = useState(false);
+  const [isCheekPuffCalibrated, setIsCheekPuffCalibrated] = useState(false);
+  const [hasCheekPuffCalibrationTimedOut, setHasCheekPuffCalibrationTimedOut] = useState(false);
+  // Scoped to Bubble Gum Bunny. Every other scene skips this entirely, and demo
+  // mode never gates on it.
+  const requiresCheekPuffCalibration = !isDemoMode
+    && getSceneById(selectedScene).interaction === 'cheekPuff';
   const cameraTrack = stream?.getVideoTracks()[0];
   const isCameraUnavailable = !isDemoMode && (
     !stream
@@ -66,6 +82,40 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
   }, [alignment, features, landmarkStability]);
 
   useEffect(() => {
+    if (!requiresCheekPuffCalibration) return undefined;
+
+    const timer = window.setTimeout(
+      () => setHasCheekPuffCalibrationTimedOut(true),
+      CHEEK_PUFF_CALIBRATION_MAX_WAIT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [requiresCheekPuffCalibration]);
+
+  useEffect(() => {
+    if (!requiresCheekPuffCalibration || !features?.cheeks) return;
+    if (hasReportedCheekPuffCalibrationRef.current) return;
+
+    const calibration = updateCalibratedCheekPuff({
+      cheekPuff: features.cheeks.puffRatio,
+      mouthPucker: features.cheeks.mouthPucker,
+      mouthFunnel: features.cheeks.mouthFunnel,
+      mouthOpen: features.cheeks.mouthOpen,
+    }, performance.now(), cheekPuffCalibrationRef.current, getSceneTuning(selectedScene).input);
+
+    if (!calibration.calibrated) return;
+
+    hasReportedCheekPuffCalibrationRef.current = true;
+    setIsCheekPuffCalibrated(true);
+    onCheekPuffCalibrated?.({
+      calibrated: true,
+      calibrationMs: cheekPuffCalibrationRef.current.calibrationMs,
+      samples: [],
+      baseline: cheekPuffCalibrationRef.current.baseline,
+      lastTimestamp: 0,
+    });
+  }, [features, onCheekPuffCalibrated, requiresCheekPuffCalibration, selectedScene]);
+
+  useEffect(() => {
     let lastTick = performance.now();
     const timer = window.setInterval(() => {
       const now = performance.now();
@@ -85,7 +135,11 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
         && now - fallback.lastEligibleAt <= FALLBACK_ELIGIBILITY_GRACE_MS;
       const fallbackElapsed = isFallbackHolding ? now - fallback.firstEligibleAt : 0;
       const isFallbackReady = fallbackElapsed >= FALLBACK_MAX_WAIT_MS;
-      const isReady = Boolean(currentAlignment?.ready) || isFallbackReady;
+      const isCheekPuffGateSatisfied = !requiresCheekPuffCalibration
+        || isCheekPuffCalibrated
+        || hasCheekPuffCalibrationTimedOut;
+      const isReady = (Boolean(currentAlignment?.ready) || isFallbackReady)
+        && isCheekPuffGateSatisfied;
 
       setScanProgress((current) => {
         if (completedRef.current) return 1;
@@ -119,7 +173,12 @@ export default function MirrorScreen({ stream, isDemoMode, onBegin, onBack, isOv
       });
     }, 90);
     return () => window.clearInterval(timer);
-  }, [fallbackPresenceRef]);
+  }, [
+    fallbackPresenceRef,
+    hasCheekPuffCalibrationTimedOut,
+    isCheekPuffCalibrated,
+    requiresCheekPuffCalibration,
+  ]);
 
   return (
     <section className={`screen mirror-screen scan-alignment-screen ${isOverlay ? 'guide-flow-overlay' : ''}`}>

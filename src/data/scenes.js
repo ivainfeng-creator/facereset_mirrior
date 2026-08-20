@@ -227,10 +227,10 @@ const sceneDefinitions = [
     practice: {
       renderer: 'bunny',
       title: 'How to Play Bubble Gum Bunny',
-      description: 'Puff your cheeks, relax softly, then puff again to grow the bubble.',
-      tips: ['Keep your lips closed.', 'Hold each puff for about two seconds.', 'Steady rhythm grows the biggest bubble.'],
+      description: 'Relax for a moment while bunny learns your neutral face, then hold a cheek puff until the bubble pops.',
+      tips: ['Keep your lips gently closed.', 'Puff both cheeks and hold steady.', 'A full bubble pops automatically.'],
       effectTitle: 'Grow the bubble',
-      effectDescription: 'Puff softly and keep the bubble floating.',
+      effectDescription: 'Hold a steady puff to fill and pop the bubble.',
       previewDemo: { effect: 'bubbleGrow', cycleMs: 3600 },
     },
   },

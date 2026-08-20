@@ -3850,9 +3850,15 @@ h1 {
   top: 49%;
   left: 50%;
   z-index: 4;
-  width: 395px;
+  width: 290.325px;
   aspect-ratio: 940 / 1088;
   transform: translate(-50%, calc(-42% + 48px));
+}
+
+@media (max-width: 559px) {
+  .bunny-character {
+    transform: translate(-50%, calc(-42% + 48px)) scale(0.81);
+  }
 }
 
 .bunny-frame,
@@ -3872,7 +3878,6 @@ h1 {
 
 .bunny-puff-frame {
   opacity: 0;
-  transition: opacity 150ms ease-in-out;
 }
 
 .bunny-puff-frame.is-visible {
@@ -3880,8 +3885,8 @@ h1 {
 }
 
 .bunny-balloon {
-  top: 13px;
-  left: 154px;
+  top: -51px;
+  left: 84px;
   z-index: 1;
   width: 395px;
   height: 395px;
@@ -3889,17 +3894,44 @@ h1 {
 }
 
 .bunny-balloon.is-bursting {
-  top: 13px;
-  left: 154px;
+  top: -51px;
+  left: 84px;
   animation: bubbleBurstAppear 520ms ease-out both;
+}
+
+.bunny-pop-score {
+  position: absolute;
+  top: 60%;
+  left: 70%;
+  z-index: 7;
+  color: #ffffff;
+  font-family: var(--fr-font-display);
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  line-height: 0.9;
+  text-shadow: none;
+  animation: bunnyPopScore 2s ease-out both;
+  pointer-events: none;
+}
+
+@media (max-width: 559px) {
+  .bunny-pop-score {
+    font-size: clamp(3rem, 9vw, 6.75rem);
+  }
 }
 
 .bunny-sparkles,
 .bunny-hearts {
   position: absolute;
   inset: 0;
-  z-index: 3;
   pointer-events: none;
+}
+
+.bunny-sparkles {
+  z-index: 3;
+}
+
+.bunny-hearts {
+  z-index: 6;
 }
 
 .bunny-sparkles span {
@@ -4048,6 +4080,23 @@ h1 {
   --pop-x: 98px;
   --pop-y: 104px;
   animation-delay: 235ms;
+}
+
+@keyframes bunnyPopScore {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 18px)) scale(0.78);
+  }
+
+  28% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 24px)) scale(1.04);
+  }
 }
 
 .lemon-squeeze-scene {
@@ -17713,7 +17762,9 @@ h1 {
 .routine-scene-preview-canvas .temple-garden-scene.is-practice-preview::after,
 .routine-scene-preview-canvas .whale-dream-scene.is-practice-preview::before,
 .routine-scene-preview-canvas .whale-dream-scene.is-practice-preview::after,
-.routine-scene-preview-canvas .popcorn-collector-scene.is-practice-preview::after {
+.routine-scene-preview-canvas .popcorn-collector-scene.is-practice-preview::after,
+.routine-scene-preview-canvas .bubble-bunny-scene.is-practice-preview::before,
+.routine-scene-preview-canvas .bubble-bunny-scene.is-practice-preview::after {
   display: none;
 }
 
@@ -18024,6 +18075,27 @@ h1 {
   bottom: 155px;
   right: 1056px;
   animation-delay: -3.6s;
+}
+
+/* Bunny drops the prompt to the bottom so it clears the balloon. Scoped to the
+   scene: the global .play-action-prompt stays top-anchored, so `top` has to be
+   released explicitly here, and the mobile breakpoint re-centres it because the
+   global rule left-anchors it beside the camera. */
+[data-scene-id='bubbleGumBunny'] .play-action-prompt {
+  top: auto;
+  bottom: calc(clamp(36px, 5vh, 68px) + 3%);
+}
+
+@media (max-width: 559px) {
+  [data-scene-id='bubbleGumBunny'] .play-action-prompt {
+    top: auto;
+    right: auto;
+    bottom: calc(var(--play-hud-inset-block-end) + 9vh);
+    left: 50%;
+    max-width: min(78vw, 330px);
+    text-align: center;
+    transform: translateX(-50%);
+  }
 }
 
 .penguin-character {

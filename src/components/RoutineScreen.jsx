@@ -69,8 +69,10 @@ import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
 import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
   consumeTimedEvents,
+  createCalibratedCheekPuffState,
   createInteractionSignalState,
   createSceneInteractionContract,
+  updateCalibratedCheekPuff,
   updateInteractionSignal,
 } from '../utils/interactionSignal.js';
 import { awardFinalScenePoints, RAW_SCENE_SCORE_MAX, toFinalSceneScore } from '../utils/scoring.js';
@@ -311,6 +313,7 @@ export default function RoutineScreen({
   stream,
   isDemoMode,
   skipFaceScan,
+  initialCheekPuffCalibration = null,
   onComplete,
   onExit,
 }) {
@@ -334,7 +337,10 @@ export default function RoutineScreen({
     || cameraTrack.readyState !== 'live'
   );
   const interactionProgressRefs = useRef(Object.fromEntries(
-    Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [key, createProgress()]),
+    Object.entries(INTERACTION_PROGRESS_FACTORIES).map(([key, createProgress]) => [
+      key,
+      key === 'cheekPuff' ? createProgress(initialCheekPuffCalibration) : createProgress(),
+    ]),
   ));
   const lemonTargetsRef = useRef(null);
   const latestInputsRef = useRef({
@@ -364,7 +370,13 @@ export default function RoutineScreen({
   // before tracking settles spends the opening seconds on a target that is
   // still sliding into place. Only lemonSqueeze waits; every other scene keeps
   // starting immediately.
-  const requiresTrackingBeforeStart = scene.interaction === 'lemonSqueeze' && !skipFaceScan && !isDemoMode;
+  // Scenes that need tracking settled before the clock starts. Lemon waits for
+  // stable landmarks; Bunny waits for its neutral cheek baseline. Both go
+  // through the single hasRoutineTimerStarted gate below, and both are bounded
+  // by the same wall-clock escape - no scene can wait forever.
+  const requiresTrackingBeforeStart = (scene.interaction === 'lemonSqueeze' || scene.interaction === 'cheekPuff')
+    && !skipFaceScan
+    && !isDemoMode;
   const [hasRoutineTimerStarted, setHasRoutineTimerStarted] = useState(!requiresTrackingBeforeStart);
   const debugEnabled = isInteractionDebugEnabled();
   const activeTotalSeconds = debugEnabled ? debugTotalSeconds : regularTotalSeconds;
@@ -484,17 +496,25 @@ export default function RoutineScreen({
     isDemoMode,
   });
 
+  // Bunny is ready once it has a neutral cheek baseline - either handed over by
+  // the scan or reached in-scene. Every other gated scene waits on stable
+  // landmarks.
+  const isSceneStartConditionMet = scene.interaction === 'cheekPuff'
+    ? Boolean(initialCheekPuffCalibration?.calibrated || interaction.diagnostics?.calibrated)
+    : landmarkStability.stable;
+
   useEffect(() => {
-    if (!requiresTrackingBeforeStart || landmarkStability.stable) {
+    if (!requiresTrackingBeforeStart || isSceneStartConditionMet) {
       setHasRoutineTimerStarted(true);
       return undefined;
     }
 
     // Wall-clock escape, mirroring the scan gate: a face the landmarker never
-    // locks onto must still get a full-length routine rather than wait forever.
+    // locks onto - or a cheek baseline that never settles - must still get a
+    // full-length routine rather than wait forever.
     const timer = window.setTimeout(() => setHasRoutineTimerStarted(true), FALLBACK_MAX_WAIT_MS);
     return () => window.clearTimeout(timer);
-  }, [activeSceneId, landmarkStability.stable, requiresTrackingBeforeStart]);
+  }, [activeSceneId, isSceneStartConditionMet, requiresTrackingBeforeStart]);
 
   useEffect(() => {
     if (!hasRoutineTimerStarted || isGuideOpen || isQuitOpen) return undefined;
@@ -570,9 +590,13 @@ export default function RoutineScreen({
 
   useEffect(() => {
     const createProgress = INTERACTION_PROGRESS_FACTORIES[scene.interaction];
-    if (createProgress) interactionProgressRefs.current[scene.interaction] = createProgress();
+    if (createProgress) {
+      interactionProgressRefs.current[scene.interaction] = scene.interaction === 'cheekPuff'
+        ? createProgress(initialCheekPuffCalibration)
+        : createProgress();
+    }
     setInteraction(createBaseInteraction(activeSceneId));
-  }, [activeSceneId, scene.interaction, stage.id]);
+  }, [activeSceneId, initialCheekPuffCalibration, scene.interaction, stage.id]);
 
   useEffect(() => {
     routineFinishedRef.current = false;
@@ -590,7 +614,13 @@ export default function RoutineScreen({
 
   useEffect(() => {
     const now = performance.now();
-    const currentInputs = latestInputsRef.current;
+    // Bunny's calibrated cheek puff must see an explicit tracking gap rather
+    // than the last good frame, otherwise the bubble keeps growing off stale
+    // features. Scoped to Bunny: every other scene keeps its previous inputs.
+    const shouldClearLostFeatures = scene.interaction === 'cheekPuff' && !hasLandmarks;
+    const currentInputs = shouldClearLostFeatures
+      ? { ...latestInputsRef.current, features: null }
+      : latestInputsRef.current;
     const tuning = sceneTuning;
     const scoreInteraction = INTERACTION_SCORERS[scene.interaction] || INTERACTION_SCORERS.mouthOpening;
     const nextInteraction = scoreInteraction({
@@ -1130,10 +1160,15 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
   const previewScale = previewFrame.width && previewFrame.height
     ? Math.max(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
     : 0;
-  // Penguin sits lower and wider after the 0820 art pass, so it overflows the
-  // practice frame once the preview source gets wide. Scoped to penguinFishing
-  // on purpose - every other scene keeps the unmodified preview scale.
-  const scenePreviewScale = scene.id === 'penguinFishing' && sourceViewport.width >= 600 ? 0.8 : 1;
+  // Per-scene preview trims. Penguin sits lower and wider after the 0820 art
+  // pass and overflows the practice frame once the preview source gets wide;
+  // Bunny's balloon needs a little headroom at every size. Scenes not listed
+  // here keep the unmodified preview scale.
+  const scenePreviewScale = scene.id === 'bubbleGumBunny'
+    ? 0.9
+    : scene.id === 'penguinFishing' && sourceViewport.width >= 600
+      ? 0.8
+      : 1;
 
   useEffect(() => {
     const syncPreviewFrame = () => {
@@ -1196,7 +1231,11 @@ function PreviewSceneBackground({ scene }) {
     );
   }
 
-  const backgroundAsset = scene.id === 'templeGarden' ? cloudGardenBackgroundAsset : null;
+  const backgroundAsset = scene.id === 'templeGarden'
+    ? cloudGardenBackgroundAsset
+    : scene.id === 'bubbleGumBunny'
+      ? bunnyBackgroundAsset
+      : null;
 
   return (
     <div
@@ -1366,6 +1405,17 @@ function InteractionDebugPanel({ contract, onChange, onFinish, onReset, override
         : '不需要',
     ],
   ];
+    const diagnosticsRows = contract.diagnostics ? [
+      ['calibration', toPercent(contract.diagnostics.calibrationProgress)],
+      ['cheekEffort', toPercent(contract.diagnostics.cheekEffort)],
+      ['mouthConfidence', toPercent(contract.diagnostics.mouthConfidence)],
+      ['baselineCheekPuff', toPercent(contract.diagnostics.baseline?.cheekPuff)],
+      ['rawCheekPuff', toPercent(contract.diagnostics.rawCheekPuff)],
+      ['rawMouthPucker', toPercent(contract.diagnostics.rawMouthPucker)],
+      ['rawMouthFunnel', toPercent(contract.diagnostics.rawMouthFunnel)],
+      ['rawMouthOpen', toPercent(contract.diagnostics.rawMouthOpen)],
+      ['rejectionReason', formatBunnyRejectionReason(contract.diagnostics.rejectionReason)],
+    ] : [];
   const inputRows = getDebugRows(tuning?.input);
   const signalRows = getDebugRows(tuning?.signal);
   const scoringRows = getDebugRows(tuning?.scoring);
@@ -1398,7 +1448,7 @@ function InteractionDebugPanel({ contract, onChange, onFinish, onReset, override
         </div>
       </header>
       <div className="interaction-debug-body">
-        <DebugSection help="目前模型讀到的即時互動狀態，用來判斷動作是不是有被穩定抓到。" title="即時偵測" rows={contractRows} />
+        <DebugSection help="目前模型讀到的即時互動狀態，用來判斷動作是不是有被穩定抓到。" title="即時偵測" rows={[...contractRows, ...diagnosticsRows]} />
         {inputRows.length ? (
           <TuningSection
             help="把臉部偵測原始值轉成 0-100% 的互動強度。通常先調這區，會直接影響靈敏度。"
@@ -1533,6 +1583,17 @@ function formatSignalPhase(phase) {
   return labels[phase] || phase;
 }
 
+function formatBunnyRejectionReason(reason) {
+  const labels = {
+    calibrating: '正在校正',
+    'hold-neutral': '請維持自然表情',
+    'mouth-open': '嘴巴張開',
+    'weak-cheeks': '鼓腮力度不足',
+    'tracking-lost': '臉部追蹤遺失',
+  };
+  return labels[reason] || '通過';
+}
+
 function formatDebugDetectorMode(mode) {
   if (mode === 'real-landmark') return '真實 landmarks';
   if (mode === 'mock-landmark') return '模擬 landmarks';
@@ -1558,6 +1619,15 @@ function getDebugLabel(key) {
     gardenCycle: '花園循環',
     bubblePops: '泡泡爆破次數',
     justPopped: '剛剛爆破',
+    calibration: '校正進度',
+    cheekEffort: '鼓腮增量',
+    mouthConfidence: '閉嘴可信度',
+    baselineCheekPuff: '個人基準',
+    rawCheekPuff: '原始鼓腮值',
+    rawMouthPucker: '原始噘嘴值',
+    rawMouthFunnel: '原始收口值',
+    rawMouthOpen: '原始張嘴值',
+    rejectionReason: '判定結果',
     face: '臉部偵測',
     hand: '手勢偵測',
   };
@@ -1568,6 +1638,18 @@ function getTuningLabel(key) {
   const labels = {
     baseline: '基準值',
     range: '有效幅度',
+    calibrationSeconds: '校正秒數',
+    minCalibrationSamples: '校正最少取樣',
+    neutralMaxCheekPuff: '中性鼓腮上限',
+    neutralMaxMouthOpen: '中性張嘴上限',
+    cheekEffortRange: '鼓腮有效幅度',
+    puckerSupportRange: '噘嘴輔助幅度',
+    funnelSupportRange: '收口輔助幅度',
+    maxMouthOpen: '允許張嘴上限',
+    minMouthConfidence: '最低閉嘴可信度',
+    minCheekEffort: '最低鼓腮力度',
+    cheekWeight: '鼓腮權重',
+    mouthWeight: '嘴型輔助權重',
     wideThreshold: '大動作門檻',
     strongThreshold: '強動作門檻',
     enterThreshold: '開始觸發門檻',
@@ -2740,17 +2822,17 @@ function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
   );
 }
 
-function BubbleGumBunnyScene({ interaction }) {
+function BubbleGumBunnyScene({ interaction, previewForegroundOnly = false }) {
   const puff = clamp(interaction.puff || 0, 0, 1);
   const bubbleSize = clamp(interaction.bubbleSize || 0.07, 0.05, 1);
   const bubblePops = interaction.bubblePops || 0;
   const [isBursting, setIsBursting] = useState(false);
+  const [isPopScoreVisible, setIsPopScoreVisible] = useState(false);
   const [isPuffFrame, setIsPuffFrame] = useState(false);
-  const bunnyFrame = isBursting
-    ? bunnyFrame4Asset
-    : interaction.isPuffing
-      ? null
-      : bunnyFrame1Asset;
+  const [balloonFrameIndex, setBalloonFrameIndex] = useState(0);
+  const [popScoreAward, setPopScoreAward] = useState(0);
+  const shouldAnimatePuff = interaction.isPuffing && !isBursting;
+  const bunnyFrame = isBursting ? bunnyFrame4Asset : interaction.isPuffing ? bunnyFrame2Asset : bunnyFrame1Asset;
   const balloonFrames = [
     bunnyBalloonFrame1Asset,
     bunnyBalloonFrame2Asset,
@@ -2759,9 +2841,7 @@ function BubbleGumBunnyScene({ interaction }) {
   ];
   const balloonFrame = isBursting
     ? bunnyBalloonFrame5Asset
-    : isPuffFrame
-      ? bunnyBalloonFrame3Asset
-    : balloonFrames[Math.min(3, Math.floor(bubbleSize * 4))];
+    : balloonFrames[balloonFrameIndex];
   const lastBubblePopsRef = useRef(bubblePops);
   const sparkles = useMemo(
     () =>
@@ -2778,8 +2858,8 @@ function BubbleGumBunnyScene({ interaction }) {
     () =>
       Array.from({ length: 8 }, (_, index) => ({
         id: index,
-        x: 16 + ((index * 53) % 70),
-        y: 24 + ((index * 41) % 58),
+        x: 38 + ((index * 19) % 26),
+        y: 38 + ((index * 13) % 26),
         delay: (index % 6) * 0.22,
       })),
     [],
@@ -2788,32 +2868,54 @@ function BubbleGumBunnyScene({ interaction }) {
   useEffect(() => {
     if (bubblePops > lastBubblePopsRef.current) {
       setIsBursting(true);
-      const timer = window.setTimeout(() => setIsBursting(false), 520);
+      setIsPopScoreVisible(true);
+      setPopScoreAward(interaction.popScoreAward || 0);
+      const burstTimer = window.setTimeout(() => setIsBursting(false), 520);
+      const scoreTimer = window.setTimeout(() => setIsPopScoreVisible(false), 2000);
       lastBubblePopsRef.current = bubblePops;
-      return () => window.clearTimeout(timer);
+      return () => {
+        window.clearTimeout(burstTimer);
+        window.clearTimeout(scoreTimer);
+      };
     }
     lastBubblePopsRef.current = bubblePops;
     return undefined;
   }, [bubblePops]);
 
   useEffect(() => {
-    if (!interaction.isPuffing || isBursting) {
+    if (!shouldAnimatePuff) {
       setIsPuffFrame(false);
       return undefined;
     }
 
     const timer = window.setInterval(() => setIsPuffFrame((current) => !current), 420);
     return () => window.clearInterval(timer);
-  }, [interaction.isPuffing, isBursting]);
+  }, [isBursting, shouldAnimatePuff]);
+
+  useEffect(() => {
+    if (!shouldAnimatePuff) {
+      setBalloonFrameIndex(0);
+      return undefined;
+    }
+
+    const frames = [1, 2, 3, 2];
+    let framePosition = 0;
+    setBalloonFrameIndex(frames[framePosition]);
+    const timer = window.setInterval(() => {
+      framePosition = (framePosition + 1) % frames.length;
+      setBalloonFrameIndex(frames[framePosition]);
+    }, 420);
+    return () => window.clearInterval(timer);
+  }, [shouldAnimatePuff]);
 
   return (
     <div
-      className={`bubble-bunny-scene ${interaction.isPuffing ? 'is-puffing' : ''} ${interaction.justPopped ? 'is-popping' : ''} ${isBursting ? 'is-bursting' : ''}`}
+      className={`bubble-bunny-scene ${interaction.isPuffing ? 'is-puffing' : ''} ${interaction.justPopped ? 'is-popping' : ''} ${isBursting ? 'is-bursting' : ''} ${previewForegroundOnly ? 'is-practice-preview' : ''}`}
       style={{
         '--puff': puff,
         '--bubble-size': bubbleSize,
         '--combo': interaction.combo || 0,
-        backgroundImage: `url(${bunnyBackgroundAsset})`,
+        backgroundImage: previewForegroundOnly ? 'none' : `url(${bunnyBackgroundAsset})`,
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',
@@ -2848,7 +2950,7 @@ function BubbleGumBunnyScene({ interaction }) {
       </div>
 
       <div className="bunny-character">
-        {interaction.isPuffing && !isBursting ? (
+        {shouldAnimatePuff ? (
           <>
             <img className={`bunny-frame bunny-puff-frame ${isPuffFrame ? '' : 'is-visible'}`} src={bunnyFrame2Asset} alt="" />
             <img className={`bunny-frame bunny-puff-frame ${isPuffFrame ? 'is-visible' : ''}`} src={bunnyFrame3Asset} alt="" />
@@ -2856,10 +2958,11 @@ function BubbleGumBunnyScene({ interaction }) {
         ) : (
           <img className="bunny-frame" src={bunnyFrame} alt="" />
         )}
-        {(interaction.isPuffing || isBursting) && (
-          <img className={`bunny-balloon ${isBursting ? 'is-bursting' : ''}`} src={balloonFrame} alt="" />
-        )}
+        <img className={`bunny-balloon ${isBursting ? 'is-bursting' : ''}`} src={balloonFrame} alt="" />
       </div>
+      {isPopScoreVisible && popScoreAward > 0 && (
+        <span className="bunny-pop-score" key={bubblePops}>+{popScoreAward}</span>
+      )}
       {isBursting && bubblePops > 0 && (
         <div className="bubble-pop-burst" key={bubblePops}>
           <span />
@@ -3511,29 +3614,67 @@ function getInitialFeedback(sceneId) {
 
 function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tuning }) {
   const scoring = tuning.scoring;
-  const ratio = features?.cheeks?.puffRatio;
-  const rawPuff = Number.isFinite(ratio) ? clamp((ratio - tuning.input.baseline) / tuning.input.range, 0, 1) : null;
-  const signal = updateInteractionSignal(rawPuff, timestamp, progressState.signal, tuning.signal);
+  const cheekFeatures = features?.cheeks;
+  const calibratedPuff = updateCalibratedCheekPuff(
+    cheekFeatures && {
+      ...cheekFeatures,
+      // Some MediaPipe builds report cheek inflation through mouth pucker or
+      // funnel only. puffRatio already combines those signals for this case.
+      cheekPuff: cheekFeatures.puffRatio,
+    },
+    timestamp,
+    progressState.calibration,
+    tuning.input,
+  );
+  const signal = updateInteractionSignal(calibratedPuff.value, timestamp, progressState.signal, tuning.signal);
+  const hasCheekTracking = Boolean(cheekFeatures) && !signal.trackingLost;
+  const trackingUnavailable = calibratedPuff.rejectionReason === 'tracking-lost';
   const puff = signal.value;
-  const isPuffing = signal.active;
-  const isStable = signal.phase === 'holding';
+  const isPuffing = calibratedPuff.calibrated && hasCheekTracking && signal.active;
+  const isStable = isPuffing && signal.phase === 'holding';
   const elapsedSeconds = signal.deltaSeconds;
 
-  if (isPuffing) {
+  if (!calibratedPuff.calibrated) {
+    progressState.justPopped = false;
+    progressState.popScoreAward = 0;
+    return {
+      score: Math.round(progressState.score),
+      completion: progressState.bubbleSize,
+      feedback: getCheekPuffFeedback({ calibratedPuff, features, isPuffing: false, isStable: false, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
+      isOnTrack: false,
+      puff: 0,
+      bubbleSize: progressState.bubbleSize,
+      bubbleStage: progressState.stage,
+      bubblePops: progressState.bubblePops,
+      justPopped: false,
+      popScoreAward: 0,
+      combo: progressState.combo,
+      isPuffing: false,
+      holdSeconds: 0,
+      justActivated: false,
+      justReleased: false,
+      phase: calibratedPuff.rejectionReason === 'tracking-lost' ? 'tracking-lost' : 'calibrating',
+      calibrationProgress: calibratedPuff.calibrationProgress,
+      diagnostics: calibratedPuff,
+    };
+  }
+
+  if (trackingUnavailable) {
+    // Preserve bubble momentum during a sustained camera gap, but do not score it.
+  } else if (isPuffing) {
     progressState.bubbleSize = clamp(progressState.bubbleSize + (scoring.growthBase + puff * scoring.growthByValue) * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
-    const holdEvents = consumeTimedEvents(progressState, 'bubbleHold', signal.holdSeconds > scoring.holdBonusSeconds ? scoring.holdEventRate : 0, elapsedSeconds);
-    progressState.score += holdEvents * scoring.holdEventScore;
   } else {
-    progressState.bubbleSize = clamp(progressState.bubbleSize - scoring.decay * elapsedSeconds, scoring.minBubbleSize, scoring.maxBubbleSize);
+    progressState.bubbleSize = scoring.minBubbleSize;
+    progressState.stage = scoring.resetStage;
+    progressState.maxHold = 0;
   }
 
   const nextStage = Math.min(4, Math.floor(progressState.bubbleSize * scoring.stageMultiplier));
   if (nextStage > progressState.stage) {
-    progressState.score += (nextStage - progressState.stage) * scoring.stageScore;
     progressState.stage = nextStage;
   }
 
-  if (progressState.bubbleSize >= scoring.popThreshold) {
+  if (progressState.bubbleSize >= scoring.popThreshold && isStable) {
     progressState.maxHold += elapsedSeconds;
     if (progressState.maxHold >= scoring.popHoldSeconds) {
       progressState.bubbleSize = scoring.resetSize;
@@ -3542,46 +3683,62 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
       progressState.bubblePops += 1;
       progressState.justPopped = true;
       progressState.combo = Math.min(12, progressState.combo + 1);
-      progressState.score += scoring.popScore + (progressState.combo >= 3 ? scoring.comboBonusScore : 0);
+      progressState.popScoreAward = scoring.popScore + (progressState.combo >= 3 ? scoring.comboBonusScore : 0);
+      // The pop award is a flat amount on the canonical 0-100 scale, so the
+      // "+10" the player sees is the number the score actually moves by. Going
+      // through the shared helper keeps display and stored score identical -
+      // no separate raw-display path for Bunny.
+      progressState.score = awardFinalScenePoints(progressState.score, progressState.popScoreAward);
     } else {
       progressState.justPopped = false;
+      progressState.popScoreAward = 0;
     }
   } else {
     progressState.maxHold = 0;
     progressState.justPopped = false;
+    progressState.popScoreAward = 0;
   }
 
   if (signal.justReleased && signal.holdSeconds >= scoring.releaseHoldSeconds) {
     progressState.combo = Math.min(12, progressState.combo + 1);
-    progressState.score += scoring.releaseScore + (signal.holdSeconds >= scoring.longHoldSeconds ? scoring.longHoldBonusScore : 0);
   }
   progressState.score = Math.min(MAX_SCENE_SCORE, progressState.score);
 
   return {
     score: Math.round(progressState.score),
     completion: progressState.bubbleSize,
-    feedback: getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
+    feedback: getCheekPuffFeedback({ calibratedPuff, features, isPuffing, isStable, bubbleSize: progressState.bubbleSize, combo: progressState.combo || 0 }),
     isOnTrack: isPuffing && isStable,
     puff,
     bubbleSize: progressState.bubbleSize,
     bubbleStage: progressState.stage,
     bubblePops: progressState.bubblePops,
     justPopped: progressState.justPopped,
+    popScoreAward: progressState.popScoreAward,
     combo: progressState.combo,
     isPuffing,
     holdSeconds: signal.holdSeconds,
     justActivated: signal.justActivated,
     justReleased: signal.justReleased,
     phase: signal.phase,
+    calibrationProgress: calibratedPuff.calibrationProgress,
+    diagnostics: calibratedPuff,
   };
 }
 
-function getCheekPuffFeedback({ features, isPuffing, isStable, bubbleSize, combo }) {
+function getCheekPuffFeedback({ calibratedPuff, features, isPuffing, isStable, bubbleSize, combo }) {
   if (!features?.cheeks) return 'Find your face';
-  if (!isPuffing) return 'Puff your cheeks, then relax softly';
+  if (calibratedPuff?.rejectionReason === 'tracking-lost') return 'Face tracking paused - keep your face in frame';
+  if (!calibratedPuff?.calibrated) {
+    return calibratedPuff?.rejectionReason === 'hold-neutral'
+      ? 'Relax your face for calibration'
+      : 'Hold still while bunny learns your neutral face';
+  }
+  if (calibratedPuff.rejectionReason === 'mouth-open') return 'Close your lips, then puff your cheeks';
+  if (!isPuffing) return 'Puff both cheeks with your lips gently closed';
   if (!isStable) return 'Hold the bubble steady';
   if (combo >= 3) return 'Combo rhythm, bunny loves it';
-  if (bubbleSize > 0.78) return 'Big bubble sparkle bonus';
+  if (bubbleSize > 0.78) return 'Keep holding, the bubble is nearly full';
   return 'Nice puff, keep the bubble growing';
 }
 
@@ -3844,7 +4001,7 @@ function createNoseProgress() {
   };
 }
 
-function createBubbleProgress() {
+function createBubbleProgress(initialCalibration = null) {
   return {
     score: 0,
     bubbleSize: 0.07,
@@ -3854,6 +4011,9 @@ function createBubbleProgress() {
     stage: 0,
     maxHold: 0,
     bubbleHoldAccumulator: 0,
+    calibration: initialCalibration?.calibrated && initialCalibration.baseline
+      ? { ...initialCalibration, samples: [], lastTimestamp: 0 }
+      : createCalibratedCheekPuffState(),
     signal: createInteractionSignalState(),
   };
 }
