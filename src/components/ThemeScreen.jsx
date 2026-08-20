@@ -20,6 +20,7 @@ export default function ThemeScreen({
 }) {
   const [preparingSceneId, setPreparingSceneId] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [shouldAnimateHistoryEntry, setShouldAnimateHistoryEntry] = useState(false);
   const preparingTimerRef = useRef(null);
   const currentDailyPlan = buildDailyPlanSummary(habit);
   const selectedDay = Math.min(7, Math.max(1, dailyPlan.programDay || 1));
@@ -42,8 +43,21 @@ export default function ThemeScreen({
   useEffect(() => () => window.clearTimeout(preparingTimerRef.current), []);
 
   useEffect(() => {
-    if (shouldAnimateHistoryCards) setIsHistoryOpen(true);
+    if (shouldAnimateHistoryCards) {
+      setIsHistoryOpen(true);
+      setShouldAnimateHistoryEntry(true);
+    }
   }, [historyAnimationKey, shouldAnimateHistoryCards]);
+
+  // Opening history by hand should animate the cards in the same way the
+  // post-session auto-open does.
+  const toggleHistory = () => {
+    setIsHistoryOpen((isOpen) => {
+      const nextIsOpen = !isOpen;
+      setShouldAnimateHistoryEntry(nextIsOpen);
+      return nextIsOpen;
+    });
+  };
 
   const startSession = (sceneId) => {
     if (preparingSceneId) return;
@@ -71,7 +85,7 @@ export default function ThemeScreen({
           onStart={startSession}
           onSessionSelect={startSession}
           showCompletion
-          onViewHistory={onViewHistory ? () => setIsHistoryOpen((isOpen) => !isOpen) : undefined}
+          onViewHistory={onViewHistory ? toggleHistory : undefined}
           isHistoryOpen={isHistoryOpen}
           shouldAnimateCompletionFlow={shouldAnimateCompletionFlow}
           newlyCompletedSceneId={newlyCompletedSceneId}
@@ -87,7 +101,7 @@ export default function ThemeScreen({
             isHistoryOnly
             onCloseHistory={() => setIsHistoryOpen(false)}
             shouldPromptForDisplayName={false}
-            shouldAnimateCardLayout={shouldAnimateHistoryCards}
+            shouldAnimateCardLayout={shouldAnimateHistoryCards || shouldAnimateHistoryEntry}
             cardLayoutAnimationKey={historyAnimationKey}
           />
         )}

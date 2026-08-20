@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getDailyScenesForProgramDay } from '../data/scenes.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 
@@ -24,6 +24,7 @@ export default function TodayPlanCard({
   onViewHistory,
   isHistoryOpen = false,
   shouldAnimateCompletionFlow = false,
+  shouldAnimateCompletionBanner = true,
   className = '',
   isReadOnly = false,
   focusLabel = 'TODAY\'S FOCUS',
@@ -31,6 +32,8 @@ export default function TodayPlanCard({
   const historyButtonRef = useRef(null);
   const previousHistoryWidthRef = useRef(null);
   const previousHistoryOpenRef = useRef(isHistoryOpen);
+  const sessionsScrollTimerRef = useRef(null);
+  const [isSessionsScrolling, setIsSessionsScrolling] = useState(false);
   const dailyScenes = getDailyScenesForProgramDay(programDay);
   const resultsBySceneId = new Map(sceneResults.map((result) => [result.sceneId, result]));
   const completedScenes = new Set(
@@ -44,6 +47,17 @@ export default function TodayPlanCard({
     playSceneEffect(isHistoryOpen ? HISTORY_CLOSE_EFFECT : SESSION_SELECT_EFFECT);
     onViewHistory?.();
   };
+
+  // The session list scrollbar is transparent until the list actually moves.
+  const handleSessionsScroll = () => {
+    setIsSessionsScrolling(true);
+    window.clearTimeout(sessionsScrollTimerRef.current);
+    sessionsScrollTimerRef.current = window.setTimeout(() => {
+      setIsSessionsScrolling(false);
+    }, 700);
+  };
+
+  useEffect(() => () => window.clearTimeout(sessionsScrollTimerRef.current), []);
 
   useLayoutEffect(() => {
     const button = historyButtonRef.current;
@@ -91,7 +105,10 @@ export default function TodayPlanCard({
         </div>
       </div>
 
-      <div className="challenge-v3-sessions">
+      <div
+        className={`challenge-v3-sessions${isSessionsScrolling ? ' is-scrolling' : ''}`}
+        onScroll={handleSessionsScroll}
+      >
         {dailyScenes.map((scene, index) => {
           const result = resultsBySceneId.get(scene.id);
           const isDone = completedScenes.has(scene.id);
@@ -175,11 +192,14 @@ export default function TodayPlanCard({
 
       {isAllDone && showCompletion && (
         <>
-          <div className="challenge-v3-day-complete-banner" role="status">
+          <div
+            className={`challenge-v3-day-complete-banner${shouldAnimateCompletionBanner ? ' is-animated' : ''}`}
+            role="status"
+          >
             <span className="challenge-v3-banner-sheen" aria-hidden="true" />
             <div className="challenge-v3-banner-copy">
               <strong>Day {programDay} Complete</strong>
-              <span>Come back on your next active day for Day {programDay + 1}</span>
+              <span>Come back on your next active day</span>
             </div>
             <div className="challenge-v3-banner-calendar" aria-hidden="true">
               <i className="challenge-v3-banner-confetti-one" />
@@ -200,8 +220,12 @@ export default function TodayPlanCard({
               aria-expanded={isHistoryOpen}
               onClick={toggleHistory}
             >
-              {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
-              <span>{isHistoryOpen ? 'Close' : 'View history'}</span>
+              <span className="history-fab-icon" key={`icon-${isHistoryOpen ? 'close' : 'history'}`}>
+                {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
+              </span>
+              <span className="history-fab-label" key={`label-${isHistoryOpen ? 'close' : 'history'}`}>
+                {isHistoryOpen ? 'Close' : 'View history'}
+              </span>
             </button>
           )}
         </>
