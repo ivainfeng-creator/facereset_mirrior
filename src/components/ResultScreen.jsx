@@ -358,19 +358,15 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(0)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
-                {qualifiesForLeaderboard ? (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
-                ) : (
-                  <ResultShareCard
-                    cardRef={shareCardNodeRef}
-                    slogan={shareCardSlogan}
-                    mascot={shareCardMascot}
-                    photos={shareCardPhotos}
-                    isExporting={isExporting}
-                    onDownload={downloadShareCard}
-                    onShare={shareShareCard}
-                  />
-                )}
+                <ResultShareCard
+                  cardRef={shareCardNodeRef}
+                  slogan={shareCardSlogan}
+                  mascot={shareCardMascot}
+                  photos={shareCardPhotos}
+                  isExporting={isExporting}
+                  onDownload={downloadShareCard}
+                  onShare={shareShareCard}
+                />
               </div>
             </div>
             <div
@@ -393,19 +389,7 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
-                {qualifiesForLeaderboard ? (
-                  <ResultShareCard
-                    cardRef={shareCardNodeRef}
-                    slogan={shareCardSlogan}
-                    mascot={shareCardMascot}
-                    photos={shareCardPhotos}
-                    isExporting={isExporting}
-                    onDownload={downloadShareCard}
-                    onShare={shareShareCard}
-                  />
-                ) : (
-                  <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
-                )}
+                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
               </div>
             </div>
           </div>
