@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toBlob } from 'html-to-image';
 import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
+import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
   fetchProgramDayLeaderboard,
   getSupabaseDisplayName,
@@ -12,6 +13,7 @@ import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/
 import TodayPlanCard from './TodayPlanCard.jsx';
 import ShareCardPreview, { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH } from './ShareCardPreview.jsx';
 import { pickRandom, SHARE_CARD_MASCOTS, SHARE_CARD_SLOGANS } from '../data/shareCardContent.js';
+import { useCaptureUrlsByDate } from '../hooks/useCaptureUrls.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
@@ -70,16 +72,22 @@ export default function ResultScreen({
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
   const shareCardNodeRef = useRef(null);
-  // Snapshots only ever come from the just-completed session's in-memory capture
-  // (see App.jsx's sessionSnapshotsRef / mergeSessionSnapshots); dailyPlan.snapshots
-  // is empty/undefined for any other historical day, so this naturally yields a
-  // clean no-photo fallback for history and never leaks today's photos onto another day.
+  // Locally persisted captures for the day being viewed. Keyed by the plan's own
+  // FaceRest date key, so a past day can only ever surface its own photos.
+  const captureUrlsByScene = useCaptureUrlsByDate(dailyPlan.date);
+  // A completed *earlier* day, not "the history overlay" — the overlay is also how
+  // today's Result Page is presented once session 3 lands, and that page must keep
+  // its approved three-circle collage.
+  const isPastDay = Boolean(dailyPlan.date) && dailyPlan.date !== getEffectiveLocalDateKey();
   const shareCardInstanceKey = `${programDay}-${dailyPlan.date || ''}`;
   const { slogan: shareCardSlogan, mascot: shareCardMascot } = useMemo(
     () => ({ slogan: pickRandom(SHARE_CARD_SLOGANS), mascot: pickRandom(SHARE_CARD_MASCOTS) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [shareCardInstanceKey],
   );
+  // In-memory captures from the session just finished win; anything missing (a
+  // reload, or reopening today's Result from the day selector) falls back to the
+  // locally persisted capture for that same date.
   const shareCardPhotos = useMemo(() => {
     const snapshotByScene = new Map(
       (dailyPlan.snapshots || []).filter((snapshot) => snapshot?.image).map((snapshot) => [snapshot.sceneId, snapshot]),
@@ -87,10 +95,14 @@ export default function ResultScreen({
     return (dailyPlan.sceneResults || [])
       .map((entry) => {
         const snapshot = snapshotByScene.get(entry.sceneId);
-        return snapshot ? { sceneId: entry.sceneId, image: snapshot.image } : null;
+        const image = snapshot?.image || captureUrlsByScene[entry.sceneId];
+        return image ? { sceneId: entry.sceneId, image } : null;
       })
       .filter(Boolean);
-  }, [dailyPlan.sceneResults, dailyPlan.snapshots]);
+  }, [captureUrlsByScene, dailyPlan.sceneResults, dailyPlan.snapshots]);
+  const historyCoverPhoto = useMemo(() => (
+    isPastDay ? getHistoryCoverPhoto(dailyPlan.sceneResults, shareCardPhotos) : null
+  ), [dailyPlan.sceneResults, isPastDay, shareCardPhotos]);
   const shareCardFilename = `facerest-day-${programDay}-share-card.png`;
   // Deliberately measured against real rows only: starter rows are display-only and
   // must not decide whether the player is prompted to join the real leaderboard.
@@ -346,6 +358,7 @@ export default function ResultScreen({
                   slogan={shareCardSlogan}
                   mascot={shareCardMascot}
                   photos={shareCardPhotos}
+                  coverPhoto={historyCoverPhoto}
                   isExporting={isExporting}
                   onDownload={downloadShareCard}
                   onShare={shareShareCard}
@@ -631,16 +644,28 @@ function ResultLeaderboard({ rows, programDay, score, isLoading }) {
   );
 }
 
-function ResultShareCard({ cardRef, slogan, mascot, photos, isExporting, onDownload, onShare }) {
+function ResultShareCard({ cardRef, slogan, mascot, photos, coverPhoto, isExporting, onDownload, onShare }) {
   return (
     <section className="result-summary-card">
-      <ShareCardPreview ref={cardRef} slogan={slogan} mascot={mascot} photos={photos} />
+      <ShareCardPreview ref={cardRef} slogan={slogan} mascot={mascot} photos={photos} coverPhoto={coverPhoto} />
       <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
         <button onClick={onDownload} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
         <button onClick={onShare} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
       </div>
     </section>
   );
+}
+
+// History shows a single photo, chosen deterministically as the earliest session
+// of that day that still has a locally persisted capture, so the same past day
+// always renders the same face. Returns null when nothing is stored, which keeps
+// the existing IP-only (mascot) fallback.
+function getHistoryCoverPhoto(sceneResults = [], photos = []) {
+  const photoByScene = new Map(photos.map((photo) => [photo.sceneId, photo]));
+  const sessionIndex = (sceneResults || []).findIndex((entry) => photoByScene.has(entry.sceneId));
+  if (sessionIndex === -1) return null;
+
+  return { ...photoByScene.get(sceneResults[sessionIndex].sceneId), sessionIndex };
 }
 
 function RestartIcon() {

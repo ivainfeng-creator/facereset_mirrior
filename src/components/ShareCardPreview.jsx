@@ -11,14 +11,14 @@ const PHOTO_SLOTS = ['top-left', 'main', 'bottom-right'];
 // Renders the intrinsic 1080x1350 Share Card inside a wrapper that scales it
 // down responsively, so the exported PNG (captured from the inner node) is
 // never a scaled DOM node itself.
-const ShareCardPreview = forwardRef(function ShareCardPreview({ slogan, mascot, photos }, cardRef) {
+const ShareCardPreview = forwardRef(function ShareCardPreview({ slogan, mascot, photos, coverPhoto = null }, cardRef) {
   const wrapperRef = useRef(null);
   const [scale, setScale] = useState(0);
-  // Historical days don't have persisted snapshots (only the just-completed
-  // session's in-memory captures are available), so anything short of all
-  // three photos falls back to a clean, photo-less card rather than a
-  // partially-populated collage.
-  const hasFullCollage = photos.length === 3;
+  // A past day renders one photo in the existing hero slot; the live day keeps
+  // the three-circle collage. Neither is ever partially populated.
+  const hasCoverPhoto = Boolean(coverPhoto?.image);
+  const hasFullCollage = !hasCoverPhoto && photos.length === 3;
+  const isPhotoless = !hasCoverPhoto && !hasFullCollage;
 
   useLayoutEffect(() => {
     const wrapper = wrapperRef.current;
@@ -52,7 +52,7 @@ const ShareCardPreview = forwardRef(function ShareCardPreview({ slogan, mascot, 
             <span className="share-card-subtitle">{SHARE_CARD_SUBTITLE}</span>
           </div>
 
-          <div className={`share-card-photos${hasFullCollage ? '' : ' is-photoless'}`}>
+          <div className={`share-card-photos${isPhotoless ? ' is-photoless' : ''}`}>
             {hasFullCollage && photos.map((photo, index) => (
               <figure
                 className={`share-card-photo share-card-photo-${PHOTO_SLOTS[index] || 'main'}`}
@@ -65,6 +65,15 @@ const ShareCardPreview = forwardRef(function ShareCardPreview({ slogan, mascot, 
                 </figcaption>
               </figure>
             ))}
+            {hasCoverPhoto && (
+              <figure className="share-card-photo share-card-photo-main">
+                <img src={coverPhoto.image} alt="" />
+                <figcaption>
+                  <b>{(coverPhoto.sessionIndex || 0) + 1}</b>
+                  {getShareCardSessionLabel(coverPhoto.sessionIndex || 0)}
+                </figcaption>
+              </figure>
+            )}
             <img className="share-card-mascot" src={mascot} alt="" />
           </div>
 

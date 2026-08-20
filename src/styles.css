@@ -18361,8 +18361,9 @@ h1 {
   margin: -8px 0 0;
 }
 
-/* Historical days without persisted snapshots fall back to a photo-less card:
-   center the mascot instead of leaving partially-populated/broken photo slots. */
+/* Days with no usable photo at all (no in-memory capture and nothing persisted
+   locally) fall back to an IP-only card: center the mascot instead of leaving
+   partially-populated/broken photo slots. */
 .share-card-photos.is-photoless {
   display: flex;
   align-items: center;
