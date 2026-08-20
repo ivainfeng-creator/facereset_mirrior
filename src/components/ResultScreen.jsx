@@ -6,6 +6,7 @@ import {
   getSupabaseDisplayName,
   saveSupabaseDisplayName,
 } from '../utils/supabaseProgressAdapter.js';
+import { buildLeaderboardDisplayRows } from '../utils/leaderboardDisplay.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 import TodayPlanCard from './TodayPlanCard.jsx';
@@ -91,8 +92,10 @@ export default function ResultScreen({
       .filter(Boolean);
   }, [dailyPlan.sceneResults, dailyPlan.snapshots]);
   const shareCardFilename = `facerest-day-${programDay}-share-card.png`;
+  // Deliberately measured against real rows only: starter rows are display-only and
+  // must not decide whether the player is prompted to join the real leaderboard.
   const qualifiesForLeaderboard = !isLeaderboardLoading && (
-    leaderboard.length < 10 || score >= (leaderboard[9]?.score ?? 0)
+    leaderboard.length < 10 || score >= Math.max(0, Number(leaderboard[9]?.total_score) || 0)
   );
   const bringCardToFront = (cardIndex) => {
     if (isCardLayoutAnimationActive) return;
@@ -159,19 +162,7 @@ export default function ResultScreen({
     const loadLeaderboard = async () => {
       const rows = await fetchProgramDayLeaderboard(programDay);
       if (!isCurrent) return;
-      // Supabase has no "is me" flag, so the player's own row is matched on the
-      // display name they submitted with. Falls back to no highlight when the
-      // player has not named themselves yet.
-      const ownName = getDisplayName(habit);
-      setLeaderboard(rows.map((row) => {
-        const name = row.display_name || 'Anonymous';
-        return {
-          rank: Number(row.rank),
-          name,
-          score: Math.max(0, Number(row.total_score) || 0),
-          me: Boolean(ownName) && normalizeDisplayName(name) === ownName,
-        };
-      }));
+      setLeaderboard(rows);
       setIsLeaderboardLoading(false);
     };
 
@@ -181,6 +172,17 @@ export default function ResultScreen({
       isCurrent = false;
     };
   }, [programDay, habit?.displayName, habit?.updatedAt, leaderboardRefreshKey]);
+
+  // Supabase has no "is me" flag, so the player's own row is matched on the
+  // display name they submitted with. Falls back to no highlight when the
+  // player has not named themselves yet. Starter rows are never "me".
+  const ownName = getDisplayName(habit);
+  const displayLeaderboard = useMemo(() => (
+    buildLeaderboardDisplayRows(programDay, leaderboard).map((row) => ({
+      ...row,
+      me: !row.isSeed && Boolean(ownName) && normalizeDisplayName(row.name) === ownName,
+    }))
+  ), [programDay, leaderboard, ownName]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -370,7 +372,7 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
-                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
+                <ResultLeaderboard rows={displayLeaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
               </div>
             </div>
           </div>
