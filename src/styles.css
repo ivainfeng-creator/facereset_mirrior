@@ -4548,6 +4548,84 @@ h1 {
   transform: translateX(-50%) scale(calc(1 + var(--squeeze) * 0.07));
 }
 
+@media (min-width: 768px) {
+  .lemon-squeeze-prompt {
+    top: 10%;
+  }
+}
+
+.lemon-left-sprite {
+  position: absolute;
+  left: 50%;
+  z-index: 6;
+  width: min(48vh, 377.6px);
+  top: 20%;
+  aspect-ratio: 109 / 65;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  filter: drop-shadow(0 12px 22px rgba(60, 90, 60, 0.16));
+  transform: translateX(-50%);
+}
+
+.lemon-left-sprite.is-animating {
+  animation: lemonLeftSprite 1.6s steps(1) both;
+}
+
+.lemon-bottom-layer {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  z-index: 4;
+  width: 1274.48px;
+  height: 240px;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.lemon-bottom-background {
+  position: absolute;
+  inset: 0;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.milky-sprite {
+  position: absolute;
+  top: calc(-50% - 19px);
+  right: 28%;
+  z-index: 1;
+  width: 300px;
+  aspect-ratio: 205 / 142;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  filter: drop-shadow(0 12px 22px rgba(60, 90, 60, 0.16));
+  transform: rotate(2deg);
+  animation: lemonLeftSprite 2.4s steps(1) infinite;
+}
+
+@keyframes lemonLeftSprite {
+  0%, 6.24% { background-position: 0 0; }
+  6.25%, 12.49% { background-position: 33.333% 0; }
+  12.5%, 18.74% { background-position: 66.667% 0; }
+  18.75%, 24.99% { background-position: 100% 0; }
+  25%, 31.24% { background-position: 0 33.333%; }
+  31.25%, 37.49% { background-position: 33.333% 33.333%; }
+  37.5%, 43.74% { background-position: 66.667% 33.333%; }
+  43.75%, 49.99% { background-position: 100% 33.333%; }
+  50%, 56.24% { background-position: 0 66.667%; }
+  56.25%, 62.49% { background-position: 33.333% 66.667%; }
+  62.5%, 68.74% { background-position: 66.667% 66.667%; }
+  68.75%, 74.99% { background-position: 100% 66.667%; }
+  75%, 81.24% { background-position: 0 100%; }
+  81.25%, 87.49% { background-position: 33.333% 100%; }
+  87.5%, 93.74% { background-position: 66.667% 100%; }
+  93.75%, 100% { background-position: 100% 100%; }
+}
+
 .lemon-press-board {
   position: absolute;
   top: calc(30% + 24px);
@@ -4590,7 +4668,7 @@ h1 {
 .lemon-press-live-set,
 .lemon-press-exiting-set {
   display: flex;
-  flex: 0 0 calc(156px + (18px * (1 - var(--squeeze))));
+  flex: 0 0 calc(204px + (18px * (1 - var(--squeeze))));
   align-items: center;
   justify-content: center;
   gap: calc(18px * (1 - var(--squeeze)));
@@ -4606,10 +4684,11 @@ h1 {
 
 .lemon-press-half {
   position: relative;
-  width: 78px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  isolation: isolate;
+  width: 102px;
+  aspect-ratio: 1598 / 1143;
+  background-position: var(--lemon-left-x) var(--lemon-left-y);
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
   filter: saturate(calc(1 - var(--lemon-extraction) * 0.42)) brightness(calc(1 - var(--lemon-extraction) * 0.16)) sepia(calc(var(--lemon-extraction) * 0.12));
   transition: filter 280ms ease-out, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -4619,7 +4698,7 @@ h1 {
 }
 
 .lemon-press-half.right {
-  transform: translateX(calc(var(--right-squeeze) * -12%)) scale(calc(1 - var(--right-squeeze) * 0.22), calc(1 + var(--right-squeeze) * 0.1));
+  transform: translateX(calc(var(--right-squeeze) * -12%)) scaleX(-1) scale(calc(1 - var(--right-squeeze) * 0.22), calc(1 + var(--right-squeeze) * 0.1));
 }
 
 .lemon-press-board.is-replacing .lemon-press-half.left {
@@ -4627,20 +4706,11 @@ h1 {
 }
 
 .lemon-press-board.is-replacing .lemon-press-half.right {
-  transform: translateX(calc(var(--replacement-right-squeeze) * -12%)) scale(calc(1 - var(--replacement-right-squeeze) * 0.22), calc(1 + var(--replacement-right-squeeze) * 0.1));
+  transform: translateX(calc(var(--replacement-right-squeeze) * -12%)) scaleX(-1) scale(calc(1 - var(--replacement-right-squeeze) * 0.22), calc(1 + var(--replacement-right-squeeze) * 0.1));
 }
 
 .lemon-press-half::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  border-radius: inherit;
-  background: #8b843f;
-  content: '';
-  mix-blend-mode: multiply;
-  opacity: calc(var(--lemon-extraction) * 0.3);
-  pointer-events: none;
-  transition: opacity 280ms ease-out;
+  display: none;
 }
 
 .lemon-rind,
@@ -4724,9 +4794,7 @@ h1 {
 .lemon-queue-left { right: calc(50% + 112px); }
 .lemon-queue-right { left: calc(50% + 112px); transform: scaleX(-1); }
 
-@media (min-width: 600px) {
-  .lemon-queue { top: calc(33% - 8px); }
-}
+.lemon-queue { top: calc(33% - 8px); }
 
 .lemon-queue-track {
   display: flex;
@@ -4748,46 +4816,24 @@ h1 {
 .lemon-queue-cell {
   flex: 0 0 var(--queue-size);
   width: var(--queue-size);
-  aspect-ratio: 0.95;
+  align-self: center;
+  aspect-ratio: 1598 / 1143;
 }
 
-.lemon-queue-wobble {
-  position: relative;
+.lemon-queue-sprite {
   display: block;
   width: 100%;
   height: 100%;
-  transform-origin: 50% 92%;
-  animation: lemonQueueWobble 800ms ease-in-out infinite;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  animation: lemonQueueSprite 620ms steps(4) infinite;
   animation-delay: var(--queue-delay);
 }
 
-.lemon-queue-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  animation-duration: 620ms;
-  animation-iteration-count: infinite;
-  animation-timing-function: step-end;
-  animation-delay: var(--queue-delay);
-}
-
-.lemon-queue-frame-a { animation-name: lemonQueueFrameA; }
-.lemon-queue-frame-b { animation-name: lemonQueueFrameB; }
-
-@keyframes lemonQueueFrameA {
-  0%, 50% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
-@keyframes lemonQueueFrameB {
-  0%, 50% { opacity: 0; }
-  50%, 100% { opacity: 1; }
-}
-
-@keyframes lemonQueueWobble {
-  0%, 100% { transform: rotate(-2deg); }
-  50% { transform: rotate(2deg); }
+@keyframes lemonQueueSprite {
+  from { background-position: 0 0; }
+  to { background-position: 100% 0; }
 }
 
 .lemon-juice-stream span {
@@ -4866,79 +4912,81 @@ h1 {
 
 .lemon-soda-glass {
   position: absolute;
-  bottom: 12%;
+  top: -50%;
   left: 50%;
-  z-index: 5;
-  width: auto;
-  height: min(33vh, 274px);
+  z-index: 2;
+  width: 472px;
+  aspect-ratio: 20 / 13;
+  background-position: var(--lemonade-x) var(--lemonade-y);
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
   filter: drop-shadow(0 12px 22px rgba(60, 90, 60, 0.16));
   transform: translateX(-50%);
 }
 
-.lemon-soda-glass svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+.lemon-soda-glass.is-playing {
+  animation-duration: 540ms;
+  animation-timing-function: steps(1);
+  animation-fill-mode: both;
 }
 
-.lemon-soda-glass-cute,
-.lemon-soda-glass-cute {
-  aspect-ratio: 170 / 197;
-  height: min(28vh, 232px);
+.lemon-soda-glass.segment-1 {
+  animation-name: lemonadeSegmentOne;
 }
 
-.lemon-soda-glass-tall {
-  aspect-ratio: 132 / 272;
+.lemon-soda-glass.segment-2 {
+  animation-name: lemonadeSegmentTwo;
 }
 
-.lemon-soda-fill {
-  transition: transform 180ms ease-out;
+.lemon-soda-glass.segment-3 {
+  animation-name: lemonadeSegmentThree;
 }
 
-.lemon-soda-svg-bubble {
-  fill: rgba(255, 255, 255, 0.86);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: lemonSodaBubble 1.15s ease-in infinite;
-}
-
-.lemon-soda-svg-bubble.bubble-two { animation-delay: 220ms; }
-.lemon-soda-svg-bubble.bubble-three { animation-delay: 440ms; }
-.lemon-soda-svg-bubble.bubble-four { animation-delay: 660ms; }
-.lemon-soda-svg-bubble.bubble-five { animation-delay: 880ms; }
-.lemon-soda-svg-bubble.bubble-six { animation-delay: 110ms; }
-.lemon-soda-svg-bubble.bubble-seven { animation-delay: 330ms; }
-.lemon-soda-svg-bubble.bubble-eight { animation-delay: 550ms; }
-.lemon-soda-svg-bubble.bubble-nine { animation-delay: 770ms; }
-.lemon-soda-svg-bubble.bubble-ten { animation-delay: 990ms; }
-.lemon-soda-svg-bubble.bubble-eleven { animation-delay: 165ms; }
-.lemon-soda-svg-bubble.bubble-twelve { animation-delay: 385ms; }
-
-.lemon-soda-straw-highlight {
-  fill: rgba(255, 255, 255, 0.5);
-}
-
-.lemon-soda-straw-art {
+.lemonade-complete-flash {
   position: absolute;
-  inset: 0;
-  overflow: visible;
-  pointer-events: none;
+  top: 42%;
+  left: 50%;
+  z-index: 7;
+  color: #ffffff;
+  font-family: 'Luckiest Guy', 'Instrument Sans', sans-serif;
+  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translate(-50%, calc(-50% - 40px));
+  animation: penguinCatchFlash 2s ease-out both;
 }
 
-.lemon-soda-straw-art path {
-  fill: none;
-  stroke: #4c88cc;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 5;
+.lemonade-complete-score {
+  display: block;
 }
 
-@keyframes lemonSodaBubble {
-  0% { opacity: 0; transform: translateY(13px) scale(0.72); }
-  28% { opacity: 0.9; }
-  78% { opacity: 0.7; }
-  100% { opacity: 0; transform: translateY(-24px) scale(1.08); }
+@keyframes lemonadeSegmentOne {
+  0%, 19.99% { background-position: 0 0; }
+  20%, 39.99% { background-position: 33.333% 0; }
+  40%, 59.99% { background-position: 66.667% 0; }
+  60%, 79.99% { background-position: 100% 0; }
+  80%, 99.99% { background-position: 0 33.333%; }
+  100% { background-position: 33.333% 33.333%; }
+}
+
+@keyframes lemonadeSegmentTwo {
+  0%, 19.99% { background-position: 33.333% 33.333%; }
+  20%, 39.99% { background-position: 66.667% 33.333%; }
+  40%, 59.99% { background-position: 100% 33.333%; }
+  60%, 79.99% { background-position: 0 66.667%; }
+  80%, 99.99% { background-position: 33.333% 66.667%; }
+  100% { background-position: 66.667% 66.667%; }
+}
+
+@keyframes lemonadeSegmentThree {
+  0%, 19.99% { background-position: 66.667% 66.667%; }
+  20%, 39.99% { background-position: 100% 66.667%; }
+  40%, 59.99% { background-position: 0 100%; }
+  60%, 79.99% { background-position: 33.333% 100%; }
+  80%, 99.99% { background-position: 66.667% 100%; }
+  100% { background-position: 100% 100%; }
 }
 
 .lemon-soda-surface {
@@ -4999,24 +5047,53 @@ h1 {
 .lemon-soda-ice.is-visible,
 .lemon-soda-slice.is-visible { opacity: 1; transform: translateY(0) rotate(0deg); }
 
-@media (max-width: 599px) {
-  .lemon-queue {
-    top: calc(33% + 24px);
+@media (max-width: 767px) {
+  .play-routine-mirror:has(.lemon-squeeze-scene) {
+    background: #8fdaf3;
   }
 
-  .lemon-press-board {
-    right: 0;
-    left: 0;
-    width: max-content;
-    margin-inline: auto;
+  .lemon-squeeze-scene {
+    inset: 0;
+    width: auto;
+    height: auto;
     transform: none;
   }
 
+  .lemon-bottom-layer {
+    width: 100%;
+    height: 180px;
+  }
+
+  .lemon-bottom-background {
+    background-size: cover;
+  }
+
+  .lemon-left-sprite {
+    top: 25%;
+    width: 300px;
+  }
+
   .lemon-soda-glass {
-    right: 0;
-    left: 0;
-    margin-inline: auto;
-    transform: translateY(-56px) scale(0.8);
+    top: -42%;
+    width: 340px;
+  }
+
+  .milky-sprite {
+    top: -45%;
+    right: 8%;
+    width: 190px;
+  }
+
+  .lemon-queue {
+    --queue-size: 64px;
+    --queue-gap: 8px;
+    top: 31%;
+  }
+
+  .lemon-squeeze-prompt {
+    top: 12%;
+    padding: 9px 20px;
+    font-size: 0.85rem;
   }
 }
 
