@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { loadPassportProgress } from '../utils/progressAdapter.js';
 import { buildDailyPlanSummary, buildProgramDayPlanSummary } from '../utils/dailyPlan.js';
 import { fetchProgramDayLeaderboard } from '../utils/supabaseProgressAdapter.js';
+import { buildLeaderboardDisplayRows } from '../utils/leaderboardDisplay.js';
 
 export default function LeaderboardScreen({ habit, onBack, onRestart, programDay: selectedProgramDay = null }) {
   const passport = loadPassportProgress(habit);
@@ -18,11 +19,11 @@ export default function LeaderboardScreen({ habit, onBack, onRestart, programDay
     setIsLoading(true);
     void fetchProgramDayLeaderboard(programDay).then((data) => {
       if (!isCurrent) return;
-      setRows(data.map((row) => ({
-        rank: Number(row.rank),
-        name: row.display_name || 'Anonymous',
-        score: Math.max(0, Number(row.total_score) || 0),
-        detail: `${row.completed_sessions}/3 sessions`,
+      setRows(buildLeaderboardDisplayRows(programDay, data).map((row) => ({
+        rank: row.rank,
+        name: row.name,
+        score: row.score,
+        detail: `${row.completedSessions}/3 sessions`,
       })));
       setIsLoading(false);
     });
