@@ -11330,6 +11330,13 @@ h1 {
     top: 3.5%;
   }
 
+  /* The 68px floor is sized for phone portrait. On a short viewport the page no
+     longer scrolls, so keep the floor low enough that the title's ascenders are
+     not clipped against the top edge. */
+  .welcome-v3-heading h1 {
+    font-size: min(18vw, 10vh);
+  }
+
   .welcome-v3-mascots {
     top: 54%;
     width: min(63vw - 16px, 36vh);
@@ -14048,9 +14055,21 @@ h1 {
   min-height: 0;
 }
 
-.result-history-modal .result-leaderboard-card li {
+.result-history-modal .result-leaderboard-card li:not(.result-leaderboard-empty) {
   height: 42px;
   min-height: 42px;
+}
+
+/* The empty and loading states are prose, not a rank row: let them span the
+   whole list and wrap normally instead of inheriting the rank grid columns. */
+.result-leaderboard-card li.result-leaderboard-empty {
+  display: block;
+  height: auto;
+  padding: 14px 7px;
+  color: #8a8a8a;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .result-dashboard-message {
