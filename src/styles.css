@@ -5568,12 +5568,17 @@ h1 {
   stroke-width: 2.2;
 }
 
+/* Practice hides the front-camera preview, but the element must stay in the
+   render tree: the same <video> is PracticeScreen's trackingVideoRef, so it has
+   to keep decoding frames for face detection. `visibility` does that;
+   `display: none` would stop the stream feeding the landmarker. */
 .practice-stage .camera-preview {
   top: 24px;
   right: auto;
   left: 24px;
   z-index: 2;
   width: 102px;
+  visibility: hidden;
   border: 0;
   border-radius: 8px;
   background: #111;
@@ -17420,10 +17425,16 @@ h1 {
 
 .practice-got-it span {
   position: absolute;
+  top: 50%;
   right: 10%;
+  transform: translateY(-50%);
   font-family: var(--fr-font-body);
   font-size: 1.28em;
   font-weight: 900;
+}
+
+.practice-got-it span svg {
+  display: block;
 }
 
 .practice-back:hover {
