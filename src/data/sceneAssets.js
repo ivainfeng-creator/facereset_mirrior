@@ -41,8 +41,6 @@ import bunnyBalloonFrame2Asset from '../../references/Bunny/B-2.png';
 import bunnyBalloonFrame3Asset from '../../references/Bunny/B-3.png';
 import bunnyBalloonFrame4Asset from '../../references/Bunny/B-4.png';
 import bunnyBalloonFrame5Asset from '../../references/Bunny/B-5.png';
-import lemonWalkFrameAAsset from '../../references/Lemon/Lemon.svg';
-import lemonWalkFrameBAsset from '../../references/Lemon/Lemon-1.svg';
 import penguinAsset from '../../references/Penguin/Penguin.png';
 import penguinIceBackgroundAsset from '../../references/Penguin/Ice_background.png';
 import penguinIceStage2Asset from '../../references/Penguin/Ice_background_ice-2.png';
@@ -93,8 +91,6 @@ export {
   bunnyBalloonFrame3Asset,
   bunnyBalloonFrame4Asset,
   bunnyBalloonFrame5Asset,
-  lemonWalkFrameAAsset,
-  lemonWalkFrameBAsset,
   penguinAsset,
   penguinIceBackgroundAsset,
   penguinIceStage2Asset,
@@ -155,10 +151,7 @@ export const sceneAssetGroups = Object.freeze({
     bunnyBalloonFrame4Asset,
     bunnyBalloonFrame5Asset,
   ]),
-  lemonSqueeze: Object.freeze([
-    lemonWalkFrameAAsset,
-    lemonWalkFrameBAsset,
-  ]),
+  lemonSqueeze: Object.freeze([]),
   penguinFishing: Object.freeze([
     penguinAsset,
     penguinIceBackgroundAsset,

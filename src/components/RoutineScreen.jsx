@@ -1,5 +1,8 @@
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { lemonBackgroundStyle } from '../../references/Lemon/lemon-background.js';
+import lemonBackgroundAsset from '../../references/Lemon/Lemon-background.png';
+import lemonLeftSpriteAsset from '../../references/Lemon/Lemon-left.png';
+import lemonadeSpriteAsset from '../../references/Lemon/Lemonade.png';
+import milkySpriteAsset from '../../references/Lemon/Milky.png';
 import {
   clearSceneTuningOverrides,
   getSceneTuning,
@@ -42,8 +45,6 @@ import {
   flowerYellowStage2,
   flowerYellowStage3,
   flowerYellowStage4,
-  lemonWalkFrameAAsset,
-  lemonWalkFrameBAsset,
   penguinAsset,
   penguinIceBackgroundAsset,
   penguinIceStage2Asset,
@@ -117,7 +118,6 @@ const POPCORN_PIECE_ASSETS = [
   popcornPiece06Asset,
 ];
 
-const LEMON_QUEUE_SLOT_COUNT = 10;
 const PENGUIN_ICE_STAGE_ASSETS = [
   penguinIceStage2Asset,
   penguinIceStage3Asset,
@@ -302,11 +302,6 @@ const SCENE_RENDERERS = {
   lemonSqueeze: LemonSqueezeScene,
   penguinFishing: PenguinFishingScene,
 };
-
-const LEMON_CUPS = Object.freeze([
-  { id: 'cute', clipId: 'frCuteClip', viewBox: '0 0 170 197', fillHeight: 197, straw: { source: '/assets/lemon/S-03.svg', colorMatrix: '0 0 0 0 0.659 0 0 0 0 0.451 0 0 0 0 0.812 0 0 0 0 1', x: 89, y: -55.35, width: 38, height: 240.35 }, path: 'M85.0898 3C93.7273 3.00021 101.426 6.60777 106.619 12.2559L108.532 14.3359L110.723 12.5508C113.549 10.2488 116.946 8.26581 120.791 6.81055C133.746 1.90726 145.984 4.98831 150.629 11.9023L151.671 13.4531L153.522 13.2021C160.316 12.2796 165.219 14.9033 166.574 18.5156C167.423 20.779 167.021 23.5646 165.152 26.3857L164.926 26.7295L164.799 27.1201C164.582 27.7928 163.913 29.216 162.785 31.6953C161.72 34.0379 160.375 37.0612 159.011 40.5889C156.289 47.6295 153.458 56.7619 152.604 66.6973C151.208 82.9138 152.593 91.8662 152.593 105.582V105.878L152.65 106.168C156.509 125.549 158.145 133.443 156.463 146.398C154.607 160.69 149.417 172.403 138.776 180.624C128.055 188.908 111.351 194 85.7305 194C59.2594 194 41.8315 187.551 31.0371 177.632C20.2789 167.746 15.6631 153.999 15.6631 138.415C15.6631 134.273 16.4235 123.516 16.9229 119.469C18.0932 109.982 18.8682 97.7758 18.8682 79.8301C18.8682 60.3642 10.7258 38.5314 6.74414 28.9854L6.54883 28.5156L6.20898 28.1377L5.93457 27.8232C3.2539 24.6795 2.48328 21.3789 3.33496 18.7734L3.42578 18.5156C4.90373 14.576 10.6835 11.803 18.3018 13.5322L20.3711 14.001L21.5039 12.207C25.9984 5.08399 38.3826 1.83011 51.542 6.81055C54.8858 8.07618 57.8926 9.7419 60.4795 11.6699L62.5557 13.2178L64.3896 11.3896C69.3944 6.40184 76.4448 3.20475 84.3242 3.00977L85.0898 3Z' },
-  { id: 'tall', clipId: 'frTallClip', viewBox: '0 0 132 272', fillHeight: 272, straw: { source: '/assets/lemon/S-02.svg', colorMatrix: '0 0 0 0 0.298 0 0 0 0 0.533 0 0 0 0 0.8 0 0 0 0 1', x: 31.575, y: -25, width: 97.85, height: 285 }, path: 'M8.0542 3H123.057C126.114 3 128.473 5.71713 128.042 8.75879C126.007 23.1197 122.123 51.707 119.991 75.0234C117.889 98.009 116.465 139.488 116.467 156.431L116.473 157.528C116.608 168.853 118.8 179.429 120.922 189.31C123.137 199.618 125.245 209.054 125.245 218.3C125.245 232.955 123.024 245.391 114.889 254.241C106.787 263.055 92.1607 269 65.6333 269C40.4211 269 25.737 263.078 17.2896 254.203C8.82497 245.31 6.02197 232.829 6.02197 218.3C6.022 212.564 6.71169 207.199 8.09229 199.02C9.46599 190.881 11.5305 179.916 14.1763 163.323L14.1958 163.202L14.2046 163.079C16.5307 132.51 16.7725 111.013 14.2017 82.9033C12.0097 58.9361 6.08102 25.2092 3.08643 8.97754C2.51277 5.86706 4.8997 3.00004 8.0542 3Z' },
-]);
 
 export default function RoutineScreen({
   selectedScene = DEFAULT_SCENE_ID,
@@ -1759,30 +1754,6 @@ function TempleGardenScene({ interaction, previewForegroundOnly = false }) {
 function LemonSqueezeScene({ interaction }) {
   const squeeze = clamp(interaction.squeeze || 0, 0, 1);
   const sodaLevel = clamp(interaction.sodaLevel || 0.16, 0.1, 0.94);
-  const juiceSurface = 1 - sodaLevel;
-  const lemonExtraction = clamp(interaction.lemonExtraction || 0, 0, 1);
-  const queueSlots = useMemo(
-    () => Array.from({ length: LEMON_QUEUE_SLOT_COUNT }, (_, index) => index),
-    [],
-  );
-  const replacedLemons = interaction.lemonReplacementCount || 0;
-  const [lemonCycles, setLemonCycles] = useState(() => ({
-    current: replacedLemons,
-    departing: null,
-  }));
-  const [replacementPress, setReplacementPress] = useState({ left: 0, right: 0 });
-  const handledReplacementRef = useRef(replacedLemons);
-  const replacementTimerRef = useRef(null);
-  const fieldRef = useRef(null);
-  const lemonRefs = useRef({ left: null, right: null });
-  const glassRef = useRef(null);
-  const streamGeometryRef = useRef([]);
-  const [streams, setStreams] = useState([]);
-  const flowing = Boolean(
-    interaction.hasSqueezeMotion
-    || interaction.isSqueezing
-    || lemonExtraction > 0.04,
-  );
   const fizz = useMemo(
     () =>
       Array.from({ length: 18 }, (_, index) => ({
@@ -1794,92 +1765,13 @@ function LemonSqueezeScene({ interaction }) {
     [],
   );
 
-  useEffect(() => {
-    let frameId;
-    const measure = () => {
-      const field = fieldRef.current?.getBoundingClientRect();
-      const glass = glassRef.current?.getBoundingClientRect();
-      const leftLemon = lemonRefs.current.left?.getBoundingClientRect();
-      const rightLemon = lemonRefs.current.right?.getBoundingClientRect();
-
-      if (field && glass && leftLemon && rightLemon) {
-        const scaleX = field.width / fieldRef.current.offsetWidth;
-        const scaleY = field.height / fieldRef.current.offsetHeight;
-        const nextStreams = [
-          { lemon: leftLemon, side: -1 },
-          { lemon: rightLemon, side: 1 },
-        ].map(({ lemon, side }) => {
-          const startX = (lemon.left - field.left + lemon.width / 2 - 12) / scaleX;
-          const startY = (lemon.bottom - field.top) / scaleY;
-          const endX = (glass.left - field.left + glass.width * (0.5 + side * 0.16)) / scaleX;
-          const endY = (glass.top - field.top + glass.height * juiceSurface) / scaleY;
-          const deltaX = endX - startX;
-          const deltaY = endY - startY;
-
-          return {
-            x: startX,
-            y: startY,
-            length: Math.hypot(deltaX, deltaY),
-            angle: -Math.atan2(deltaX, deltaY) * (180 / Math.PI)
-              + (side === 1 ? 4 + clamp(interaction.rightPress || 0, 0, 1) * 2 : 0),
-          };
-        });
-        const previousStreams = streamGeometryRef.current;
-        const changed = nextStreams.some((stream, index) => {
-          const previous = previousStreams[index];
-          return !previous
-            || Math.abs(stream.x - previous.x) >= 0.5
-            || Math.abs(stream.y - previous.y) >= 0.5
-            || Math.abs(stream.length - previous.length) >= 0.5
-            || Math.abs(stream.angle - previous.angle) >= 0.3;
-        });
-
-        if (changed) {
-          streamGeometryRef.current = nextStreams;
-          setStreams(nextStreams);
-        }
-      }
-
-      frameId = requestAnimationFrame(measure);
-    };
-
-    frameId = requestAnimationFrame(measure);
-    return () => cancelAnimationFrame(frameId);
-  }, [interaction.rightPress, juiceSurface]);
-
-  useEffect(() => {
-    if (replacedLemons === handledReplacementRef.current) return undefined;
-
-    handledReplacementRef.current = replacedLemons;
-    window.clearTimeout(replacementTimerRef.current);
-    setReplacementPress({
-      left: clamp(interaction.leftPress || 0, 0, 1),
-      right: clamp(interaction.rightPress || 0, 0, 1),
-    });
-    setLemonCycles((previous) => ({
-      current: previous.current ?? previous.departing,
-      departing: previous.current ?? previous.departing,
-    }));
-    replacementTimerRef.current = window.setTimeout(() => {
-      setLemonCycles({ current: replacedLemons, departing: null });
-    }, 380);
-
-    return () => window.clearTimeout(replacementTimerRef.current);
-  }, [interaction.leftPress, interaction.rightPress, replacedLemons]);
-
-  useEffect(() => () => window.clearTimeout(replacementTimerRef.current), []);
-
   return (
     <div
-      ref={fieldRef}
       className={`lemon-squeeze-scene ${interaction.isSqueezing ? 'is-squeezing' : ''}`}
       style={{
-        ...lemonBackgroundStyle,
+        background: `url(${lemonBackgroundAsset}) center / cover no-repeat`,
         '--squeeze': squeeze,
-        '--left-squeeze': clamp(interaction.leftPress || 0, 0, 1),
-        '--right-squeeze': clamp(interaction.rightPress || 0, 0, 1),
         '--soda-level': sodaLevel,
-        '--lemon-extraction': lemonExtraction,
         '--combo': interaction.combo || 0,
       }}
       aria-hidden="true"
@@ -1898,165 +1790,41 @@ function LemonSqueezeScene({ interaction }) {
       </div>
       <div className="lemon-horizon" />
       <div className="lemon-shore" />
-      <div
-        className={`lemon-press-board ${lemonCycles.departing !== null ? 'is-replacing' : ''}`}
-        style={{
-          '--replacement-left-squeeze': replacementPress.left,
-          '--replacement-right-squeeze': replacementPress.right,
-        }}
-      >
-        <span className="lemon-board-jaw left" />
-        {lemonCycles.departing !== null && (
-          <div className="lemon-press-exiting-set" style={{ '--lemon-extraction': 1 }}>
-            <LemonPressHalf side="left" state="is-exiting" />
-            <LemonPressHalf side="right" state="is-exiting" />
-          </div>
-        )}
-        <div className="lemon-press-live-set">
-          {lemonCycles.current !== null && (
-            <>
-              <LemonPressHalf
-                key={`lemon-left-${lemonCycles.current}`}
-                ref={(element) => { lemonRefs.current.left = element; }}
-                side="left"
-                state=""
-              />
-              <LemonPressHalf
-                key={`lemon-right-${lemonCycles.current}`}
-                ref={(element) => { lemonRefs.current.right = element; }}
-                side="right"
-                state=""
-              />
-            </>
-          )}
-        </div>
-        <span className="lemon-board-jaw right" />
-      </div>
-
-      <LemonQueue
-        side="left"
-        slots={queueSlots}
-        replacementCount={replacedLemons}
-        isAdvancing={lemonCycles.departing !== null}
-      />
-      <LemonQueue
-        side="right"
-        slots={queueSlots}
-        replacementCount={replacedLemons}
-        isAdvancing={lemonCycles.departing !== null}
-      />
-
-      <div className={`lemon-juice-streams ${flowing ? 'is-flowing' : ''}`}>
-        {streams.map((stream, streamIndex) => (
-          <div
-            className="lemon-juice-stream"
-            key={streamIndex}
-            style={{
-              height: `${stream.length}px`,
-              transform: `translate(${stream.x}px, ${stream.y}px) rotate(${stream.angle}deg)`,
-            }}
-          >
-            {[0, 1, 2, 3].map((dropIndex) => (
-              <span
-                key={dropIndex}
-                style={{ '--drip-delay': `${dropIndex * 0.1 + streamIndex * 0.05}s` }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-      <LemonSodaGlass ref={glassRef} fill={sodaLevel} cupIndex={interaction.sipCount || 0} />
+      <LemonLeftSprite isAnimating={interaction.isSqueezing || interaction.hasSqueezeMotion} />
+      <MilkySprite />
+      <LemonSodaGlass fill={sodaLevel} />
     </div>
   );
 }
 
-function LemonQueue({ side, slots, replacementCount, isAdvancing }) {
+function LemonLeftSprite({ isAnimating }) {
   return (
-    <div className={`lemon-queue lemon-queue-${side}`}>
-      <div
-        key={replacementCount}
-        className={`lemon-queue-track ${isAdvancing ? 'is-advancing' : ''}`}
-      >
-        {slots.map((slot) => {
-          const lemonId = replacementCount + slot;
-
-          return (
-          <span
-            className="lemon-queue-cell"
-            data-queue-slot={slot}
-            key={`${side}-${lemonId}`}
-            style={{
-              '--queue-delay': `${(lemonId % LEMON_QUEUE_SLOT_COUNT) * 0.15}s`,
-            }}
-          >
-            <span className="lemon-queue-wobble">
-              <img className="lemon-queue-frame lemon-queue-frame-a" src={lemonWalkFrameAAsset} alt="" />
-              <img className="lemon-queue-frame lemon-queue-frame-b" src={lemonWalkFrameBAsset} alt="" />
-            </span>
-          </span>
-          );
-        })}
-      </div>
-    </div>
+    <div
+      className={`lemon-left-sprite ${isAnimating ? 'is-animating' : ''}`}
+      style={{ backgroundImage: `url(${lemonLeftSpriteAsset})` }}
+    />
   );
 }
 
-const LemonSodaGlass = forwardRef(function LemonSodaGlass({ fill, cupIndex }, ref) {
-  const cup = LEMON_CUPS[cupIndex % LEMON_CUPS.length];
-  const fillOffset = (1 - fill) * cup.fillHeight;
-  const strawColor = cup.id === 'cute' ? '#a873cf' : cup.id === 'tall' ? '#4c88cc' : '#67b96b';
+function MilkySprite() {
+  return <div className="milky-sprite" style={{ backgroundImage: `url(${milkySpriteAsset})` }} />;
+}
+
+const LemonSodaGlass = forwardRef(function LemonSodaGlass({ fill }, ref) {
+  const frame = Math.round(clamp(fill, 0, 1) * 15);
+  const column = frame % 4;
+  const row = Math.floor(frame / 4);
 
   return (
-    <div ref={ref} className={`lemon-soda-glass lemon-soda-glass-${cup.id}`}>
-      <svg viewBox={cup.viewBox} preserveAspectRatio="xMidYMid meet" role="presentation">
-        <defs>
-          <clipPath id={cup.clipId}><path d={cup.path} /></clipPath>
-          <filter id={`${cup.clipId}StrawColor`} colorInterpolationFilters="sRGB">
-            <feFlood floodColor={strawColor} result="strawColor" />
-            <feComposite in="strawColor" in2="SourceAlpha" operator="in" />
-          </filter>
-        </defs>
-        <g clipPath={`url(#${cup.clipId})`}>
-          <g className="lemon-soda-fill" transform={`translate(0 ${fillOffset})`}>
-            <rect width="100%" height={cup.fillHeight} fill="#f4e75c" />
-            <circle className="lemon-soda-svg-bubble bubble-one" cx="30%" cy="72%" r="4" />
-            <circle className="lemon-soda-svg-bubble bubble-two" cx="57%" cy="49%" r="3" />
-            <circle className="lemon-soda-svg-bubble bubble-three" cx="76%" cy="83%" r="5" />
-            <circle className="lemon-soda-svg-bubble bubble-four" cx="18%" cy="61%" r="2.5" />
-            <circle className="lemon-soda-svg-bubble bubble-five" cx="68%" cy="67%" r="3.5" />
-            <circle className="lemon-soda-svg-bubble bubble-six" cx="43%" cy="86%" r="2.5" />
-            <circle className="lemon-soda-svg-bubble bubble-seven" cx="87%" cy="58%" r="3" />
-            <circle className="lemon-soda-svg-bubble bubble-eight" cx="9%" cy="78%" r="3.5" />
-            <circle className="lemon-soda-svg-bubble bubble-nine" cx="52%" cy="62%" r="2" />
-            <circle className="lemon-soda-svg-bubble bubble-ten" cx="35%" cy="52%" r="3" />
-            <circle className="lemon-soda-svg-bubble bubble-eleven" cx="82%" cy="74%" r="2.5" />
-            <circle className="lemon-soda-svg-bubble bubble-twelve" cx="24%" cy="88%" r="2" />
-          </g>
-        </g>
-        <path d={cup.path} fill={cup.outlineFill ? 'rgba(255, 255, 255, 0.95)' : 'none'} stroke={cup.outlineFill ? 'none' : 'rgba(255, 255, 255, 0.95)'} strokeWidth={cup.outlineFill ? 0 : 6} />
-        <image
-          className="lemon-soda-straw-asset"
-          href={cup.straw.source}
-          filter={`url(#${cup.clipId}StrawColor)`}
-          x={cup.straw.x}
-          y={cup.straw.y}
-          width={cup.straw.width}
-          height={cup.straw.height}
-        />
-      </svg>
-    </div>
-  );
-});
-
-const LemonPressHalf = forwardRef(function LemonPressHalf({ side, state }, ref) {
-  return (
-    <div ref={ref} className={`lemon-press-half ${side} ${state}`}>
-      <span className="lemon-rind" />
-      <span className="lemon-pith" />
-      <span className="lemon-flesh" />
-      <span className="lemon-core" />
-      <span className="lemon-press-cue" />
-    </div>
+    <div
+      ref={ref}
+      className="lemon-soda-glass"
+      style={{
+        '--lemonade-x': `${(column / 3) * 100}%`,
+        '--lemonade-y': `${(row / 3) * 100}%`,
+        backgroundImage: `url(${lemonadeSpriteAsset})`,
+      }}
+    />
   );
 });
 

@@ -93,11 +93,11 @@ const RESULT_PREVIEW = {
 
 export default function App() {
   const [screen, setScreen] = useState(
-    debugSceneId ? SCREENS.permission : (isResultPreview || isDemoPreview ? SCREENS.challenge : SCREENS.landing),
+    debugSceneId ? SCREENS.routine : (isResultPreview || isDemoPreview ? SCREENS.challenge : SCREENS.landing),
   );
   const [cameraStream, setCameraStream] = useState(null);
   const [cameraError, setCameraError] = useState('');
-  const [isDemoMode, setIsDemoMode] = useState(isDemoPreview);
+  const [isDemoMode, setIsDemoMode] = useState(isDemoPreview || Boolean(debugSceneId));
   const [latestResult, setLatestResult] = useState(isResultPreview ? RESULT_PREVIEW : null);
   const [progressRevision, setProgressRevision] = useState(0);
   const [newlyCompletedSceneId, setNewlyCompletedSceneId] = useState(null);
@@ -111,7 +111,7 @@ export default function App() {
   const [shouldAnimateResultCards, setShouldAnimateResultCards] = useState(false);
   const [shouldAnimateCompletionFlow, setShouldAnimateCompletionFlow] = useState(false);
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
-  const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
+  const [autoStartCamera, setAutoStartCamera] = useState(false);
   const [guideOverlay, setGuideOverlay] = useState(null);
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
