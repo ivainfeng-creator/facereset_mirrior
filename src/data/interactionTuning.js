@@ -196,10 +196,10 @@ export const sceneInteractionTuning = {
     },
     signal: {
       ...PRESS_SIGNAL_TUNING,
-      enterThreshold: 0.66,
+      enterThreshold: 0.5,
       releaseThreshold: 0.3,
-      activateMs: 80,
-      releaseMs: 280,
+      activateMs: 50,
+      releaseMs: 180,
       missingToleranceMs: 420,
       attackSeconds: 0.08,
       releaseSeconds: 0.32,
