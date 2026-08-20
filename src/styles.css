@@ -4526,7 +4526,7 @@ h1 {
 
 .lemon-squeeze-prompt {
   position: absolute;
-  top: 15.5%;
+  top: 20.5%;
   left: 50%;
   z-index: 7;
   padding: 11px 28px;
@@ -4564,7 +4564,7 @@ h1 {
   bottom: 64px;
   z-index: 4;
   width: min(36vmin, 300px);
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 205 / 142;
   background-position: 0 0;
   background-repeat: no-repeat;
   background-size: 400% 400%;
@@ -4914,7 +4914,7 @@ h1 {
   top: 42%;
   left: 50%;
   z-index: 7;
-  color: #fff;
+  color: #f6b827;
   font-family: 'Luckiest Guy', 'Instrument Sans', sans-serif;
   font-size: clamp(2.5rem, 7vw, 5.5rem);
   line-height: 0.9;
