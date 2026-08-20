@@ -218,15 +218,19 @@ export const sceneInteractionTuning = {
     actionType: 'eyebrow_raise',
     feedbackInitial: 'Raise both eyebrows to pull up the fishing line',
     input: {
-      baseline: 0.08,
-      range: 0.42,
+      // browInnerUp carries a large resting bias - a relaxed face commonly
+      // reads 0.15-0.35, which the old 0.08 baseline passed straight through
+      // as a scoring signal. The baseline is the deadzone, so it has to clear
+      // a neutral brow; range then maps a deliberate raise across 0-1.
+      baseline: 0.3,
+      range: 0.34,
       strongThreshold: 0.62,
     },
     signal: {
       enterThreshold: 0.3,
       releaseThreshold: 0.16,
-      activateMs: 120,
-      releaseMs: 200,
+      activateMs: 80,
+      releaseMs: 160,
       attackSeconds: 0.12,
       releaseSeconds: 0.26,
     },
