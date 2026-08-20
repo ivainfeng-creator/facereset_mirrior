@@ -1069,6 +1069,10 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
   const previewScale = previewFrame.width && previewFrame.height
     ? Math.max(previewFrame.width / sourceViewport.width, previewFrame.height / sourceViewport.height)
     : 0;
+  // Penguin sits lower and wider after the 0820 art pass, so it overflows the
+  // practice frame once the preview source gets wide. Scoped to penguinFishing
+  // on purpose - every other scene keeps the unmodified preview scale.
+  const scenePreviewScale = scene.id === 'penguinFishing' && sourceViewport.width >= 600 ? 0.8 : 1;
 
   useEffect(() => {
     const syncPreviewFrame = () => {
@@ -1103,7 +1107,7 @@ export function RoutineScenePreview({ selectedScene = DEFAULT_SCENE_ID }) {
           width: `${sourceViewport.width}px`,
           height: `${sourceViewport.height}px`,
           opacity: previewScale ? 1 : 0,
-          transform: `translate(-50%, -50%) scale(${previewScale || 1})`,
+          transform: `translate(-50%, -50%) scale(${(previewScale || 1) * scenePreviewScale})`,
         }}
       >
         <SceneRenderer interaction={interaction} previewForegroundOnly />

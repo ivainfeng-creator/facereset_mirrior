@@ -236,7 +236,7 @@ export const sceneInteractionTuning = {
       decay: 0.12,
       minimumTension: 0.04,
       catchThreshold: 0.94,
-      catchHoldSeconds: 0.35,
+      catchHoldSeconds: 1.5,
       resetTension: 0.1,
       catchScore: 5,
       strongCatchBonus: 3,
