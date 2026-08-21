@@ -52,7 +52,6 @@ export default function ResultScreen({
   const { t } = useI18n();
   const [cardOrder, setCardOrder] = useState([0, 1, 2]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryOnly);
-  const [isCardLayoutAnimationActive, setIsCardLayoutAnimationActive] = useState(shouldAnimateCardLayout);
   const [exportMessage, setExportMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -130,7 +129,6 @@ export default function ResultScreen({
     leaderboard.length < 10 || score >= Math.max(0, Number(leaderboard[9]?.total_score) || 0)
   );
   const bringCardToFront = (cardIndex) => {
-    if (isCardLayoutAnimationActive) return;
     if (cardOrder[0] !== cardIndex) playSceneEffect(RESULT_CARD_FLIP_EFFECT);
 
     setCardOrder((currentOrder) => [
@@ -139,7 +137,7 @@ export default function ResultScreen({
     ]);
   };
   const handleCarouselTouchEnd = (event) => {
-    if (isCardLayoutAnimationActive || carouselTouchStartX === null) return;
+    if (carouselTouchStartX === null) return;
 
     const horizontalDistance = event.changedTouches[0].clientX - carouselTouchStartX;
     setCarouselTouchStartX(null);
@@ -160,18 +158,7 @@ export default function ResultScreen({
 
     setCardOrder([0, 1, 2]);
     setIsHistoryOpen(true);
-    setIsCardLayoutAnimationActive(true);
-    const timer = window.setTimeout(() => setIsCardLayoutAnimationActive(false), CARD_LAYOUT_ENTRY_DURATION_MS);
-    return () => window.clearTimeout(timer);
-    // Intentionally keyed only on cardLayoutAnimationKey (one animation trigger = one
-    // key bump). App.jsx flips shouldAnimateCardLayout back to false ~800ms after
-    // triggering it, close to this effect's own 780ms unlock timer; if that prop were
-    // also a dependency, that later flip would re-run this effect, its cleanup would
-    // cancel the pending unlock timer, and the guard clause above (shouldAnimateCardLayout
-    // now false) would return without ever unlocking — leaving cards stuck unclickable
-    // whenever the two timers raced. Reading the prop only via closure avoids that.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardLayoutAnimationKey]);
+  }, [cardLayoutAnimationKey, shouldAnimateCardLayout]);
 
   // The history overlay scrolls internally; locking the page behind it stops the
   // background from scrolling away under the card stack on touch devices.
@@ -372,12 +359,12 @@ export default function ResultScreen({
           onTouchCancel={() => setCarouselTouchStartX(null)}
         >
           <div
-            className={`result-challenge-grid ${isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
+            className="result-challenge-grid"
             key={cardLayoutAnimationKey}
           >
             <div
               className={`result-card-stack is-stack-${cardOrder.indexOf(0)}`}
-              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(0)}
+              onClick={() => bringCardToFront(0)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(0) !== 0}>
                 <ResultShareCard
@@ -394,7 +381,7 @@ export default function ResultScreen({
             </div>
             <div
               className={`result-card-stack is-stack-${cardOrder.indexOf(1)}`}
-              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(1)}
+              onClick={() => bringCardToFront(1)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(1) !== 0}>
                 <TodayPlanCard
@@ -409,7 +396,7 @@ export default function ResultScreen({
             </div>
             <div
               className={`result-card-stack is-stack-${cardOrder.indexOf(2)}`}
-              onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
+              onClick={() => bringCardToFront(2)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
                 <ResultLeaderboard rows={displayLeaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
@@ -535,7 +522,7 @@ function ResultRadarPanel({ result }) {
       <div className="result-radar-topline">
         <span>YOUR FACE BALANCE <i aria-hidden="true">i</i></span>
         <div>
-          <b className="before-key">Before</b>
+            className="result-challenge-grid"
           <b className="after-key">After</b>
         </div>
       </div>

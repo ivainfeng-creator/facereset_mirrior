@@ -14,12 +14,12 @@ const PRACTICE_BEGIN_EFFECT = Object.freeze({
   volume: 0.7,
 });
 
-export default function PracticeScreen({ selectedScene, stream, isDemoMode, skipFaceScan, onBegin, onBack }) {
+export default function PracticeScreen({ selectedScene, stream, isDemoMode, onBegin, onBack }) {
   const { t } = useI18n();
   const scene = getSceneById(selectedScene);
   const stageRef = useRef(null);
   const trackingVideoRef = useRef(null);
-  const { detectorMode, hasLandmarks } = useFaceLandmarks({
+  const { detectorMode } = useFaceLandmarks({
     videoRef: trackingVideoRef,
     stageRef,
     stream,
@@ -103,19 +103,6 @@ export default function PracticeScreen({ selectedScene, stream, isDemoMode, skip
           <div className="practice-stage-art" aria-hidden="true">
             <RoutineScenePreview selectedScene={scene.id} />
           </div>
-          {!skipFaceScan && (
-            <div
-              className={`face-tracking-toast ${!isDemoMode && !hasLandmarks ? 'is-visible' : ''}`}
-              aria-hidden={isDemoMode || hasLandmarks}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7.6v5.2" />
-                <path d="M12 16.6h.01" />
-              </svg>
-              {t('practice.faceNotDetected')}
-            </div>
-          )}
         </div>
       </main>
     </section>

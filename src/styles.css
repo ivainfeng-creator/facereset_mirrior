@@ -11248,13 +11248,12 @@ h1 {
   gap: 8px;
 }
 
-/* Type here is sized off the viewport width with a hard floor: the previous
-   `vh` term collapsed the title to unreadable sizes on short/landscape phones. */
+/* Keep the title responsive to width, but independent of viewport height. */
 .welcome-v3-heading h1 {
   margin: 0;
   color: #1a1a1a;
   font-family: var(--fr-font-display);
-  font-size: max(68px, min(18vw, 10vh));
+  font-size: clamp(68px, 18vw, 96px);
   font-weight: 400;
   letter-spacing: 0;
   line-height: 0.82;
@@ -11468,13 +11467,6 @@ h1 {
 @media (max-height: 620px) {
   .welcome-v3-heading {
     top: 3.5%;
-  }
-
-  /* The 68px floor is sized for phone portrait. On a short viewport the page no
-     longer scrolls, so keep the floor low enough that the title's ascenders are
-     not clipped against the top edge. */
-  .welcome-v3-heading h1 {
-    font-size: min(18vw, 10vh);
   }
 
   .welcome-v3-mascots {
@@ -13306,74 +13298,6 @@ h1 {
   transform: translateX(min(34vw, 282px)) translateY(22px) rotate(3deg) scale(0.94);
 }
 
-.result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(1) {
-  animation: result-card-settle-front 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(2) {
-  animation: result-card-settle-left 620ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
-}
-
-.result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(3) {
-  animation: result-card-settle-right 620ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
-}
-
-.result-challenge-grid.is-card-layout-entering > .result-card-stack {
-  cursor: default;
-  pointer-events: none;
-}
-
-@keyframes result-card-settle-front {
-  from {
-    opacity: 0;
-    transform: translateY(28px) scale(0.94);
-  }
-
-  72% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.02);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes result-card-settle-left {
-  from {
-    opacity: 0;
-    transform: translateX(calc(0px - min(31vw, 258px))) translateY(88px) rotate(-5deg) scale(0.9);
-  }
-
-  72% {
-    opacity: 1;
-    transform: translateX(calc(0px - min(31vw, 258px))) translateY(10px) rotate(-5deg) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(calc(0px - min(31vw, 258px))) translateY(16px) rotate(-5deg) scale(0.96);
-  }
-}
-
-@keyframes result-card-settle-right {
-  from {
-    opacity: 0;
-    transform: translateX(-108%) scale(0.94);
-  }
-
-  72% {
-    opacity: 1;
-    transform: translateX(min(31vw, 258px)) translateY(26px) rotate(3deg) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(min(31vw, 258px)) translateY(32px) rotate(3deg) scale(0.92);
-  }
-}
-
 .result-summary-card,
 .result-focus-card,
 .result-leaderboard-card {
@@ -14241,42 +14165,9 @@ h1 {
     width: auto;
     justify-self: stretch;
   }
-
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack {
-    animation-name: result-card-settle-down;
-  }
-
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(2) {
-    animation-delay: 90ms;
-  }
-
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack:nth-child(3) {
-    animation-delay: 160ms;
-  }
-}
-
-@keyframes result-card-settle-down {
-  from {
-    opacity: 0;
-    transform: translateY(28px) scale(0.96);
-  }
-
-  72% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.015);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .result-challenge-grid.is-card-layout-entering > .result-card-stack {
-    animation: none;
-  }
-
   .history-fab.is-completion-entering {
     animation: none;
   }
@@ -15366,11 +15257,19 @@ h1 {
 
 /* The shell is full-bleed now, so the card keeps the original 552px measure. */
 .challenge-v3-plan {
+  height: 552px;
+  max-height: calc(100svh - 144px);
   max-width: 552px;
+  flex: 0 0 auto;
   gap: 6px;
   margin-top: 16px;
   padding: clamp(14px, 2.4vh, 20px) clamp(14px, 3.4vw, 20px);
   border-radius: 22px;
+}
+
+.challenge-v3-shell > .challenge-v3-plan {
+  max-height: calc(100svh - 144px);
+  flex: 0 0 552px;
 }
 
 .challenge-v3-plan-header {

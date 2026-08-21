@@ -2787,6 +2787,7 @@ function FlowerCollectorScene({ interaction, previewForegroundOnly = false }) {
 }
 
 function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
+  const { t } = useI18n();
   const tension = clamp(interaction.lineTension || 0.04, 0.04, 1);
   const isFishing = Boolean(interaction.isFishing);
   const justCaught = Boolean(interaction.justCaught);
