@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import LanguageSwitcher from './LanguageSwitcher.jsx';
+import { useI18n } from '../i18n/context.js';
 
 const LANDING_MASCOTS = [
-  { placement: 'main', pose: 'openmouth', label: 'Open mouth' },
-  { placement: 'left', pose: 'relax', label: 'Relax' },
-  { placement: 'right', pose: 'blow', label: 'Blow' },
+  { placement: 'main', pose: 'openmouth' },
+  { placement: 'left', pose: 'relax' },
+  { placement: 'right', pose: 'blow' },
 ];
 
 const MASCOT_FRAME_TIMING = {
@@ -12,7 +14,8 @@ const MASCOT_FRAME_TIMING = {
   right: { frameOneMs: 4200, frameTwoMs: 680, startDelayMs: 2300 },
 };
 
-function LandingMascot({ placement, pose, label }) {
+function LandingMascot({ placement, pose }) {
+  const { t } = useI18n();
   const assetBase = `/assets/landing/bluecloud_${pose}`;
   const [frame, setFrame] = useState(1);
 
@@ -39,7 +42,7 @@ function LandingMascot({ placement, pose, label }) {
     <div className={`welcome-v3-sticker welcome-v3-sticker-${placement}`}>
       <div className="welcome-v3-sticker-motion">
         <div className="welcome-v3-sticker-surface">
-          <img className="welcome-v3-mascot-frame" src={`${assetBase}_${frame}.png`} alt={label} />
+          <img className="welcome-v3-mascot-frame" src={`${assetBase}_${frame}.png`} alt={t(`landing.mascot.${pose}`)} />
         </div>
       </div>
     </div>
@@ -47,19 +50,23 @@ function LandingMascot({ placement, pose, label }) {
 }
 
 export default function LandingScreen({ onStart, onInteract, isExiting = false }) {
+  const { t } = useI18n();
+
   return (
     <section
       className={`screen landing-screen welcome-v3 ${isExiting ? 'is-paper-under' : ''}`}
       onPointerDown={onInteract}
     >
-      <main className="welcome-v3-stage" aria-label="Face Reset introduction">
+      <main className="welcome-v3-stage" aria-label={t('landing.stageAria')}>
+        <LanguageSwitcher />
+
         <header className="welcome-v3-heading">
           <h1>
             FACE
             <br />
             RESET
           </h1>
-          <p>Small exercises. Big face relief.</p>
+          <p>{t('landing.tagline')}</p>
         </header>
 
         <div className="welcome-v3-mascots" aria-hidden="true">
@@ -70,12 +77,12 @@ export default function LandingScreen({ onStart, onInteract, isExiting = false }
             alt=""
           />
           <div className="welcome-v3-badge">
-            3 sessions A DAY
+            {t('landing.badge')}
           </div>
         </div>
 
         <button className="welcome-v3-start" onClick={onStart} disabled={isExiting}>
-          Let's go
+          {t('landing.start')}
         </button>
       </main>
     </section>

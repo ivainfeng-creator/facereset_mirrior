@@ -1,5 +1,6 @@
 import { getCompletedProgramDays } from '../utils/dailyPlan.js';
 import { playSceneEffect } from '../utils/audioManager.js';
+import { useI18n } from '../i18n/context.js';
 
 const DAY_SELECT_EFFECT = Object.freeze({
   source: '/audio/Overall/Ding.mp3',
@@ -7,11 +8,12 @@ const DAY_SELECT_EFFECT = Object.freeze({
 });
 
 export default function ProgramDaySelector({ habit, selectedDay, onSelectDay }) {
+  const { t } = useI18n();
   const completedProgramDays = getCompletedProgramDays(habit);
   const datesByProgramDay = getDatesByProgramDay(habit);
 
   return (
-    <div className="challenge-v3-days" aria-label={`Program day ${selectedDay}`}>
+    <div className="challenge-v3-days" aria-label={t('plan.daySelectorAria', { day: selectedDay })}>
       {Array.from({ length: 7 }, (_, index) => {
         const day = index + 1;
         const date = datesByProgramDay.get(day);
@@ -30,9 +32,9 @@ export default function ProgramDaySelector({ habit, selectedDay, onSelectDay }) 
             }}
             disabled={!date}
             aria-current={isSelected ? 'step' : undefined}
-            aria-label={date ? `View Day ${day}` : `Day ${day} is not available yet`}
+            aria-label={t(date ? 'plan.viewDayAria' : 'plan.dayUnavailableAria', { day })}
           >
-            {isSelected ? `DAY ${day}` : day}
+            {isSelected ? t('plan.daySelected', { day }) : day}
             {isComplete && <i aria-hidden="true">✓</i>}
           </button>
         );

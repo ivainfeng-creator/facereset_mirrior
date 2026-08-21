@@ -18577,3 +18577,180 @@ h1 {
   color: #fff;
   background: #067abb;
 }
+
+/* ---------------------------------------------------------------------------
+ * LOCALIZATION
+ *
+ * Two concerns live here and nothing else:
+ *   1. the landing-only language switcher, and
+ *   2. Traditional Chinese typography safety.
+ *
+ * Nothing in this block may change how the English build renders. The font
+ * rules below are scoped by *codepoint* (unicode-range), so they only ever
+ * engage for CJK characters; the layout rules are scoped by
+ * `html[data-locale='zhHant']`, which LocaleProvider sets.
+ * ------------------------------------------------------------------------- */
+
+/* Luckiest Guy is Latin-only and Instrument Sans carries no CJK, so a Chinese
+ * glyph would otherwise drop all the way out of the family and land on whatever
+ * the OS picks. Extending both families with a locally-installed CJK face keeps
+ * the fallback deliberate. Latin codepoints are untouched: they are outside
+ * every range listed here, so English still renders from the real webfonts. */
+@font-face {
+  font-family: 'Luckiest Guy';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src:
+    local('PingFang TC'),
+    local('Microsoft JhengHei'),
+    local('Noto Sans TC'),
+    local('Noto Sans CJK TC'),
+    local('Heiti TC');
+  unicode-range:
+    U+2E80-2EFF, U+3000-303F, U+3040-30FF, U+3100-312F, U+31C0-31EF,
+    U+3200-32FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F,
+    U+FF00-FFEF;
+}
+
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src:
+    local('PingFang TC'),
+    local('Microsoft JhengHei'),
+    local('Noto Sans TC'),
+    local('Noto Sans CJK TC'),
+    local('Heiti TC');
+  unicode-range:
+    U+2E80-2EFF, U+3000-303F, U+3040-30FF, U+3100-312F, U+31C0-31EF,
+    U+3200-32FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF,
+    U+FE30-FE4F;
+}
+
+/* `:root` sets `font-synthesis: none`, which is right for Latin (every weight
+ * exists as a real face) but leaves CJK headings flat, because a single local
+ * CJK face cannot cover the 700-900 weights this design leans on. Re-enabling
+ * weight synthesis only under the Chinese locale restores the intended
+ * hierarchy. Latin text is unaffected either way: real weights are always
+ * preferred over a synthesized one. */
+html[data-locale='zhHant'] {
+  font-synthesis: weight;
+}
+
+/* Sub-1.0 line-heights are tuned for Latin caps, which sit well inside their em
+ * box. CJK glyphs fill it, so the same values clip ascenders and descenders.
+ * Only the headings that actually carry Chinese are relaxed. */
+html[data-locale='zhHant'] .challenge-v3-hero h1,
+html[data-locale='zhHant'] .practice-guide h1,
+html[data-locale='zhHant'] .scan-alignment-header h1,
+html[data-locale='zhHant'] .camera-permission-copy h1,
+html[data-locale='zhHant'] .play-guide-modal h2,
+html[data-locale='zhHant'] .play-quit-modal h2,
+html[data-locale='zhHant'] .result-name-entry-heading h2,
+html[data-locale='zhHant'] .challenge-v3-plan-header h2,
+html[data-locale='zhHant'] .challenge-v3-banner-copy strong {
+  line-height: 1.2;
+}
+
+/* Wide Latin tracking reads as loose gaps between Chinese glyphs, and the
+ * trailing space it adds knocks centered labels off-axis. */
+html[data-locale='zhHant'] .welcome-v3-badge,
+html[data-locale='zhHant'] .welcome-v3-start,
+html[data-locale='zhHant'] .challenge-v3-session-copy small,
+html[data-locale='zhHant'] .challenge-v3-plan-header p,
+html[data-locale='zhHant'] .camera-permission-kicker,
+html[data-locale='zhHant'] .play-score small,
+html[data-locale='zhHant'] .result-eyebrow,
+html[data-locale='zhHant'] .result-today-plan-action,
+html[data-locale='zhHant'] .challenge-v3-banner-calendar span {
+  letter-spacing: 0.02em;
+}
+
+/* The landing hero is the one place a title is allowed to run past the viewport
+ * edge in English; Chinese sets wider per glyph, so let it wrap instead. */
+html[data-locale='zhHant'] .challenge-v3-hero h1 {
+  white-space: normal;
+}
+
+/* --- Landing language switcher ------------------------------------------- */
+
+/* Anchored to the landing stage, above the sticker collage but clear of the
+ * title. Deliberately quiet: it is a preference, not a call to action. */
+.language-switcher {
+  position: absolute;
+  top: clamp(12px, 2.4vh, 22px);
+  right: clamp(14px, 4vw, 28px);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 2px 8px rgba(26, 26, 26, 0.08);
+  font-family: var(--fr-font-body);
+  line-height: 1;
+}
+
+.language-switcher > span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.language-switcher-divider {
+  color: #c8c4bc;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.language-switcher-option {
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  color: #9a9895;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.language-switcher-option:hover:not(.is-active),
+.language-switcher-option:focus-visible:not(.is-active) {
+  color: #1a1a1a;
+}
+
+.language-switcher-option.is-active {
+  color: #1a1a1a;
+  font-weight: 900;
+  cursor: default;
+}
+
+/* The landing composition is already tight on short and narrow phones -- the
+ * switcher shrinks with it rather than crowding the title. At 320px the gap
+ * between the two is only a few pixels at full size. */
+@media (max-height: 620px), (max-width: 360px) {
+  .language-switcher {
+    top: 8px;
+    right: 10px;
+    padding: 4px 8px;
+  }
+
+  .language-switcher-option {
+    padding: 2px 5px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .language-switcher-option {
+    transition: none;
+  }
+}

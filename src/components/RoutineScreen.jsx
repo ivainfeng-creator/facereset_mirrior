@@ -66,6 +66,7 @@ import {
 import { FALLBACK_MAX_WAIT_MS, useFaceLandmarks } from '../hooks/useFaceLandmarks.js';
 import { useHandTracking } from '../hooks/useHandTracking.js';
 import { buildResult, getRoutineFeedback } from '../utils/mockDetection.js';
+import { useI18n } from '../i18n/context.js';
 import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
   consumeTimedEvents,
@@ -317,10 +318,12 @@ export default function RoutineScreen({
   onComplete,
   onExit,
 }) {
+  const { t } = useI18n();
   const scene = getSceneById(selectedScene);
-  const practiceGuide = scene.practice || {
-    description: scene.subtitle,
-    tips: ['Keep your face centered.', `Follow the ${scene.action.toLowerCase()} cue.`, 'Move gently and steadily.'],
+  const sceneTitle = t(`scenes.${scene.id}.title`);
+  const practiceGuide = {
+    description: t(`scenes.${scene.id}.description`),
+    tips: t(`scenes.${scene.id}.tips`),
   };
   const activeSceneId = scene.id;
   const whaleAttemptRef = useRef(null);
@@ -950,7 +953,7 @@ export default function RoutineScreen({
             <div className="play-hud-actions">
               <div
                 className={`play-timer ${secondsLeft <= 5 ? 'is-urgent' : ''}`}
-                aria-label={`${formatTime(secondsLeft)} remaining`}
+                aria-label={t('play.timeRemainingAria', { time: formatTime(secondsLeft) })}
               >
                 <span>{formatTime(secondsLeft)}</span>
               </div>
@@ -964,8 +967,8 @@ export default function RoutineScreen({
                 }}
                 aria-expanded={isGuideOpen}
                 aria-controls="routine-guide"
-                aria-label="How to play"
-                title="How to play"
+                aria-label={t('play.howToPlay')}
+                title={t('play.howToPlay')}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="12" cy="12" r="9" />
@@ -980,8 +983,8 @@ export default function RoutineScreen({
                   playSceneEffect(ROUTINE_TOOLBAR_CLICK_EFFECT);
                   setIsQuitOpen(true);
                 }}
-                aria-label="Quit routine"
-                title="Exit"
+                aria-label={t('play.quitAria')}
+                title={t('play.exit')}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M14 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h8" />
@@ -993,7 +996,7 @@ export default function RoutineScreen({
           </header>
 
           <div className="play-action-prompt" aria-live="polite">
-            {interaction.feedback || feedback.label}
+            {t(interaction.feedback || 'coach.fallback')}
           </div>
 
           {!skipFaceScan && (
@@ -1006,27 +1009,27 @@ export default function RoutineScreen({
                 <path d="M12 7.6v5.2" />
                 <path d="M12 16.6h.01" />
               </svg>
-              Face not detected. Move back into view.
+              {t('play.faceNotDetected')}
             </div>
           )}
 
           <footer className="play-hud play-hud-bottom">
             <div className="play-score">
               <strong>{displayScore}</strong>
-              <span><small>POINTS</small>{scene.title}</span>
+              <span><small>{t('play.points')}</small>{sceneTitle}</span>
             </div>
           </footer>
 
           {isGuideOpen && (
             <div className="play-guide-backdrop" role="presentation">
               <section className="play-guide-modal" id="routine-guide" role="dialog" aria-modal="true" aria-labelledby="routine-guide-title">
-                <h2 id="routine-guide-title">{scene.title}</h2>
+                <h2 id="routine-guide-title">{sceneTitle}</h2>
                 <p>{practiceGuide.description}</p>
                 <div className="practice-steps play-guide-steps">
                   <ol>
                     {practiceGuide.tips.map((tip, index) => (
                       <li key={tip} className={`practice-tip practice-tip-${index + 1}`}>
-                        <span className="practice-step-number" aria-hidden="true">Step {index + 1}</span>
+                        <span className="practice-step-number" aria-hidden="true">{t('practice.step', { index: index + 1 })}</span>
                         <span>{tip}</span>
                       </li>
                     ))}
@@ -1039,7 +1042,7 @@ export default function RoutineScreen({
                     setIsGuideOpen(false);
                   }}
                 >
-                  Got it!
+                  {t('play.guideGotIt')}
                 </button>
               </section>
             </div>
@@ -1048,8 +1051,8 @@ export default function RoutineScreen({
           {isQuitOpen && (
             <div className="play-quit-backdrop" role="presentation">
               <section className="play-quit-modal" role="dialog" aria-modal="true" aria-labelledby="quit-routine-title">
-                <h2 id="quit-routine-title">Leave &quot;{scene.title}&quot;?</h2>
-                <span>Your progress won&apos;t be saved.</span>
+                <h2 id="quit-routine-title">{t('play.quitTitle', { scene: sceneTitle })}</h2>
+                <span>{t('play.quitBody')}</span>
                 <div>
                   <button
                     className="play-quit-leave"
@@ -1059,7 +1062,7 @@ export default function RoutineScreen({
                       handleExit();
                     }}
                   >
-                    Leave
+                    {t('play.quitLeave')}
                   </button>
                   <button
                     className="play-quit-stay"
@@ -1069,7 +1072,7 @@ export default function RoutineScreen({
                       setIsQuitOpen(false);
                     }}
                   >
-                    Stay
+                    {t('play.quitStay')}
                   </button>
                 </div>
               </section>
@@ -1999,6 +2002,7 @@ function LemonFriend({ position }) {
 }
 
 function WhaleDreamScene({ interaction, previewForegroundOnly = false }) {
+  const { t } = useI18n();
   const mouthOpen = clamp(interaction.mouthOpen || 0, 0, 1);
   const fishCount = interaction.fishCount || 0;
   const fishWave = fishCount % 18;
@@ -2193,7 +2197,7 @@ function WhaleDreamScene({ interaction, previewForegroundOnly = false }) {
         className={`whale-svg whale-art ${interaction.isOpen ? 'is-open' : ''}`}
         style={{ '--whale-scale': whaleLayout.scale }}
         role="img"
-        aria-label="Dream whale"
+        aria-label={t('play.whaleArtAria')}
       >
         <img className="whale-art-state whale-art-closed" src={whaleClosedAsset} alt="" />
         <img className="whale-art-state whale-art-open" src={whaleOpenAsset} alt="" />
@@ -2815,7 +2819,7 @@ function PenguinFishingScene({ interaction, previewForegroundOnly = false }) {
       {justCaught && (
         <div className="penguin-catch-flash">
           <span className="penguin-catch-score">+5</span>
-          <span className="penguin-catch-label">Nice catch!</span>
+          <span className="penguin-catch-label">{t('play.niceCatch')}</span>
         </div>
       )}
     </div>
@@ -3034,11 +3038,13 @@ function TrackingVideo({ videoRef, isDemoMode }) {
 // anchor to what the player actually sees can measure that element instead of
 // hard-coding scene-space numbers.
 export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnavailable, previewVideoRef, compact = false }) {
+  const { t } = useI18n();
+
   return (
-    <div className={`camera-preview ${compact ? 'camera-preview-compact' : ''}`} aria-label="Front camera preview">
+    <div className={`camera-preview ${compact ? 'camera-preview-compact' : ''}`} aria-label={t('play.cameraPreviewAria')}>
       <div className="preview-header">
         <span className="preview-dot" />
-        <span>Front camera</span>
+        <span>{t('play.frontCamera')}</span>
       </div>
       <div className="preview-video-shell" data-camera-frame="">
         {isCameraUnavailable ? (
@@ -3054,7 +3060,10 @@ export function CameraPreview({ detectorMode, handMode, isDemoMode, isCameraUnav
         )}
       </div>
       <div className="preview-status">
-        {formatDetectorMode(detectorMode)} face · {formatDetectorMode(handMode)} hand
+        {t('play.detectorStatus', {
+          face: formatDetectorMode(detectorMode),
+          hand: formatDetectorMode(handMode),
+        })}
       </div>
     </div>
   );
@@ -3443,15 +3452,15 @@ function scoreTempleSide({ point, target }) {
 }
 
 function getTemplePressFeedback({ features, fingertips, bothPressing, onePressing, balanced, growth, tuning }) {
-  if (!features) return 'Find your face';
-  if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
-  if (!fingertips.left || !fingertips.right) return 'Use both hands on your temples';
-  if (!onePressing) return 'Move both fingers to your temples';
-  if (!bothPressing) return 'Press both sides at the same time';
-  if (balanced < tuning.scoring.balanceHintThreshold) return 'Balance both sides gently';
-  if (growth > 0.88) return 'Beautiful, your garden is in bloom';
-  if (growth > 0.58) return 'Keep holding gently to help the garden bloom';
-  return 'Hold both temples calmly to nourish the garden';
+  if (!features) return 'coach.temple.noFace';
+  if (!fingertips?.left && !fingertips?.right) return 'coach.temple.noFingers';
+  if (!fingertips.left || !fingertips.right) return 'coach.temple.oneFinger';
+  if (!onePressing) return 'coach.temple.notPressing';
+  if (!bothPressing) return 'coach.temple.onePressing';
+  if (balanced < tuning.scoring.balanceHintThreshold) return 'coach.temple.unbalanced';
+  if (growth > 0.88) return 'coach.temple.bloom';
+  if (growth > 0.58) return 'coach.temple.growing';
+  return 'coach.temple.hold';
 }
 
 function scoreLemonSqueeze({ features, fingertips, targets, timestamp, progressState, stageProgress, tuning }) {
@@ -3597,19 +3606,19 @@ function scoreLemonPressSide({ point, target, input = {} }) {
 }
 
 function getLemonSqueezeFeedback({ features, fingertips, bothPressing, confirmedSqueeze, onePressing, balanced, sodaLevel, tuning }) {
-  if (!features?.face?.noseCenter) return 'Find your face';
-  if (!fingertips?.left && !fingertips?.right) return 'Show both index fingers';
-  if (!fingertips.left || !fingertips.right) return 'Use both fingers beside your nose';
-  if (!onePressing) return 'Move fingers beside your nose bridge';
-  if (!bothPressing) return 'Squeeze both lemon halves together';
-  if (!confirmedSqueeze) return 'Hold both sides steady';
-  if (balanced < tuning.scoring.balanceHintThreshold) return 'Balance left and right squeeze';
-  if (sodaLevel > tuning.scoring.sipHintLevel) return 'Tiny friend is stealing a sip';
-  return 'Fresh squeeze, bubbles rising';
+  if (!features?.face?.noseCenter) return 'coach.lemon.noFace';
+  if (!fingertips?.left && !fingertips?.right) return 'coach.lemon.noFingers';
+  if (!fingertips.left || !fingertips.right) return 'coach.lemon.oneFinger';
+  if (!onePressing) return 'coach.lemon.notPressing';
+  if (!bothPressing) return 'coach.lemon.onePressing';
+  if (!confirmedSqueeze) return 'coach.lemon.notConfirmed';
+  if (balanced < tuning.scoring.balanceHintThreshold) return 'coach.lemon.unbalanced';
+  if (sodaLevel > tuning.scoring.sipHintLevel) return 'coach.lemon.sip';
+  return 'coach.lemon.fresh';
 }
 
 function getInitialFeedback(sceneId) {
-  return getSceneTuning(sceneId).feedbackInitial;
+  return `coach.initial.${sceneId}`;
 }
 
 function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tuning }) {
@@ -3727,19 +3736,19 @@ function scoreCheekPuff({ features, timestamp, progressState, stageProgress, tun
 }
 
 function getCheekPuffFeedback({ calibratedPuff, features, isPuffing, isStable, bubbleSize, combo }) {
-  if (!features?.cheeks) return 'Find your face';
-  if (calibratedPuff?.rejectionReason === 'tracking-lost') return 'Face tracking paused - keep your face in frame';
+  if (!features?.cheeks) return 'coach.bunny.noFace';
+  if (calibratedPuff?.rejectionReason === 'tracking-lost') return 'coach.bunny.trackingLost';
   if (!calibratedPuff?.calibrated) {
     return calibratedPuff?.rejectionReason === 'hold-neutral'
-      ? 'Relax your face for calibration'
-      : 'Hold still while bunny learns your neutral face';
+      ? 'coach.bunny.calibrateRelax'
+      : 'coach.bunny.calibrateHold';
   }
-  if (calibratedPuff.rejectionReason === 'mouth-open') return 'Close your lips, then puff your cheeks';
-  if (!isPuffing) return 'Puff both cheeks with your lips gently closed';
-  if (!isStable) return 'Hold the bubble steady';
-  if (combo >= 3) return 'Combo rhythm, bunny loves it';
-  if (bubbleSize > 0.78) return 'Keep holding, the bubble is nearly full';
-  return 'Nice puff, keep the bubble growing';
+  if (calibratedPuff.rejectionReason === 'mouth-open') return 'coach.bunny.mouthOpen';
+  if (!isPuffing) return 'coach.bunny.notPuffing';
+  if (!isStable) return 'coach.bunny.notStable';
+  if (combo >= 3) return 'coach.bunny.combo';
+  if (bubbleSize > 0.78) return 'coach.bunny.nearlyFull';
+  return 'coach.bunny.growing';
 }
 
 function scoreEyebrowRaise({ features, timestamp, progressState, stageProgress, tuning }) {
@@ -3808,12 +3817,12 @@ function scoreEyebrowRaise({ features, timestamp, progressState, stageProgress, 
 }
 
 function getEyebrowRaiseFeedback({ features, isFishing, isStrong, signal, justCaught }) {
-  if (!features?.eyebrows) return 'Find your face';
-  if (justCaught) return 'Fish on! Relax, then cast again';
-  if (!isFishing) return 'Raise both eyebrows to pull the line';
-  if (signal.phase !== 'holding') return 'Hold your eyebrows gently';
-  if (isStrong) return 'Great lift, keep the line coming up';
-  return 'Nice and steady, the fish is nibbling';
+  if (!features?.eyebrows) return 'coach.penguin.noFace';
+  if (justCaught) return 'coach.penguin.justCaught';
+  if (!isFishing) return 'coach.penguin.notFishing';
+  if (signal.phase !== 'holding') return 'coach.penguin.notHolding';
+  if (isStrong) return 'coach.penguin.strong';
+  return 'coach.penguin.steady';
 }
 
 function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tuning }) {
@@ -3876,11 +3885,11 @@ function scoreNoseSniff({ features, timestamp, progressState, stageProgress, tun
 }
 
 function getNoseSniffFeedback({ features, isSniffing, isStrong, isControlled }) {
-  if (!features?.nose) return 'Find your face';
-  if (!isSniffing) return 'Wrinkle your nose to gather popcorn';
-  if (!isControlled) return 'Hold the inhale gently';
-  if (isStrong) return 'Lovely inhale, popcorn is gathering';
-  return 'Good, scrunch a little stronger';
+  if (!features?.nose) return 'coach.popcorn.noFace';
+  if (!isSniffing) return 'coach.popcorn.notSniffing';
+  if (!isControlled) return 'coach.popcorn.notControlled';
+  if (isStrong) return 'coach.popcorn.strong';
+  return 'coach.popcorn.more';
 }
 
 function scoreMouthOpening({ features, timestamp, progressState, stageProgress, tuning }) {
@@ -3934,11 +3943,11 @@ function scoreMouthOpening({ features, timestamp, progressState, stageProgress, 
 }
 
 function getMouthOpeningFeedback({ features, isOpen, isWide, isStable, mouthOpen }) {
-  if (!features?.mouth) return 'Find your face';
-  if (!isOpen) return 'Open wide and invite the fish in';
-  if (!isStable && mouthOpen > 0.45) return 'Hold the whale mouth steady';
-  if (isWide) return 'Great flow, little fish are swimming in';
-  return 'Nice, open a little wider';
+  if (!features?.mouth) return 'coach.whale.noFace';
+  if (!isOpen) return 'coach.whale.notOpen';
+  if (!isStable && mouthOpen > 0.45) return 'coach.whale.notStable';
+  if (isWide) return 'coach.whale.wide';
+  return 'coach.whale.wider';
 }
 
 function createMouthProgress() {

@@ -9,6 +9,7 @@ import { getSceneById } from '../data/scenes.js';
 import { getSceneTuning } from '../data/interactionTuning.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 import { createCalibratedCheekPuffState, updateCalibratedCheekPuff } from '../utils/interactionSignal.js';
+import { useI18n } from '../i18n/context.js';
 
 // Bubble Gum Bunny learns a neutral cheek baseline during the scan. It must
 // never be able to hold the gate open: if it has not converged by this point
@@ -29,6 +30,7 @@ const SCAN_CTA_EFFECT = Object.freeze({
 });
 
 export default function MirrorScreen({ stream, isDemoMode, selectedScene, onCheekPuffCalibrated, onBegin, onBack, isOverlay = false }) {
+  const { t } = useI18n();
   const videoRef = useRef(null);
   const stageRef = useRef(null);
   const alignmentRef = useRef(null);
@@ -182,10 +184,10 @@ export default function MirrorScreen({ stream, isDemoMode, selectedScene, onChee
 
   return (
     <section className={`screen mirror-screen scan-alignment-screen ${isOverlay ? 'guide-flow-overlay' : ''}`}>
-      <main className="scan-alignment-card" aria-label="Mirror alignment">
+      <main className="scan-alignment-card" aria-label={t('scan.cardAria')}>
         <div className="scan-alignment-header">
-          <h1>Face detection</h1>
-          <p>Center your face in the frame</p>
+          <h1>{t('scan.title')}</h1>
+          <p>{t('scan.subtitle')}</p>
         </div>
 
         <button
@@ -194,7 +196,7 @@ export default function MirrorScreen({ stream, isDemoMode, selectedScene, onChee
             playSceneEffect(SCAN_CLOSE_EFFECT);
             onBack();
           }}
-          aria-label="Back to intro"
+          aria-label={t('scan.backAria')}
         />
 
         <div className="scan-face-zone">
@@ -214,9 +216,9 @@ export default function MirrorScreen({ stream, isDemoMode, selectedScene, onChee
             onBegin();
           }}
         >
-          {isCameraUnavailable ? 'Scan paused' : isScanComplete ? 'Next' : (
+          {isCameraUnavailable ? t('scan.paused') : isScanComplete ? t('scan.next') : (
             <span className="challenge-v3-start-preparing">
-              Scanning<span>.</span><span>.</span><span>.</span>
+              {t('scan.scanning')}<span>.</span><span>.</span><span>.</span>
             </span>
           )}
         </button>

@@ -14,6 +14,7 @@ import TodayPlanCard from './TodayPlanCard.jsx';
 import ShareCardPreview, { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH } from './ShareCardPreview.jsx';
 import { pickRandom, SHARE_CARD_MASCOTS, SHARE_CARD_SLOGANS } from '../data/shareCardContent.js';
 import { useCaptureUrlsByDate } from '../hooks/useCaptureUrls.js';
+import { useI18n } from '../i18n/context.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
@@ -42,6 +43,7 @@ export default function ResultScreen({
   isHistoryOnly = false,
   onCloseHistory,
 }) {
+  const { t } = useI18n();
   const [cardOrder, setCardOrder] = useState([0, 1, 2]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryOnly);
   const [isCardLayoutAnimationActive, setIsCardLayoutAnimationActive] = useState(shouldAnimateCardLayout);
@@ -254,7 +256,7 @@ export default function ResultScreen({
     playSceneEffect(LEADERBOARD_SUBMIT_EFFECT);
     const displayName = normalizeDisplayName(nameDraft);
     if (!displayName) {
-      setNameError('Enter a display name to join the leaderboard.');
+      setNameError(t('result.name.errorEmpty'));
       return;
     }
 
@@ -266,7 +268,7 @@ export default function ResultScreen({
     setIsNameSaving(false);
 
     if (!saved.ok) {
-      setNameError('Saved on this device. Check your connection and try again to sync it to the leaderboard.');
+      setNameError(t('result.name.errorSync'));
       return;
     }
 
@@ -288,13 +290,13 @@ export default function ResultScreen({
 
   const downloadShareCard = async () => {
     setIsExporting(true);
-    setExportMessage('Creating your Share Card...');
+    setExportMessage(t('share.creating'));
     try {
       const blob = await renderShareCardBlob();
       downloadBlob(blob, shareCardFilename);
-      setExportMessage('Share Card downloaded.');
+      setExportMessage(t('share.downloaded'));
     } catch {
-      setExportMessage('Could not create the Share Card. Please try again.');
+      setExportMessage(t('share.createFailed'));
     } finally {
       setIsExporting(false);
     }
@@ -302,7 +304,7 @@ export default function ResultScreen({
 
   const shareShareCard = async () => {
     setIsExporting(true);
-    setExportMessage('Preparing your Share Card...');
+    setExportMessage(t('share.preparing'));
     try {
       const blob = await renderShareCardBlob();
       const file = new File([blob], shareCardFilename, { type: 'image/png' });
@@ -313,16 +315,16 @@ export default function ResultScreen({
           title: 'FaceRest',
           text: shareCardSlogan.join(' '),
         });
-        setExportMessage('Share sheet opened.');
+        setExportMessage(t('share.sheetOpened'));
       } else {
         downloadBlob(blob, shareCardFilename);
-        setExportMessage('This browser cannot open the share sheet directly. Share Card downloaded instead.');
+        setExportMessage(t('share.sheetUnavailable'));
       }
     } catch (error) {
       if (error?.name === 'AbortError') {
-        setExportMessage('Share cancelled.');
+        setExportMessage(t('share.cancelled'));
       } else {
-        setExportMessage('Sharing was not available here. Try downloading the Share Card instead.');
+        setExportMessage(t('share.failed'));
       }
     } finally {
       setIsExporting(false);
@@ -333,13 +335,13 @@ export default function ResultScreen({
     <div className="result-history-overlay">
       <section
         className="result-history-modal"
-        aria-label="Result history"
+        aria-label={t('result.historyAria')}
         role="dialog"
         aria-modal="true"
       >
         <div
           className="result-carousel"
-          aria-label="Result cards"
+          aria-label={t('result.cardsAria')}
           onTouchStart={(event) => setCarouselTouchStartX(event.touches[0].clientX)}
           onTouchEnd={handleCarouselTouchEnd}
           onTouchCancel={() => setCarouselTouchStartX(null)}
@@ -398,12 +400,12 @@ export default function ResultScreen({
 
   return (
     <section className="screen result-screen reset-result-screen result-dashboard-screen">
-      <main className="result-challenge-shell" aria-label="Face Reset challenge result">
+      <main className="result-challenge-shell" aria-label={t('result.shellAria')}>
         <header className="result-challenge-heading">
           <div className="result-challenge-heading-row">
-            <h1>Face Reset Challenge</h1>
+            <h1>{t('plan.hero')}</h1>
             <button className="result-today-plan-action" type="button" onClick={onTodayPlan}>
-              TODAY&apos;S PLAN
+              {t('result.todaysPlan')}
             </button>
           </div>
           {daySelector}
@@ -412,9 +414,9 @@ export default function ResultScreen({
         <button
           className={`result-history-fab${isHistoryOpen ? ' is-active' : ''}`}
           type="button"
-          aria-label={isHistoryOpen ? 'Close history' : 'View history'}
+          aria-label={t(isHistoryOpen ? 'result.historyClose' : 'result.historyOpen')}
           aria-expanded={isHistoryOpen}
-          data-label={isHistoryOpen ? 'Close history' : 'View history'}
+          data-label={t(isHistoryOpen ? 'result.historyClose' : 'result.historyOpen')}
           onClick={() => setIsHistoryOpen((isOpen) => !isOpen)}
         >
           {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
@@ -430,22 +432,22 @@ export default function ResultScreen({
               <button
                 className="result-name-entry-close"
                 type="button"
-                aria-label="Close name entry"
+                aria-label={t('result.name.closeAria')}
                 onClick={() => setIsNameEntryOpen(false)}
               >
                 ×
               </button>
               <header className="result-name-entry-heading">
-                <h2>You&apos;re in Top 10!</h2>
-                <p>Enter a display name to appear on leaderboard.</p>
+                <h2>{t('result.name.title')}</h2>
+                <p>{t('result.name.body')}</p>
               </header>
               <div className={`result-name-entry-field${nameError ? ' is-error' : ''}`}>
                 <input
                   id="leaderboard-display-name"
-                  aria-label="Display name"
+                  aria-label={t('result.name.fieldAria')}
                   value={nameDraft}
                   maxLength={24}
-                  placeholder="Enter your name"
+                  placeholder={t('result.name.placeholder')}
                   onChange={(event) => {
                     setNameDraft(event.target.value);
                     setNameError('');
@@ -456,7 +458,7 @@ export default function ResultScreen({
                 {nameError && <small className="result-name-entry-error">{nameError}</small>}
               </div>
               <button className="result-name-entry-submit" type="submit" disabled={isNameSaving}>
-                {isNameSaving ? 'Saving...' : 'Join the Leaderboard'}
+                {t(isNameSaving ? 'result.name.saving' : 'result.name.submit')}
               </button>
             </form>
           </div>
@@ -607,16 +609,18 @@ function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
 }
 
 function ResultLeaderboard({ rows, programDay, score, isLoading }) {
+  const { t } = useI18n();
+
   return (
-    <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
+    <section className="result-leaderboard-card" aria-label={t('result.leaderboardAria', { day: programDay })}>
       <div className="result-leaderboard-summary">
-        <p className="result-eyebrow">DAY {programDay} &middot; SCOREBOARD</p>
+        <p className="result-eyebrow">{t('result.scoreboard', { day: programDay })}</p>
         <div className="result-score-display">
           <strong>{score}</strong>
-          <span>/ 300</span>
+          <span>{t('result.outOf')}</span>
         </div>
         <div className="result-delta-row">
-          <b><PersonalBestIcon />NEW PERSONAL BEST</b>
+          <b><PersonalBestIcon />{t('result.personalBest')}</b>
         </div>
       </div>
       <ol>
@@ -636,21 +640,23 @@ function ResultLeaderboard({ rows, programDay, score, isLoading }) {
           );
         })}
         {!isLoading && !rows.length && (
-          <li className="result-leaderboard-empty">Complete all 3 sessions to be the first on Day {programDay}.</li>
+          <li className="result-leaderboard-empty">{t('result.leaderboardEmpty', { day: programDay })}</li>
         )}
-        {isLoading && <li className="result-leaderboard-empty">Loading leaderboard...</li>}
+        {isLoading && <li className="result-leaderboard-empty">{t('result.leaderboardLoading')}</li>}
       </ol>
     </section>
   );
 }
 
 function ResultShareCard({ cardRef, slogan, mascot, photos, coverPhoto, isExporting, onDownload, onShare }) {
+  const { t } = useI18n();
+
   return (
     <section className="result-summary-card">
       <ShareCardPreview ref={cardRef} slogan={slogan} mascot={mascot} photos={photos} coverPhoto={coverPhoto} />
-      <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
-        <button onClick={onDownload} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
-        <button onClick={onShare} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
+      <div className="result-toolbar result-card-toolbar" aria-label={t('result.toolsAria')}>
+        <button onClick={onDownload} disabled={isExporting} type="button" aria-label={t('result.downloadAria')}><DownloadIcon /></button>
+        <button onClick={onShare} disabled={isExporting} type="button" aria-label={t('result.shareAria')}><ShareIcon /></button>
       </div>
     </section>
   );
