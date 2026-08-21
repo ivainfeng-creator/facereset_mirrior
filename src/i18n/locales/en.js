@@ -213,7 +213,7 @@ export const en = {
 
   scenes: {
     whaleDream: {
-      title: 'Whale Mouth',
+      title: "Whale's Lunch",
       faceArea: 'Mouth',
       description: 'Open your mouth gently and hold it steady so little fish can swim into the whale.',
       tips: [
@@ -243,7 +243,7 @@ export const en = {
       ],
     },
     flowerCollector: {
-      title: 'Popcorn Collector',
+      title: 'Popcorn Sniff',
       faceArea: 'Nose',
       description: 'Wrinkle your nose gently, then relax and repeat.',
       tips: [
@@ -253,7 +253,7 @@ export const en = {
       ],
     },
     bubbleGumBunny: {
-      title: 'Bubble Gum Bunny',
+      title: 'Bunny Puff',
       faceArea: 'Cheeks',
       description: 'Relax for a moment while bunny learns your neutral face, then hold a cheek puff until the bubble pops.',
       tips: [
