@@ -44,6 +44,19 @@ body:has(.welcome-v3) {
   overscroll-behavior-y: none;
 }
 
+/* The completed plan can exceed the viewport; keep it scrollable while
+   suppressing the browser-level scrollbar. */
+html:has(.challenge-v3-screen),
+body:has(.challenge-v3-screen) {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html:has(.challenge-v3-screen)::-webkit-scrollbar,
+body:has(.challenge-v3-screen)::-webkit-scrollbar {
+  display: none;
+}
+
 button {
   border: 0;
   font: inherit;
@@ -5465,6 +5478,7 @@ h1 {
   border: 0;
   border-radius: 26px;
   padding: 14px;
+  color: #1a1a1a;
   font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
@@ -14169,10 +14183,9 @@ h1 {
   white-space: nowrap;
 }
 
-/* Keep leaderboard rows at their designed size when the FAB card stack is viewed
-   in a short viewport. */
+/* Match the completed plan's viewport-bounded height in the FAB stack. */
 .result-history-modal .result-leaderboard-card {
-  height: min(734px, calc(100svh - (2 * clamp(48px, 12vh, 144px))));
+  height: min(596px, calc(100svh - clamp(144px, 19svh, 184px)));
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
@@ -14361,7 +14374,15 @@ h1 {
   min-height: 100svh;
   padding: 0;
   overflow: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   background: #f7f7f7;
+}
+
+.app-shell:has(.challenge-v3-screen)::-webkit-scrollbar,
+.challenge-v3-screen::-webkit-scrollbar,
+.challenge-v3-sessions::-webkit-scrollbar {
+  display: none;
 }
 
 .app-shell:has(.challenge-v3-screen) .ambient {
@@ -14375,6 +14396,8 @@ h1 {
   justify-content: center;
   padding: clamp(24px, 4svh, 52px) clamp(16px, 4vw, 36px);
   overflow: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   color: #1a1a1a;
   background: #f7f7f7;
 }
@@ -14576,7 +14599,8 @@ h1 {
   gap: 2px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .challenge-v3-sessions::before {
