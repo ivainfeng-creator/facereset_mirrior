@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { toBlob } from 'html-to-image';
 import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
 import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
@@ -14,6 +13,7 @@ import TodayPlanCard from './TodayPlanCard.jsx';
 import ShareCardPreview, { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH } from './ShareCardPreview.jsx';
 import { pickRandom, SHARE_CARD_MASCOTS, SHARE_CARD_SLOGANS } from '../data/shareCardContent.js';
 import { useCaptureUrlsByDate } from '../hooks/useCaptureUrls.js';
+import { renderShareCardBlob, warmShareCardExport } from '../utils/shareCardExport.js';
 import { useI18n } from '../i18n/context.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
@@ -27,6 +27,12 @@ const RESULT_CARD_FLIP_EFFECT = Object.freeze({
   volume: 0.7,
 });
 const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
+const SHARE_CARD_EXPORT_OPTIONS = Object.freeze({
+  width: SHARE_CARD_WIDTH,
+  height: SHARE_CARD_HEIGHT,
+  pixelRatio: 1,
+  cacheBust: true,
+});
 
 export default function ResultScreen({
   result,
@@ -106,6 +112,18 @@ export default function ResultScreen({
     isPastDay ? getHistoryCoverPhoto(dailyPlan.sceneResults, shareCardPhotos) : null
   ), [dailyPlan.sceneResults, isPastDay, shareCardPhotos]);
   const shareCardFilename = `facerest-day-${programDay}-share-card.png`;
+  // Identifies everything the card draws, so the warm-up (and the settled raster
+  // it caches) is thrown away the moment any of it changes. Every variable part
+  // is covered: which day is on screen, the randomly picked slogan and mascot,
+  // and each photo. The rest of the card is fixed English copy from
+  // shareCardContent.js, so no locale input is needed here.
+  const shareCardExportSignature = [
+    shareCardInstanceKey,
+    shareCardSlogan.join('/'),
+    shareCardMascot,
+    historyCoverPhoto?.image?.length || 0,
+    ...shareCardPhotos.map((photo) => `${photo.sceneId}:${photo.image.length}`),
+  ].join('|');
   // Deliberately measured against real rows only: starter rows are display-only and
   // must not decide whether the player is prompted to join the real leaderboard.
   const qualifiesForLeaderboard = !isLeaderboardLoading && (
@@ -277,22 +295,29 @@ export default function ResultScreen({
     setLeaderboardRefreshKey((value) => value + 1);
   };
 
-  const renderShareCardBlob = async () => {
+  // WebKit needs the card rasterised once before it will paint its data-URL
+  // photos (see shareCardExport.js). Doing it here, as soon as the photos are on
+  // screen, means the first Download or Share tap is correct *and* faster than
+  // it is today: it reuses the settled raster instead of making its own.
+  useEffect(() => {
     const node = shareCardNodeRef.current;
-    if (!node) throw new Error('Share card is not ready yet.');
-    const exportOptions = { width: SHARE_CARD_WIDTH, height: SHARE_CARD_HEIGHT, pixelRatio: 1, cacheBust: true };
-    // toBlob embeds @font-face CSS by fetching it over the network; if that stalls
-    // (offline, blocked font host, slow proxy) it would otherwise hang indefinitely,
-    // so the whole render (including the no-embedded-fonts retry) is time-bounded.
-    const render = toBlob(node, exportOptions).catch(() => toBlob(node, { ...exportOptions, skipFonts: true }));
-    return withTimeout(render, 12000);
-  };
+    if (!node) return;
+    void warmShareCardExport(node, shareCardExportSignature, SHARE_CARD_EXPORT_OPTIONS);
+    // isHistoryOpen matters because the Share Card only exists while that overlay
+    // is mounted — that overlay is also how today's Result Page is presented.
+  }, [isHistoryOpen, shareCardExportSignature]);
+
+  const exportShareCardBlob = () => renderShareCardBlob(
+    shareCardNodeRef.current,
+    shareCardExportSignature,
+    SHARE_CARD_EXPORT_OPTIONS,
+  );
 
   const downloadShareCard = async () => {
     setIsExporting(true);
     setExportMessage(t('share.creating'));
     try {
-      const blob = await renderShareCardBlob();
+      const blob = await exportShareCardBlob();
       downloadBlob(blob, shareCardFilename);
       setExportMessage(t('share.downloaded'));
     } catch {
@@ -306,7 +331,7 @@ export default function ResultScreen({
     setIsExporting(true);
     setExportMessage(t('share.preparing'));
     try {
-      const blob = await renderShareCardBlob();
+      const blob = await exportShareCardBlob();
       const file = new File([blob], shareCardFilename, { type: 'image/png' });
 
       if (navigator.canShare?.({ files: [file] }) && navigator.share) {
@@ -786,14 +811,4 @@ function downloadBlob(blob, filename) {
   link.href = url;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 800);
-}
-
-function withTimeout(promise, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error('Export timed out.')), timeoutMs);
-    promise.then(
-      (value) => { window.clearTimeout(timer); resolve(value); },
-      (error) => { window.clearTimeout(timer); reject(error); },
-    );
-  });
 }
