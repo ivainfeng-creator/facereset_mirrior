@@ -94,7 +94,7 @@ export const zhHant = {
     exit: '離開',
     quitAria: '離開遊戲',
     guideGotIt: '知道了！',
-    quitTitle: '要離開「{scene}」嗎？',
+    quitTitle: '要離開嗎？',
     quitBody: '這次的進度不會儲存。',
     quitLeave: '離開',
     quitStay: '繼續玩',

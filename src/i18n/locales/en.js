@@ -91,7 +91,7 @@ export const en = {
     exit: 'Exit',
     quitAria: 'Quit routine',
     guideGotIt: 'Got it!',
-    quitTitle: 'Leave “{scene}”?',
+    quitTitle: 'Leave?',
     quitBody: "Your progress won't be saved.",
     quitLeave: 'Leave',
     quitStay: 'Stay',
