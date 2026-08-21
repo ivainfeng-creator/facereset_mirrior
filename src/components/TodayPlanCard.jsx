@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getDailyScenesForProgramDay } from '../data/scenes.js';
 import { playSceneEffect } from '../utils/audioManager.js';
+import { useI18n } from '../i18n/context.js';
 
 const SESSION_SELECT_EFFECT = Object.freeze({
   source: '/audio/Overall/Click-1.mp3',
@@ -27,8 +28,10 @@ export default function TodayPlanCard({
   shouldAnimateCompletionBanner = true,
   className = '',
   isReadOnly = false,
-  focusLabel = 'TODAY\'S FOCUS',
+  focusLabel,
 }) {
+  const { t } = useI18n();
+  const resolvedFocusLabel = focusLabel || t('plan.todaysFocus');
   const historyButtonRef = useRef(null);
   const previousHistoryWidthRef = useRef(null);
   const previousHistoryOpenRef = useRef(isHistoryOpen);
@@ -48,6 +51,7 @@ export default function TodayPlanCard({
     onViewHistory?.();
   };
 
+  // The session list scrollbar is transparent until the list actually moves.
   const handleSessionsScroll = () => {
     setIsSessionsScrolling(true);
     window.clearTimeout(sessionsScrollTimerRef.current);
@@ -87,13 +91,16 @@ export default function TodayPlanCard({
   }, [isHistoryOpen]);
 
   return (
-    <section className={`challenge-v3-plan ${className}`.trim()} aria-label={focusLabel}>
+    <section className={`challenge-v3-plan ${className}`.trim()} aria-label={resolvedFocusLabel}>
       <div className="challenge-v3-plan-header">
         <div>
-          <p>{focusLabel}</p>
-          <h2>FACIAL WARM-UP</h2>
+          <p>{resolvedFocusLabel}</p>
+          <h2>{t('plan.warmUpTitle')}</h2>
         </div>
-        <div className="challenge-v3-progress" aria-label={`${completedCount} of ${dailyScenes.length} complete`}>
+        <div
+          className="challenge-v3-progress"
+          aria-label={t('plan.progressAria', { done: completedCount, total: dailyScenes.length })}
+        >
           <span className="challenge-v3-progress-rail">
             <span
               className="challenge-v3-progress-fill"
@@ -138,7 +145,10 @@ export default function TodayPlanCard({
               }}
               disabled={!canSelect || Boolean(preparingSceneId)}
               aria-label={isDone
-                ? `${isReadOnly ? 'Completed' : 'Replay'} ${scene.title}. Best score ${result?.score || 0}`
+                ? t(isReadOnly ? 'plan.completedAria' : 'plan.replayAria', {
+                  scene: t(`scenes.${scene.id}.title`),
+                  score: result?.score || 0,
+                })
                 : undefined}
             >
               <span className="challenge-v3-art-wrap">
@@ -148,9 +158,9 @@ export default function TodayPlanCard({
               </span>
 
               <span className="challenge-v3-session-copy">
-                <small>SESSION {index + 1}</small>
-                <strong>{scene.title}</strong>
-                <span>30 sec · {scene.planPhase}</span>
+                <small>{t('plan.session', { index: index + 1 })}</small>
+                <strong>{t(`scenes.${scene.id}.title`)}</strong>
+                <span>{t('plan.duration', { area: t(`scenes.${scene.id}.faceArea`) })}</span>
               </span>
 
               {isDone && (
@@ -159,7 +169,7 @@ export default function TodayPlanCard({
                     className="challenge-v3-done"
                     onAnimationEnd={isNewlyCompleted ? onCompletionStampAnimationEnd : undefined}
                   >
-                    DONE | {result?.score || 0}
+                    {t('plan.done', { score: result?.score || 0 })}
                   </span>
                   <span className="challenge-v3-replay" aria-hidden="true">↻</span>
                 </span>
@@ -183,9 +193,9 @@ export default function TodayPlanCard({
         >
           {preparingSceneId ? (
             <span className="challenge-v3-start-preparing">
-              Preparing<span>.</span><span>.</span><span>.</span>
+              {t('plan.preparing')}<span>.</span><span>.</span><span>.</span>
             </span>
-          ) : (completedCount ? 'Continue' : 'Start')}
+          ) : t(completedCount ? 'plan.continue' : 'plan.start')}
         </button>
       )}
 
@@ -197,15 +207,15 @@ export default function TodayPlanCard({
           >
             <span className="challenge-v3-banner-sheen" aria-hidden="true" />
             <div className="challenge-v3-banner-copy">
-              <strong>Day {programDay} Complete</strong>
-              <span>Come back on your next active day</span>
+              <strong>{t('plan.dayComplete', { day: programDay })}</strong>
+              <span>{t('plan.comeBack')}</span>
             </div>
             <div className="challenge-v3-banner-calendar" aria-hidden="true">
               <i className="challenge-v3-banner-confetti-one" />
               <i className="challenge-v3-banner-confetti-two" />
               <i className="challenge-v3-banner-confetti-three" />
               <div>
-                <span>DAY</span>
+                <span>{t('plan.calendarDay', { day: programDay + 1 })}</span>
                 <b>{programDay + 1}</b>
               </div>
             </div>
@@ -215,7 +225,7 @@ export default function TodayPlanCard({
               ref={historyButtonRef}
               className={`history-fab${isHistoryOpen ? ' is-active' : ''}${shouldAnimateCompletionFlow ? ' is-completion-entering' : ''}`}
               type="button"
-              aria-label={isHistoryOpen ? 'Close history' : 'View history'}
+              aria-label={t(isHistoryOpen ? 'plan.closeHistoryAria' : 'plan.viewHistoryAria')}
               aria-expanded={isHistoryOpen}
               onClick={toggleHistory}
             >
@@ -223,7 +233,7 @@ export default function TodayPlanCard({
                 {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
               </span>
               <span className="history-fab-label" key={`label-${isHistoryOpen ? 'close' : 'history'}`}>
-                {isHistoryOpen ? 'Close' : 'View history'}
+                {t(isHistoryOpen ? 'plan.closeHistory' : 'plan.viewHistory')}
               </span>
             </button>
           )}

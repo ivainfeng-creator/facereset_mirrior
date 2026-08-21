@@ -260,13 +260,14 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
   const faceOval = FACE_OVAL_INDEXES.map(getIndexPoint).filter(isPoint);
   const bounds = getDisplayFaceBounds({ face, leftEye, rightEye, mouth, jaw, faceOval });
   const faceScale = Math.max(bounds.width, bounds.height);
+  const blendshapes = landmarkData.blendshapes || {};
   const noseDiagnostics = getNoseSniffDiagnostics({
-    blendshapes: landmarkData.blendshapes || {},
+    blendshapes,
     face,
     mouth,
     faceScale,
   });
-  const eyebrowRaise = getEyebrowRaiseRatio(landmarkData.blendshapes || {});
+  const eyebrowRaise = getEyebrowRaiseRatio(blendshapes);
 
   return {
     mode: landmarkData.mode,
@@ -276,7 +277,7 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     jaw,
     face,
     faceScale,
-    blendshapes: landmarkData.blendshapes || {},
+    blendshapes,
     nose: {
       center: face.noseCenter,
       sniffRatio: noseDiagnostics.confidence,
@@ -285,13 +286,19 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
     headPose: getVerticalHeadPoseProxy({ face, leftEye, rightEye, jaw }),
     cheeks: {
       puffRatio: getCheekPuffRatio({
-        blendshapes: landmarkData.blendshapes || {},
+        blendshapes,
       }),
       puckerRatio: getMouthPuckerRatio({
-        blendshapes: landmarkData.blendshapes || {},
+        blendshapes,
         mouth,
         faceScale,
       }),
+      // Raw blendshape passthrough for Bubble Gum Bunny's calibrated cheek
+      // puff. Additive - the derived ratios above are unchanged.
+      cheekPuff: clamp(blendshapes.cheekPuff || 0, 0, 1),
+      mouthPucker: clamp(blendshapes.mouthPucker || 0, 0, 1),
+      mouthFunnel: clamp(blendshapes.mouthFunnel || 0, 0, 1),
+      mouthOpen: clamp(mouth.openRatio || 0, 0, 1),
     },
     eyebrows: {
       raiseRatio: eyebrowRaise,

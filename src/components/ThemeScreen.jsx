@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import TodayPlanCard from './TodayPlanCard.jsx';
 import ResultScreen from './ResultScreen.jsx';
 import { buildDailyPlanSummary } from '../utils/dailyPlan.js';
+import { useI18n } from '../i18n/context.js';
 
 export default function ThemeScreen({
   habit,
@@ -18,6 +19,7 @@ export default function ThemeScreen({
   shouldAnimateCompletionFlow = false,
   historyAnimationKey = 0,
 }) {
+  const { t } = useI18n();
   const [preparingSceneId, setPreparingSceneId] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [shouldAnimateHistoryEntry, setShouldAnimateHistoryEntry] = useState(false);
@@ -49,6 +51,8 @@ export default function ThemeScreen({
     }
   }, [historyAnimationKey, shouldAnimateHistoryCards]);
 
+  // Opening history by hand should animate the cards in the same way the
+  // post-session auto-open does.
   const toggleHistory = () => {
     setIsHistoryOpen((isOpen) => {
       const nextIsOpen = !isOpen;
@@ -68,9 +72,9 @@ export default function ThemeScreen({
 
   return (
     <section className={`screen theme-screen today-plan-screen challenge-v3-screen ${isEntering ? 'is-paper-entering' : ''}`}>
-      <main className="challenge-v3-shell" aria-label="Today’s Face Reset challenge">
+      <main className="challenge-v3-shell" aria-label={t('plan.shellAria')}>
         <header className="challenge-v3-hero">
-          <h1>Face Reset Challenge</h1>
+          <h1>{t('plan.hero')}</h1>
         </header>
 
         {daySelector}
@@ -89,7 +93,9 @@ export default function ThemeScreen({
           newlyCompletedSceneId={newlyCompletedSceneId}
           onCompletionStampAnimationEnd={onCompletionStampAnimationEnd}
           isReadOnly={false}
-          focusLabel={isHistoryView ? `DAY ${selectedDay} RECORD` : 'TODAY\'S FOCUS'}
+          focusLabel={isHistoryView
+            ? t('plan.dayRecord', { day: selectedDay })
+            : t('plan.todaysFocus')}
         />
         {isHistoryOpen && (
           <ResultScreen

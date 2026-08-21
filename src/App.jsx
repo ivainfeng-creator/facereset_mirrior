@@ -27,6 +27,7 @@ import {
   markGuideSeen,
   saveSessionResult,
 } from './utils/progressAdapter.js';
+import { createOptimizedCaptureBlob, saveCapture } from './utils/captureStorage.js';
 
 const SCREENS = {
   landing: 'landing',
@@ -85,6 +86,7 @@ export default function App() {
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [autoStartCamera, setAutoStartCamera] = useState(Boolean(debugSceneId));
   const [guideOverlay, setGuideOverlay] = useState(null);
+  const [cheekPuffCalibration, setCheekPuffCalibration] = useState(null);
   const [screenTransition, setScreenTransition] = useState(null);
   const [viverseAuth, setViverseAuth] = useState(getViverseAuthSnapshot);
   const transitionTimerRef = useRef(null);
@@ -275,6 +277,7 @@ export default function App() {
   // playable.
   const enterSceneFlow = (sceneId, { selectedDate = null, returnView = 'plan' } = {}) => {
     setSelectedScene(sceneId);
+    setCheekPuffCalibration(null);
     setSessionDate(selectedDate);
     setRoutineReturnView(returnView);
 
@@ -335,6 +338,9 @@ export default function App() {
     const { saved } = saveSessionResult(persistableResult, {
       onMerged: () => setProgressRevision((value) => value + 1),
     });
+    // Local-only, best-effort and deliberately not awaited: the photo write must
+    // never gate completion, scoring, Daily Progress, Result or History.
+    void persistSessionCapture(saved, sceneSnapshots);
     const updatedHabit = loadHabitProgress();
     const dailyPlan = buildDailyPlanSummary(updatedHabit, { date: saved.date });
     setSelectedChallengeDate(saved.date);
@@ -548,6 +554,8 @@ export default function App() {
           stream={cameraStream}
           isDemoMode={isDemoMode}
           isOverlay
+          selectedScene={selectedScene}
+          onCheekPuffCalibrated={setCheekPuffCalibration}
           onBegin={finishGuideScan}
           onBack={() => {
             setGuideOverlay(null);
@@ -562,6 +570,7 @@ export default function App() {
           isDemoMode={isDemoMode}
           skipFaceScan={skipFaceScan}
           selectedScene={selectedScene}
+          initialCheekPuffCalibration={cheekPuffCalibration}
           sessionDate={sessionDate}
           onComplete={finishRoutine}
           onExit={() => {
@@ -626,4 +635,22 @@ function mergeSessionSnapshots({ current, incoming, programDay }) {
   return Array.from(byScene.values())
     .sort((a, b) => (a.capturedAt || 0) - (b.capturedAt || 0))
     .slice(-3);
+}
+
+// Saves the just-completed session's best capture to IndexedDB, keyed by the
+// session's own FaceRest date key and scene ID. Runs after every session (1, 2
+// and 3) and never touches navigation: it only writes.
+async function persistSessionCapture(saved, sceneSnapshots = []) {
+  try {
+    const snapshot = sceneSnapshots
+      .filter((candidate) => candidate?.sceneId === saved?.sceneId && candidate?.image)
+      .sort((left, right) => (right.qualityScore || 0) - (left.qualityScore || 0))[0];
+
+    if (!saved?.date || !saved?.sceneId || !snapshot?.image) return;
+
+    const blob = await createOptimizedCaptureBlob(snapshot.image);
+    await saveCapture(saved.date, saved.sceneId, blob);
+  } catch {
+    // Photo persistence is optional; a failure here is never surfaced.
+  }
 }

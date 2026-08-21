@@ -3,6 +3,7 @@ import { SCENE_IDS } from './sceneIds.js';
 import { FIRST_SCHEDULED_DAY, getScheduledSceneIds } from './scheduleConfig.js';
 import lemonBackgroundAudio from '../../references/Lemon/Lemon-bg-4.mp3';
 import lemonDropAudio from '../../references/Lemon/Drop-1.mp3';
+import lemonIceAudio from '../../references/Lemon/Ice.mp3';
 import lemonSqueezeAudio from '../../references/Lemon/Squeeze.mp3';
 import bunnyBackgroundAudio from '../../references/Bunny/bunny-bg-2.mp3';
 import bunnyBlowAudio from '../../references/Bunny/Below.mp3';
@@ -226,10 +227,10 @@ const sceneDefinitions = [
     practice: {
       renderer: 'bunny',
       title: 'How to Play Bubble Gum Bunny',
-      description: 'Puff your cheeks, relax softly, then puff again to grow the bubble.',
-      tips: ['Keep your lips closed.', 'Hold each puff for about two seconds.', 'Steady rhythm grows the biggest bubble.'],
+      description: 'Relax for a moment while bunny learns your neutral face, then hold a cheek puff until the bubble pops.',
+      tips: ['Keep your lips gently closed.', 'Puff both cheeks and hold steady.', 'A full bubble pops automatically.'],
       effectTitle: 'Grow the bubble',
-      effectDescription: 'Puff softly and keep the bubble floating.',
+      effectDescription: 'Hold a steady puff to fill and pop the bubble.',
       previewDemo: { effect: 'bubbleGrow', cycleMs: 3600 },
     },
   },
@@ -262,6 +263,10 @@ const sceneDefinitions = [
         lemonDrop: {
           source: lemonDropAudio,
           volume: 0.72,
+        },
+        lemonIce: {
+          source: lemonIceAudio,
+          volume: 0.68,
         },
       },
     },

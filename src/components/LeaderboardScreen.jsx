@@ -1,5 +1,8 @@
-import { loadLeaderboardRows, loadPassportProgress } from '../utils/progressAdapter.js';
+import { useEffect, useState } from 'react';
+import { loadPassportProgress } from '../utils/progressAdapter.js';
 import { buildDailyPlanSummary, buildProgramDayPlanSummary } from '../utils/dailyPlan.js';
+import { fetchProgramDayLeaderboard } from '../utils/supabaseProgressAdapter.js';
+import { buildLeaderboardDisplayRows } from '../utils/leaderboardDisplay.js';
 
 export default function LeaderboardScreen({ habit, onBack, onRestart, programDay: selectedProgramDay = null }) {
   const passport = loadPassportProgress(habit);
@@ -8,7 +11,26 @@ export default function LeaderboardScreen({ habit, onBack, onRestart, programDay
     ? Number(selectedProgramDay)
     : currentProgramDay;
   const dailyPlan = buildProgramDayPlanSummary(habit, programDay);
-  const rows = loadLeaderboardRows(habit);
+  const [rows, setRows] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoading(true);
+    void fetchProgramDayLeaderboard(programDay).then((data) => {
+      if (!isCurrent) return;
+      setRows(buildLeaderboardDisplayRows(programDay, data).map((row) => ({
+        rank: row.rank,
+        name: row.name,
+        score: row.score,
+        detail: `${row.completedSessions}/3 sessions`,
+      })));
+      setIsLoading(false);
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [programDay, habit?.updatedAt]);
 
   return (
     <section className="screen leaderboard-screen">
@@ -50,7 +72,8 @@ export default function LeaderboardScreen({ habit, onBack, onRestart, programDay
               <b>{row.score}</b>
             </article>
           ))}
-          {!rows.length && <p className="leaderboard-status">No Day {programDay} scores yet.</p>}
+          {!isLoading && !rows.length && <p className="leaderboard-status">No completed Day {programDay} scores yet.</p>}
+          {isLoading && <p className="leaderboard-status">Loading leaderboard...</p>}
         </section>
 
         <footer className="passport-actions">

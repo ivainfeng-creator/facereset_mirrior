@@ -22,6 +22,23 @@ export function toFinalSceneScore(rawScore) {
   return clampSceneScore(SCENE_SCORE_MAX * Math.pow(normalized, SCORE_CURVE_EXPONENT));
 }
 
+// Inverse of toFinalSceneScore. Scenes that award a fixed number of points on
+// the canonical 0-100 scale need to translate that back into an internal score,
+// and the curve exponent must not be re-implemented at the call site.
+export function toRawSceneScore(finalScore) {
+  const normalized = clampSceneScore(finalScore) / SCENE_SCORE_MAX;
+  return clampRawSceneScore(RAW_SCENE_SCORE_MAX * Math.pow(normalized, 1 / SCORE_CURVE_EXPONENT));
+}
+
+// Adds `finalPoints` on the canonical 0-100 scale to an internal score. The
+// curve is convex, so a flat final-scale award is not a flat internal award -
+// this converts, adds, and converts back. Never lowers the score.
+export function awardFinalScenePoints(rawScore, finalPoints) {
+  const current = toFinalSceneScore(rawScore);
+  const rewarded = clampSceneScore(current + finalPoints);
+  return Math.max(clampRawSceneScore(rawScore), toRawSceneScore(rewarded));
+}
+
 export function migrateLegacyRawSceneScore(rawScore) {
   return toFinalSceneScore(rawScore);
 }

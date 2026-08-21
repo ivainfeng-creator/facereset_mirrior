@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toBlob } from 'html-to-image';
 import { buildDailyPlanSummary, DAILY_TOTAL_MAX_SCORE } from '../utils/dailyPlan.js';
+import { getEffectiveLocalDateKey } from '../utils/effectiveDate.js';
 import {
   fetchProgramDayLeaderboard,
   getSupabaseDisplayName,
   saveSupabaseDisplayName,
 } from '../utils/supabaseProgressAdapter.js';
-import { loadLeaderboardRows } from '../utils/progressAdapter.js';
+import { buildLeaderboardDisplayRows } from '../utils/leaderboardDisplay.js';
 import { playSceneEffect } from '../utils/audioManager.js';
 import { getDisplayName, normalizeDisplayName, saveDisplayName } from '../utils/storage.js';
 import TodayPlanCard from './TodayPlanCard.jsx';
 import ShareCardPreview, { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH } from './ShareCardPreview.jsx';
 import { pickRandom, SHARE_CARD_MASCOTS, SHARE_CARD_SLOGANS } from '../data/shareCardContent.js';
+import { useCaptureUrlsByDate } from '../hooks/useCaptureUrls.js';
+import { useI18n } from '../i18n/context.js';
 
 const MAX_RESULT_SCORE = DAILY_TOTAL_MAX_SCORE;
 const RESULT_RADAR_LABELS = ['Calm', 'Focus', 'Flow', 'Play', 'Lift'];
@@ -23,7 +26,7 @@ const RESULT_CARD_FLIP_EFFECT = Object.freeze({
   source: '/audio/Overall/Flip-1.mp3',
   volume: 0.7,
 });
-const CARD_LAYOUT_ENTRY_DURATION_MS = 1620;
+const CARD_LAYOUT_ENTRY_DURATION_MS = 780;
 
 export default function ResultScreen({
   result,
@@ -40,6 +43,7 @@ export default function ResultScreen({
   isHistoryOnly = false,
   onCloseHistory,
 }) {
+  const { t } = useI18n();
   const [cardOrder, setCardOrder] = useState([0, 1, 2]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryOnly);
   const [isCardLayoutAnimationActive, setIsCardLayoutAnimationActive] = useState(shouldAnimateCardLayout);
@@ -67,21 +71,26 @@ export default function ResultScreen({
   const score = dailyPlan.score;
   const sceneTitle = dailyPlan.sceneTitle;
   const focusLabel = dailyPlan.area;
-  const topPercent = getTopPercent(score);
   const holdSeconds = Math.max(1, Math.round(dailyPlan.holdSeconds || 90));
   const programDay = Math.max(1, Number(dailyPlan.programDay) || 1);
   const shareCardNodeRef = useRef(null);
   const cardLayoutAnimationTimerRef = useRef(null);
-  // Snapshots only ever come from the just-completed session's in-memory capture
-  // (see App.jsx's sessionSnapshotsRef / mergeSessionSnapshots); dailyPlan.snapshots
-  // is empty/undefined for any other historical day, so this naturally yields a
-  // clean no-photo fallback for history and never leaks today's photos onto another day.
+  // Locally persisted captures for the day being viewed. Keyed by the plan's own
+  // FaceRest date key, so a past day can only ever surface its own photos.
+  const captureUrlsByScene = useCaptureUrlsByDate(dailyPlan.date);
+  // A completed *earlier* day, not "the history overlay" — the overlay is also how
+  // today's Result Page is presented once session 3 lands, and that page must keep
+  // its approved three-circle collage.
+  const isPastDay = Boolean(dailyPlan.date) && dailyPlan.date !== getEffectiveLocalDateKey();
   const shareCardInstanceKey = `${programDay}-${dailyPlan.date || ''}`;
   const { slogan: shareCardSlogan, mascot: shareCardMascot } = useMemo(
     () => ({ slogan: pickRandom(SHARE_CARD_SLOGANS), mascot: pickRandom(SHARE_CARD_MASCOTS) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [shareCardInstanceKey],
   );
+  // In-memory captures from the session just finished win; anything missing (a
+  // reload, or reopening today's Result from the day selector) falls back to the
+  // locally persisted capture for that same date.
   const shareCardPhotos = useMemo(() => {
     const snapshotByScene = new Map(
       (dailyPlan.snapshots || []).filter((snapshot) => snapshot?.image).map((snapshot) => [snapshot.sceneId, snapshot]),
@@ -89,19 +98,24 @@ export default function ResultScreen({
     return (dailyPlan.sceneResults || [])
       .map((entry) => {
         const snapshot = snapshotByScene.get(entry.sceneId);
-        return snapshot ? { sceneId: entry.sceneId, image: snapshot.image } : null;
+        const image = snapshot?.image || captureUrlsByScene[entry.sceneId];
+        return image ? { sceneId: entry.sceneId, image } : null;
       })
       .filter(Boolean);
-  }, [dailyPlan.sceneResults, dailyPlan.snapshots]);
+  }, [captureUrlsByScene, dailyPlan.sceneResults, dailyPlan.snapshots]);
+  const historyCoverPhoto = useMemo(() => (
+    isPastDay ? getHistoryCoverPhoto(dailyPlan.sceneResults, shareCardPhotos) : null
+  ), [dailyPlan.sceneResults, isPastDay, shareCardPhotos]);
   const shareCardFilename = `facerest-day-${programDay}-share-card.png`;
+  // Deliberately measured against real rows only: starter rows are display-only and
+  // must not decide whether the player is prompted to join the real leaderboard.
   const qualifiesForLeaderboard = !isLeaderboardLoading && (
-    leaderboard.length < 10 || score >= (leaderboard[9]?.score ?? 0)
+    leaderboard.length < 10 || score >= Math.max(0, Number(leaderboard[9]?.total_score) || 0)
   );
   const bringCardToFront = (cardIndex) => {
     if (isCardLayoutAnimationActive) return;
-    if (cardOrder[0] === cardIndex) return;
+    if (cardOrder[0] !== cardIndex) playSceneEffect(RESULT_CARD_FLIP_EFFECT);
 
-    playSceneEffect(RESULT_CARD_FLIP_EFFECT);
     setCardOrder((currentOrder) => [
       cardIndex,
       ...currentOrder.filter((index) => index !== cardIndex),
@@ -128,15 +142,13 @@ export default function ResultScreen({
     setIsHistoryOpen((isOpen) => {
       const nextIsOpen = !isOpen;
       window.clearTimeout(cardLayoutAnimationTimerRef.current);
+      setIsCardLayoutAnimationActive(nextIsOpen);
 
       if (nextIsOpen) {
-        setIsCardLayoutAnimationActive(true);
         cardLayoutAnimationTimerRef.current = window.setTimeout(
           () => setIsCardLayoutAnimationActive(false),
           CARD_LAYOUT_ENTRY_DURATION_MS,
         );
-      } else {
-        setIsCardLayoutAnimationActive(false);
       }
 
       return nextIsOpen;
@@ -165,6 +177,8 @@ export default function ResultScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardLayoutAnimationKey]);
 
+  // The history overlay scrolls internally; locking the page behind it stops the
+  // background from scrolling away under the card stack on touch devices.
   useEffect(() => {
     if (!isHistoryOpen) return undefined;
 
@@ -184,13 +198,7 @@ export default function ResultScreen({
     const loadLeaderboard = async () => {
       const rows = await fetchProgramDayLeaderboard(programDay);
       if (!isCurrent) return;
-      const leaderboardRows = rows.length ? rows : loadLeaderboardRows(habit);
-      setLeaderboard(leaderboardRows.map((row) => ({
-        rank: Number(row.rank),
-        name: row.display_name || row.name || 'Anonymous',
-        score: Math.max(0, Number(row.total_score ?? row.score) || 0),
-        me: Boolean(row.me || row.isUser),
-      })));
+      setLeaderboard(rows);
       setIsLeaderboardLoading(false);
     };
 
@@ -199,7 +207,18 @@ export default function ResultScreen({
     return () => {
       isCurrent = false;
     };
-  }, [programDay, habit?.updatedAt, leaderboardRefreshKey]);
+  }, [programDay, habit?.displayName, habit?.updatedAt, leaderboardRefreshKey]);
+
+  // Supabase has no "is me" flag, so the player's own row is matched on the
+  // display name they submitted with. Falls back to no highlight when the
+  // player has not named themselves yet. Starter rows are never "me".
+  const ownName = getDisplayName(habit);
+  const displayLeaderboard = useMemo(() => (
+    buildLeaderboardDisplayRows(programDay, leaderboard).map((row) => ({
+      ...row,
+      me: !row.isSeed && Boolean(ownName) && normalizeDisplayName(row.name) === ownName,
+    }))
+  ), [programDay, leaderboard, ownName]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -259,7 +278,7 @@ export default function ResultScreen({
     playSceneEffect(LEADERBOARD_SUBMIT_EFFECT);
     const displayName = normalizeDisplayName(nameDraft);
     if (!displayName) {
-      setNameError('Enter a display name to join the leaderboard.');
+      setNameError(t('result.name.errorEmpty'));
       return;
     }
 
@@ -271,7 +290,7 @@ export default function ResultScreen({
     setIsNameSaving(false);
 
     if (!saved.ok) {
-      setNameError('Saved on this device. Check your connection and try again to sync it to the leaderboard.');
+      setNameError(t('result.name.errorSync'));
       return;
     }
 
@@ -293,13 +312,13 @@ export default function ResultScreen({
 
   const downloadShareCard = async () => {
     setIsExporting(true);
-    setExportMessage('Creating your Share Card...');
+    setExportMessage(t('share.creating'));
     try {
       const blob = await renderShareCardBlob();
       downloadBlob(blob, shareCardFilename);
-      setExportMessage('Share Card downloaded.');
+      setExportMessage(t('share.downloaded'));
     } catch {
-      setExportMessage('Could not create the Share Card. Please try again.');
+      setExportMessage(t('share.createFailed'));
     } finally {
       setIsExporting(false);
     }
@@ -307,7 +326,7 @@ export default function ResultScreen({
 
   const shareShareCard = async () => {
     setIsExporting(true);
-    setExportMessage('Preparing your Share Card...');
+    setExportMessage(t('share.preparing'));
     try {
       const blob = await renderShareCardBlob();
       const file = new File([blob], shareCardFilename, { type: 'image/png' });
@@ -318,16 +337,16 @@ export default function ResultScreen({
           title: 'FaceRest',
           text: shareCardSlogan.join(' '),
         });
-        setExportMessage('Share sheet opened.');
+        setExportMessage(t('share.sheetOpened'));
       } else {
         downloadBlob(blob, shareCardFilename);
-        setExportMessage('This browser cannot open the share sheet directly. Share Card downloaded instead.');
+        setExportMessage(t('share.sheetUnavailable'));
       }
     } catch (error) {
       if (error?.name === 'AbortError') {
-        setExportMessage('Share cancelled.');
+        setExportMessage(t('share.cancelled'));
       } else {
-        setExportMessage('Sharing was not available here. Try downloading the Share Card instead.');
+        setExportMessage(t('share.failed'));
       }
     } finally {
       setIsExporting(false);
@@ -338,19 +357,19 @@ export default function ResultScreen({
     <div className="result-history-overlay">
       <section
         className="result-history-modal"
-        aria-label="Result history"
+        aria-label={t('result.historyAria')}
         role="dialog"
         aria-modal="true"
       >
         <div
           className="result-carousel"
-          aria-label="Result cards"
+          aria-label={t('result.cardsAria')}
           onTouchStart={(event) => setCarouselTouchStartX(event.touches[0].clientX)}
           onTouchEnd={handleCarouselTouchEnd}
           onTouchCancel={() => setCarouselTouchStartX(null)}
         >
           <div
-            className={`result-challenge-grid ${isHistoryOpen && isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
+            className={`result-challenge-grid ${isCardLayoutAnimationActive ? 'is-card-layout-entering' : ''}`}
             key={cardLayoutAnimationKey}
           >
             <div
@@ -363,6 +382,7 @@ export default function ResultScreen({
                   slogan={shareCardSlogan}
                   mascot={shareCardMascot}
                   photos={shareCardPhotos}
+                  coverPhoto={historyCoverPhoto}
                   isExporting={isExporting}
                   onDownload={downloadShareCard}
                   onShare={shareShareCard}
@@ -389,7 +409,7 @@ export default function ResultScreen({
               onClick={isCardLayoutAnimationActive ? undefined : () => bringCardToFront(2)}
             >
               <div className="result-card-content" inert={cardOrder.indexOf(2) !== 0}>
-                <ResultLeaderboard rows={leaderboard} programDay={programDay} score={score} topPercent={topPercent} isLoading={isLeaderboardLoading} />
+                <ResultLeaderboard rows={displayLeaderboard} programDay={programDay} score={score} isLoading={isLeaderboardLoading} />
               </div>
             </div>
           </div>
@@ -402,12 +422,12 @@ export default function ResultScreen({
 
   return (
     <section className="screen result-screen reset-result-screen result-dashboard-screen">
-      <main className="result-challenge-shell" aria-label="Face Reset challenge result">
+      <main className="result-challenge-shell" aria-label={t('result.shellAria')}>
         <header className="result-challenge-heading">
           <div className="result-challenge-heading-row">
-            <h1>Face Reset Challenge</h1>
+            <h1>{t('plan.hero')}</h1>
             <button className="result-today-plan-action" type="button" onClick={onTodayPlan}>
-              TODAY&apos;S PLAN
+              {t('result.todaysPlan')}
             </button>
           </div>
           {daySelector}
@@ -416,9 +436,9 @@ export default function ResultScreen({
         <button
           className={`result-history-fab${isHistoryOpen ? ' is-active' : ''}`}
           type="button"
-          aria-label={isHistoryOpen ? 'Close history' : 'View history'}
+          aria-label={t(isHistoryOpen ? 'result.historyClose' : 'result.historyOpen')}
           aria-expanded={isHistoryOpen}
-          data-label={isHistoryOpen ? 'Close history' : 'View history'}
+          data-label={t(isHistoryOpen ? 'result.historyClose' : 'result.historyOpen')}
           onClick={toggleHistory}
         >
           {isHistoryOpen ? <CloseIcon /> : <HistoryIcon />}
@@ -434,22 +454,22 @@ export default function ResultScreen({
               <button
                 className="result-name-entry-close"
                 type="button"
-                aria-label="Close name entry"
+                aria-label={t('result.name.closeAria')}
                 onClick={() => setIsNameEntryOpen(false)}
               >
                 ×
               </button>
               <header className="result-name-entry-heading">
-                <h2>You&apos;re in Top 10!</h2>
-                <p>Enter a display name to appear on leaderboard.</p>
+                <h2>{t('result.name.title')}</h2>
+                <p>{t('result.name.body')}</p>
               </header>
               <div className={`result-name-entry-field${nameError ? ' is-error' : ''}`}>
                 <input
                   id="leaderboard-display-name"
-                  aria-label="Display name"
+                  aria-label={t('result.name.fieldAria')}
                   value={nameDraft}
                   maxLength={24}
-                  placeholder="Enter your name"
+                  placeholder={t('result.name.placeholder')}
                   onChange={(event) => {
                     setNameDraft(event.target.value);
                     setNameError('');
@@ -460,7 +480,7 @@ export default function ResultScreen({
                 {nameError && <small className="result-name-entry-error">{nameError}</small>}
               </div>
               <button className="result-name-entry-submit" type="submit" disabled={isNameSaving}>
-                {isNameSaving ? 'Saving...' : 'Join the Leaderboard'}
+                {t(isNameSaving ? 'result.name.saving' : 'result.name.submit')}
               </button>
             </form>
           </div>
@@ -491,7 +511,6 @@ function ResultRadarPanel({ result }) {
     }, 2600);
     return () => window.clearInterval(timer);
   }, []);
-
   const pointFor = (value, index, extraRadius = 0) => {
     const angle = axes[index] * Math.PI / 180;
     const distance = extraRadius || (Math.max(0, Math.min(100, value)) / 100) * radius;
@@ -612,24 +631,25 @@ function ResultRadarPortrait({ snapshots, activeIndex, rotationDegrees }) {
 }
 
 function ResultLeaderboard({ rows, programDay, score, isLoading }) {
+  const { t } = useI18n();
+
   return (
-    <section className="result-leaderboard-card" aria-label={`Day ${programDay} leaderboard`}>
+    <section className="result-leaderboard-card" aria-label={t('result.leaderboardAria', { day: programDay })}>
       <div className="result-leaderboard-summary">
-        <p className="result-eyebrow">DAY {programDay} · SCOREBOARD</p>
+        <p className="result-eyebrow">{t('result.scoreboard', { day: programDay })}</p>
         <div className="result-score-display">
           <strong>{score}</strong>
-          <span>/ 300</span>
+          <span>{t('result.outOf')}</span>
         </div>
         <div className="result-delta-row">
-          <b><PersonalBestIcon />NEW PERSONAL BEST</b>
+          <b><PersonalBestIcon />{t('result.personalBest')}</b>
         </div>
       </div>
       <ol>
         {rows.slice(0, 10).map((row) => {
-          const isUser = row.me || row.isUser;
           const className = [
             row.rank <= 3 ? `rank-${row.rank}` : '',
-            isUser ? 'is-user' : '',
+            row.me ? 'is-user' : '',
           ].filter(Boolean).join(' ');
 
           return (
@@ -642,24 +662,38 @@ function ResultLeaderboard({ rows, programDay, score, isLoading }) {
           );
         })}
         {!isLoading && !rows.length && (
-          <li className="result-leaderboard-empty">Complete all 3 sessions to be the first on Day {programDay}.</li>
+          <li className="result-leaderboard-empty">{t('result.leaderboardEmpty', { day: programDay })}</li>
         )}
-        {isLoading && <li className="result-leaderboard-empty">Loading leaderboard...</li>}
+        {isLoading && <li className="result-leaderboard-empty">{t('result.leaderboardLoading')}</li>}
       </ol>
     </section>
   );
 }
 
-function ResultShareCard({ cardRef, slogan, mascot, photos, isExporting, onDownload, onShare }) {
+function ResultShareCard({ cardRef, slogan, mascot, photos, coverPhoto, isExporting, onDownload, onShare }) {
+  const { t } = useI18n();
+
   return (
     <section className="result-summary-card">
-      <ShareCardPreview ref={cardRef} slogan={slogan} mascot={mascot} photos={photos} />
-      <div className="result-toolbar result-card-toolbar" aria-label="Result tools">
-        <button onClick={onDownload} disabled={isExporting} type="button" aria-label="Download"><DownloadIcon /></button>
-        <button onClick={onShare} disabled={isExporting} type="button" aria-label="Share"><ShareIcon /></button>
+      <ShareCardPreview ref={cardRef} slogan={slogan} mascot={mascot} photos={photos} coverPhoto={coverPhoto} />
+      <div className="result-toolbar result-card-toolbar" aria-label={t('result.toolsAria')}>
+        <button onClick={onDownload} disabled={isExporting} type="button" aria-label={t('result.downloadAria')}><DownloadIcon /></button>
+        <button onClick={onShare} disabled={isExporting} type="button" aria-label={t('result.shareAria')}><ShareIcon /></button>
       </div>
     </section>
   );
+}
+
+// History shows a single photo, chosen deterministically as the earliest session
+// of that day that still has a locally persisted capture, so the same past day
+// always renders the same face. Returns null when nothing is stored, which keeps
+// the existing IP-only (mascot) fallback.
+function getHistoryCoverPhoto(sceneResults = [], photos = []) {
+  const photoByScene = new Map(photos.map((photo) => [photo.sceneId, photo]));
+  const sessionIndex = (sceneResults || []).findIndex((entry) => photoByScene.has(entry.sceneId));
+  if (sessionIndex === -1) return null;
+
+  return { ...photoByScene.get(sceneResults[sessionIndex].sceneId), sessionIndex };
 }
 
 function RestartIcon() {
@@ -709,27 +743,10 @@ function CloseIcon() {
   );
 }
 
-function TrophyIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 960 960">
-      <path d="M280 880v-80h160V676q-49-11-87.5-41.5T296 556q-75-9-125.5-65.5T120 360v-40q0-33 23.5-56.5T200 240h80v-80h400v80h80q33 0 56.5 23.5T840 320v40q0 74-50.5 130.5T664 556q-18 48-56.5 78.5T520 676v124h160v80H280Zm0-408V320h-80v40q0 38 22 68.5t58 43.5Zm400 0q36-13 58-43.5t22-68.5v-40h-80v152Z" />
-    </svg>
-  );
-}
-
-function UpIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M12 19V6" />
-      <path d="m6 11.5 6-6 6 6" />
-    </svg>
-  );
-}
-
 function PersonalBestIcon() {
   return (
-    <svg aria-hidden="true" height="12px" viewBox="0 -960 960 960" width="12px" fill="#1f1f1f">
-      <path d="m320-240 160-122 160 122-60-198 160-114H544l-64-208-64 208H220l160 114-60 198ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z" />
+    <svg aria-hidden="true" height="12px" width="12px" viewBox="0 -960 960 960" fill="currentColor">
+      <path d="M320-240l160-122 160 122-60-198 160-114H544l-64-208-64 208H220l160 114-60 198ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z" />
     </svg>
   );
 }
@@ -754,11 +771,6 @@ function getRadarAxisPoint(index, total, radius) {
     x: 210 + Math.cos(angle) * radius,
     y: 210 + Math.sin(angle) * radius,
   };
-}
-
-function getTopPercent(score) {
-  const normalizedScore = getScorePercent(score);
-  return Math.max(3, Math.min(18, Math.round(24 - normalizedScore * 0.2)));
 }
 
 function getScorePercent(score) {
