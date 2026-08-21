@@ -216,7 +216,7 @@ export const zhHant = {
   // everything written to history or Supabase stay untouched.
   scenes: {
     whaleDream: {
-      title: '鯨魚張嘴嘴',
+      title: '鯨魚開飯了',
       faceArea: '嘴部',
       description: '輕輕張開嘴巴並穩穩撐住，小魚就會游進鯨魚嘴裡。',
       tips: [
@@ -236,7 +236,7 @@ export const zhHant = {
       ],
     },
     templeGarden: {
-      title: '按按小雲朵',
+      title: '雲朵放鬆術',
       faceArea: '太陽穴',
       description: '兩根食指放在太陽穴上，慢慢按下再放開。',
       tips: [
@@ -256,7 +256,7 @@ export const zhHant = {
       ],
     },
     bubbleGumBunny: {
-      title: '吹爆泡泡糖',
+      title: '兔子吹氣球',
       faceArea: '臉頰',
       description: '先放鬆一下讓兔兔記住你的臉，接著鼓起臉頰撐到泡泡爆開。',
       tips: [
@@ -266,7 +266,7 @@ export const zhHant = {
       ],
     },
     lemonSqueeze: {
-      title: '擠擠檸檬汁',
+      title: '壓榨檸檬汁',
       faceArea: '面中',
       description: '兩根食指放在鼻樑兩側，輕輕往內按再放開。',
       tips: [
@@ -276,7 +276,7 @@ export const zhHant = {
       ],
     },
     penguinFishing: {
-      title: '挑眉魚上鉤',
+      title: '企鵝等上鉤',
       faceArea: '眉部',
       description: '輕輕挑起兩邊眉毛並穩穩撐住，把魚線從冰洞裡拉上來。',
       tips: [

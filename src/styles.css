@@ -44,6 +44,17 @@ body:has(.welcome-v3) {
   overscroll-behavior-y: none;
 }
 
+/* The daily plan owns exactly one scroll container: the session list inside the
+   plan panel. Pinning the document here removes the outer scroller entirely
+   rather than hiding its scrollbar, so a short/mobile viewport can never make
+   the window the primary scroller. */
+html:has(.challenge-v3-screen),
+body:has(.challenge-v3-screen) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+
 button {
   border: 0;
   font: inherit;
@@ -5465,6 +5476,9 @@ h1 {
   border: 0;
   border-radius: 26px;
   padding: 14px;
+  /* iOS Safari paints unstyled button text in the native accent blue, so STAY
+     (which has no colour of its own) must inherit an explicit dark value here. */
+  color: #1a1a1a;
   font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
@@ -14169,10 +14183,10 @@ h1 {
   white-space: nowrap;
 }
 
-/* Keep leaderboard rows at their designed size when the FAB card stack is viewed
-   in a short viewport. */
+/* Match the completed plan card's viewport-bounded height in the FAB stack, so
+   the three stacked cards share one full-screen measure. */
 .result-history-modal .result-leaderboard-card {
-  height: min(734px, calc(100svh - (2 * clamp(48px, 12vh, 144px))));
+  height: min(596px, calc(100svh - clamp(144px, 19svh, 184px)));
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
@@ -14358,9 +14372,10 @@ h1 {
 
 /* Face Reset Challenge: designer v3 plan screen. */
 .app-shell:has(.challenge-v3-screen) {
-  min-height: 100svh;
+  height: 100svh;
+  min-height: 0;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
   background: #f7f7f7;
 }
 
@@ -14374,7 +14389,7 @@ h1 {
   align-items: center;
   justify-content: center;
   padding: clamp(24px, 4svh, 52px) clamp(16px, 4vw, 36px);
-  overflow: auto;
+  overflow: hidden;
   color: #1a1a1a;
   background: #f7f7f7;
 }
@@ -14388,6 +14403,13 @@ h1 {
   align-items: center;
   margin: auto;
   text-align: center;
+}
+
+/* The hero and the day strip keep their natural size; only the plan panel gives
+   ground, and inside it only the session list scrolls. */
+.challenge-v3-shell > .challenge-v3-hero,
+.challenge-v3-shell > .challenge-v3-days {
+  flex: 0 0 auto;
 }
 
 .challenge-v3-hero h1 {
@@ -14511,6 +14533,25 @@ h1 {
   background: #ffffff;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
   text-align: left;
+}
+
+/* On the plan screen the panel is sized by what is left over after the hero and
+   the day strip, instead of a fixed viewport subtraction that can overshoot on
+   short viewports and hand the scroll back to the window. Matched by direct
+   child only: the history overlay renders a second copy of this card
+   (.result-focus-card) inside the same screen, and that one must keep the fixed
+   measure the stacked leaderboard card is matched against. */
+.challenge-v3-shell > .challenge-v3-plan {
+  max-height: none;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* Header and start button hold their size so the session list is the only part
+   that gives, and therefore the only scroller. */
+.challenge-v3-shell > .challenge-v3-plan > .challenge-v3-plan-header,
+.challenge-v3-shell > .challenge-v3-plan > .challenge-v3-start {
+  flex: 0 0 auto;
 }
 
 .challenge-v3-plan-header {
@@ -15213,19 +15254,23 @@ h1 {
 
 /* Overview v3 plan layout. */
 /* The screen fills the viewport edge to edge and the shell carries the gutters,
-   so the plan card can centre itself against the full width at any breakpoint. */
+   so the plan card can centre itself against the full width at any breakpoint.
+   Both are pinned to exactly one viewport (not just `min-height`) so neither can
+   become a scroll container: the session list inside the plan panel is the only
+   scroller on this screen. */
 .challenge-v3-screen.today-plan-screen {
   display: block;
   width: 100%;
-  min-height: 100svh;
+  height: 100svh;
+  min-height: 0;
   padding: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   overscroll-behavior-y: none;
 }
 
 .challenge-v3-shell {
-  min-height: 100svh;
+  height: 100svh;
+  min-height: 0;
   width: 100%;
   max-width: none;
   margin: 0;
