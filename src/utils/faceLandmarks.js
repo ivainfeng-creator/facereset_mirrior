@@ -293,7 +293,7 @@ export function extractFaceFeatures(landmarkData, displayRect, options = {}) {
         mouth,
         faceScale,
       }),
-      // Raw blendshape passthrough for Bubble Gum Bunny's calibrated cheek
+      // Raw blendshape passthrough for Bunny Puff's calibrated cheek
       // puff. Additive - the derived ratios above are unchanged.
       cheekPuff: clamp(blendshapes.cheekPuff || 0, 0, 1),
       mouthPucker: clamp(blendshapes.mouthPucker || 0, 0, 1),

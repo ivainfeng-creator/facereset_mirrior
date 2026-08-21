@@ -124,16 +124,16 @@ function getSceneComment(sceneId) {
     return '今天的 Lemon Squeeze 完成！雙側擠壓很同步，Lemon Soda 咕嚕咕嚕冒泡，還被小角色偷喝了一口。';
   }
   if (sceneId === SCENE_IDS.bubbleGumBunny) {
-    return '今天的 Bubble Gum Bunny 完成！鼓臉節奏很穩，粉紅泡泡也越吹越可愛。';
+    return '今天的 Bunny Puff 完成！鼓臉節奏很穩，粉紅泡泡也越吹越可愛。';
   }
   if (sceneId === SCENE_IDS.flowerCollector) {
-    return '今天的 Popcorn Collector 完成！鼻子輕輕一皺，爆米花都被吸進來了。';
+    return '今天的 Popcorn Sniff 完成！鼻子輕輕一皺，爆米花都被吸進來了。';
   }
   if (sceneId === SCENE_IDS.penguinFishing) {
     return '今天的 Penguin Fishing 完成！雙眉抬得又穩又輕，企鵝也順利釣到一桶魚。';
   }
   if (sceneId === SCENE_IDS.whaleDream) {
-    return '今天的 Whale Mouth 完成！張嘴節奏很穩，小魚順著海流游進鯨魚嘴裡。';
+    return "今天的 Whale's Lunch 完成！張嘴節奏很穩，小魚順著海流游進鯨魚嘴裡。";
   }
   if (sceneId === SCENE_IDS.whaleDream2) {
     return '今天的 Whale Dream 2 完成！張嘴節奏很穩，河豚夢境也被你慢慢喚醒了。';

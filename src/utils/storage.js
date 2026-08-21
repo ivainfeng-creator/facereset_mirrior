@@ -562,11 +562,11 @@ export function buildLeaderboard(habit = loadHabit()) {
   const totalSessions = habit.totalSessions || history.length || 0;
   const rows = [
     { name: 'You', score, detail: `${streak || 0} day streak · ${sceneLabel}`, isUser: true },
-    { name: 'Soft Orbit', score: 96, detail: 'Whale Mouth' },
+    { name: 'Soft Orbit', score: 96, detail: "Whale's Lunch" },
     { name: 'Puffer Club', score: 91, detail: 'Whale Dream 2' },
     { name: 'Face Garden', score: 88, detail: 'Cloud Garden' },
-    { name: 'Bubble Hero', score: 84, detail: 'Bubble Gum Bunny' },
-    { name: 'Popcorn Crew', score: 79, detail: 'Popcorn Collector' },
+    { name: 'Bubble Hero', score: 84, detail: 'Bunny Puff' },
+    { name: 'Popcorn Crew', score: 79, detail: 'Popcorn Sniff' },
     { name: 'Soda Sprout', score: 74, detail: 'Lemon Squeeze' },
   ].sort((a, b) => b.score - a.score);
 

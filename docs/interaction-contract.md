@@ -56,9 +56,9 @@ Every playable scene should consume the same interaction contract, regardless of
 
 | Action type | Primary control | Current scenes | Detection source |
 | --- | --- | --- | --- |
-| `mouth_open` | `controls.mouthOpen` | Whale Mouth, Whale Dream 2 | Face landmarks |
+| `mouth_open` | `controls.mouthOpen` | Whale's Lunch, Whale Dream 2 | Face landmarks |
 | `nose_sniff` | `controls.noseWrinkle` | Flower Collector | Face landmarks |
-| `cheek_puff` | `controls.cheekPuff` | Bubble Gum Bunny | Face landmarks |
+| `cheek_puff` | `controls.cheekPuff` | Bunny Puff | Face landmarks |
 | `dual_press` | Average of `leftPress` and `rightPress` | Cloud Garden, Lemon Squeeze | Hand landmarks + face targets |
 
 ## Phase meanings

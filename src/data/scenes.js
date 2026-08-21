@@ -37,7 +37,7 @@ const sceneDefinitions = [
     id: SCENE_IDS.whaleDream,
     order: 1,
     dailyOrder: 1,
-    title: 'Whale Mouth',
+    title: "Whale's Lunch",
     subtitle: 'Open wide and guide little fish into the whale.',
     action: 'Mouth opening',
     area: 'Mouth + jaw',
@@ -67,7 +67,7 @@ const sceneDefinitions = [
     planArt: '/assets/landing/bluecloud_openmouth_1.png',
     practice: {
       renderer: 'whale',
-      title: 'How to Play Whale Mouth',
+      title: "How to Play Whale's Lunch",
       description: 'Open your mouth gently and hold it steady so little fish can swim into the whale.',
       tips: ['Keep your face centered.', 'Open your mouth gently and hold it steady.', 'Let the ocean scene react to your breath.'],
       effectTitle: 'Guide the fish',
@@ -146,7 +146,7 @@ const sceneDefinitions = [
     id: SCENE_IDS.flowerCollector,
     order: 4,
     dailyOrder: 3,
-    title: 'Popcorn Collector',
+    title: 'Popcorn Sniff',
     subtitle: 'Inhale and gather the popcorn.',
     action: 'Nose sniff',
     area: 'Nose',
@@ -177,7 +177,7 @@ const sceneDefinitions = [
     planArt: '/assets/landing/bluecloud_inhale_1.png',
     practice: {
       renderer: 'popcorn',
-      title: 'How to Play Popcorn Collector',
+      title: 'How to Play Popcorn Sniff',
       description: 'Wrinkle your nose gently, then relax and repeat.',
       tips: ['Keep your face centered.', 'Scrunch your nose gently.', 'Each good inhale gathers more popcorn.'],
       effectTitle: 'Gather popcorn',
@@ -188,7 +188,7 @@ const sceneDefinitions = [
   {
     id: SCENE_IDS.bubbleGumBunny,
     order: 5,
-    title: 'Bubble Gum Bunny',
+    title: 'Bunny Puff',
     subtitle: 'Puff your cheeks and grow a soft pink bubble.',
     action: 'Cheek puff',
     area: 'Cheeks',
@@ -226,7 +226,7 @@ const sceneDefinitions = [
     planArt: '/assets/bluecloud_below.png',
     practice: {
       renderer: 'bunny',
-      title: 'How to Play Bubble Gum Bunny',
+      title: 'How to Play Bunny Puff',
       description: 'Relax for a moment while bunny learns your neutral face, then hold a cheek puff until the bubble pops.',
       tips: ['Keep your lips gently closed.', 'Puff both cheeks and hold steady.', 'A full bubble pops automatically.'],
       effectTitle: 'Grow the bubble',

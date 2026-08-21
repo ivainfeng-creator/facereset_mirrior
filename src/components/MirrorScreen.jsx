@@ -11,7 +11,7 @@ import { playSceneEffect } from '../utils/audioManager.js';
 import { createCalibratedCheekPuffState, updateCalibratedCheekPuff } from '../utils/interactionSignal.js';
 import { useI18n } from '../i18n/context.js';
 
-// Bubble Gum Bunny learns a neutral cheek baseline during the scan. It must
+// Bunny Puff learns a neutral cheek baseline during the scan. It must
 // never be able to hold the gate open: if it has not converged by this point
 // the scan proceeds uncalibrated and the scene calibrates in-place instead.
 const CHEEK_PUFF_CALIBRATION_MAX_WAIT_MS = 4000;
@@ -43,7 +43,7 @@ export default function MirrorScreen({ stream, isDemoMode, selectedScene, onChee
   const [isScanComplete, setIsScanComplete] = useState(false);
   const [isCheekPuffCalibrated, setIsCheekPuffCalibrated] = useState(false);
   const [hasCheekPuffCalibrationTimedOut, setHasCheekPuffCalibrationTimedOut] = useState(false);
-  // Scoped to Bubble Gum Bunny. Every other scene skips this entirely, and demo
+  // Scoped to Bunny Puff. Every other scene skips this entirely, and demo
   // mode never gates on it.
   const requiresCheekPuffCalibration = !isDemoMode
     && getSceneById(selectedScene).interaction === 'cheekPuff';
